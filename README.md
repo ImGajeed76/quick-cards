@@ -40,6 +40,15 @@ Double-sided 2x4 grid with cut guides. Print, fold, study.
 
 ## Install
 
+### From a release
+
+1. Download the latest `quick-cards-v*.zip` from [Releases](https://github.com/ImGajeed76/quick-cards/releases)
+2. Unzip the archive
+3. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**
+4. Select the unzipped folder
+
+### From source
+
 1. Clone the repo and install dependencies:
    ```bash
    git clone https://github.com/ImGajeed76/quick-cards.git
@@ -69,6 +78,17 @@ bun run dev
 # Generate test PDFs (output: test/output/)
 bun run test:pdf
 ```
+
+## Releasing
+
+Pushing a version tag triggers a GitHub Actions workflow that builds the extension, zips it, and creates a GitHub Release with auto-generated notes.
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+The manifest version is automatically patched to match the tag. Pre-release tags (e.g. `v2.0.0-beta.1`) are marked as pre-releases.
 
 ## Tech stack
 
