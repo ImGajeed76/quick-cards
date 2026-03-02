@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickCards - Dev</title>
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .popup-frame {
+      width: 340px;
+      margin: 40px auto;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid oklch(1 0 0 / 10%);
+    }
+  </style>
+</head>
+<body class="bg-background min-h-screen p-8">
+
+  <!-- ========== MAIN STATE ========== -->
+  <p class="text-muted-foreground text-center mb-6 text-xs tracking-wide uppercase">Main State</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4 space-y-3" x-data="{ preview: false }">
+
+      <!-- Header: count + copy -->
+      <div class="flex items-center justify-between" x-data="{ copied: false }">
+        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold text-base tabular-nums">42</strong> cards</span>
+        <button
+          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+          class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 w-20"
+          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+          :disabled="copied"
+          x-text="copied ? 'Copied' : 'Copy'"
+        ></button>
+      </div>
+
+      <!-- Preview (collapsible) -->
+      <div>
+        <button
+          @click="preview = !preview"
+          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground select-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+        >
+          <span class="inline-flex transition-transform duration-200" :style="preview && 'transform: rotate(90deg)'"><i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-60"></i></span>
+          Preview
+        </button>
+        <div x-show="preview" x-collapse x-cloak class="mt-2 max-h-36 overflow-y-auto rounded-md border border-border custom-scrollbar">
+          <table class="w-full text-xs">
+            <tbody>
+              <tr class="border-b border-border last:border-0">
+                <td class="px-2.5 py-1.5 text-foreground font-medium w-[40%] max-w-0 truncate">Hola</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Hello</td>
+              </tr>
+              <tr class="border-b border-border last:border-0 bg-muted/30">
+                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Adios</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Goodbye</td>
+              </tr>
+              <tr class="border-b border-border last:border-0">
+                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Gracias</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Thank you</td>
+              </tr>
+              <tr class="border-b border-border last:border-0 bg-muted/30">
+                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Donaudampfschifffahrtsgesellschaftskapitän</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Danube steamship company captain</td>
+              </tr>
+              <tr class="border-b border-border last:border-0">
+                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Buenos dias</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Good morning, how are you doing today my friend?</td>
+              </tr>
+              <tr class="border-b border-border last:border-0 bg-muted/30">
+                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Cuanto cuesta?</td>
+                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">How much does it cost?</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Export options button -->
+      <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+        <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
+        Export options
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ========== EXPORT SCREEN ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Export Screen</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4 space-y-4">
+
+      <!-- Back header -->
+      <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
+        <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+        Back
+      </button>
+
+      <!-- Separators -->
+      <div>
+        <div class="flex gap-2">
+
+          <!-- Term-Def combobox -->
+          <div class="flex-1 space-y-1" x-data="combobox({ value: 'Tab', presets: ['Tab', ',', ':', '\u2192'] })">
+            <label class="text-xs text-muted-foreground">Term-Def separator</label>
+            <div class="relative">
+              <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background" :class="open && 'ring-2 ring-ring ring-offset-2'">
+                <input
+                  type="text"
+                  x-model="value"
+                  @focus="open = true"
+                  @keydown.escape="open = false"
+                  class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                  placeholder="e.g. |"
+                />
+                <button
+                  type="button"
+                  @click="open = !open"
+                  class="flex h-full items-center px-2 text-muted-foreground hover:text-foreground transition-colors duration-150"
+                  aria-label="Show presets"
+                >
+                  <span class="inline-flex transition-transform duration-200" :style="open && 'transform: rotate(180deg)'"><i data-lucide="chevron-down" class="w-4 h-4 opacity-50"></i></span>
+                </button>
+              </div>
+              <div
+                x-show="open"
+                x-cloak
+                @click.outside="open = false"
+                x-transition:enter="transition ease-out duration-100"
+                x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100"
+                x-transition:leave="transition ease-in duration-75"
+                x-transition:leave-start="opacity-100 scale-100"
+                x-transition:leave-end="opacity-0 scale-95"
+                class="absolute z-50 mt-1 w-full rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1"
+              >
+                <template x-for="preset in presets" :key="preset">
+                  <button
+                    type="button"
+                    @click="value = preset; open = false"
+                    class="flex w-full items-center justify-between rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span x-text="preset"></span>
+                    <svg x-show="value === preset" class="w-4 h-4 text-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards combobox -->
+          <div class="flex-1 space-y-1" x-data="combobox({ value: 'Newline', presets: ['Newline', 'Double newline', ';'] })">
+            <label class="text-xs text-muted-foreground">Card separator</label>
+            <div class="relative">
+              <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background" :class="open && 'ring-2 ring-ring ring-offset-2'">
+                <input
+                  type="text"
+                  x-model="value"
+                  @focus="open = true"
+                  @keydown.escape="open = false"
+                  class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                  placeholder="e.g. --"
+                />
+                <button
+                  type="button"
+                  @click="open = !open"
+                  class="flex h-full items-center px-2 text-muted-foreground hover:text-foreground transition-colors duration-150"
+                  aria-label="Show presets"
+                >
+                  <span class="inline-flex transition-transform duration-200" :style="open && 'transform: rotate(180deg)'"><i data-lucide="chevron-down" class="w-4 h-4 opacity-50"></i></span>
+                </button>
+              </div>
+              <div
+                x-show="open"
+                x-cloak
+                @click.outside="open = false"
+                x-transition:enter="transition ease-out duration-100"
+                x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100"
+                x-transition:leave="transition ease-in duration-75"
+                x-transition:leave-start="opacity-100 scale-100"
+                x-transition:leave-end="opacity-0 scale-95"
+                class="absolute z-50 mt-1 w-full rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1"
+              >
+                <template x-for="preset in presets" :key="preset">
+                  <button
+                    type="button"
+                    @click="value = preset; open = false"
+                    class="flex w-full items-center justify-between rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <span x-text="preset"></span>
+                    <svg x-show="value === preset" class="w-4 h-4 text-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Export actions (stacked) -->
+      <div class="space-y-2">
+        <button
+          x-data="{ copied: false }"
+          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+          class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9"
+          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+          :disabled="copied"
+        >
+          <svg x-show="copied" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-50" x-transition:enter-end="opacity-100 scale-100" class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <span x-text="copied ? 'Copied' : 'Copy to clipboard'"></span>
+        </button>
+        <div class="flex items-center gap-3 py-1">
+          <div class="h-px flex-1 bg-border"></div>
+          <span class="text-xs text-muted-foreground">Download as file</span>
+          <div class="h-px flex-1 bg-border"></div>
+        </div>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          TXT
+        </button>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          CSV
+        </button>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          JSON
+        </button>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          PDF &mdash; Vocab list
+        </button>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          PDF &mdash; Flashcards
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== ERROR STATE ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Error State</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4">
+      <div class="flex flex-col items-center py-8 gap-3">
+        <i data-lucide="circle-alert" class="w-6 h-6 text-muted-foreground" aria-hidden="true"></i>
+        <p class="text-sm text-muted-foreground">Open a Quizlet set to get started</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== LOADING STATE ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Loading State</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4">
+      <div class="flex items-center justify-center py-8 gap-2">
+        <i data-lucide="loader-circle" class="h-4 w-4 animate-spin text-primary" aria-hidden="true"></i>
+        <span class="text-sm text-muted-foreground">Scanning cards...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== FLOATING BANNER (auto-inject on Quizlet set page) ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Floating Banner</p>
+  <div class="fixed bottom-6 right-6">
+    <div
+      x-data="{ copied: false, show: false }"
+      x-init="setTimeout(() => show = true, 300)"
+      x-show="show"
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0 translate-y-2"
+      x-transition:enter-end="opacity-100 translate-y-0"
+      class="inline-flex items-center gap-3 rounded-lg border border-border bg-card text-card-foreground px-4 py-2 shadow-md"
+    >
+      <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
+      <div class="h-4 w-px bg-border"></div>
+      <button
+        @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-8 w-18"
+        :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+        :disabled="copied"
+        x-text="copied ? 'Copied' : 'Copy'"
+      ></button>
+      <button
+        class="inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-8 w-8"
+        aria-label="More export options"
+      >
+        <i data-lucide="ellipsis" class="w-4 h-4" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+
+  <script type="module">
+    import Alpine from 'alpinejs';
+    import collapse from '@alpinejs/collapse';
+    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis } from 'lucide';
+
+    // Register Alpine plugins
+    Alpine.plugin(collapse);
+
+    // Combobox component
+    Alpine.data('combobox', ({ value, presets }) => ({
+      value,
+      presets,
+      open: false,
+    }));
+
+    // Expose on window and start
+    window.Alpine = Alpine;
+    Alpine.start();
+
+    // Render Lucide icons once after Alpine has processed the DOM
+    requestAnimationFrame(() => {
+      createIcons({
+        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis },
+        attrs: { 'stroke-width': 2 },
+      });
+    });
+  </script>
+</body>
+</html>
