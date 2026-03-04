@@ -8,6 +8,7 @@ Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all 
 
 ## Features
 
+- **No login required** — fetches cards directly via Quizlet's web API, no account needed
 - **Instant copy** — one click from the floating banner or popup
 - **Export formats** — TXT, CSV, JSON, PDF vocab list, PDF printable flashcards
 - **Customizable separators** — pick preset or type your own for term-definition and card separators
@@ -89,6 +90,10 @@ git push origin v1.1.0
 ```
 
 The manifest version is automatically patched to match the tag. Pre-release tags (e.g. `v2.0.0-beta.1`) are marked as pre-releases.
+
+## How it works
+
+QuickCards fetches flashcard data directly from Quizlet's web API (`/webapi/3.4/studiable-item-documents`) — no login or account required. It automatically paginates to retrieve all cards, even for large sets. If the API is unavailable, it falls back to scraping Quizlet's embedded `__NEXT_DATA__` JSON.
 
 ## Tech stack
 

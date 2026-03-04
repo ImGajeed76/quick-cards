@@ -1,6 +1,6 @@
 import type { Flashcard } from "../lib/types";
 
-// ── Types for Quizlet's embedded JSON ───────────────────
+// ── Types ───────────────────────────────────────────────
 
 interface StudiableItem {
   cardSides: Array<{
@@ -16,15 +16,115 @@ interface ScrapedData {
   cards: Flashcard[];
 }
 
-// ── Scraper ─────────────────────────────────────────────
+// ── Quizlet page detection ──────────────────────────────
+
+/**
+ * Check if this is a Quizlet set's main page (not a learning mode).
+ * Main page URL patterns:
+ *   quizlet.com/{id}/{slug}           — US/default
+ *   quizlet.com/{cc}/{id}/{slug}      — international (e.g. /ch/, /de/, /fr/)
+ * Learning modes are excluded:
+ *   quizlet.com/{id}/{slug}/learn, /test, /match, /flashcards, etc.
+ */
+function isQuizletSetMainPage(): boolean {
+  const path = window.location.pathname;
+  // Optional 2-letter country code prefix, then /{numeric-id}/{slug}, no further segments
+  const setPagePattern = /^\/(?:[a-z]{2}\/)?(\d+)\/[^/]+\/?$/;
+  return setPagePattern.test(path);
+}
+
+/** Extract the numeric set ID from the current URL, or null if not on a set page. */
+function getSetIdFromUrl(): string | null {
+  const match = window.location.pathname.match(/^\/(?:[a-z]{2}\/)?(\d+)\/[^/]+\/?$/);
+  return match?.[1] ?? null;
+}
+
+// ── API fetcher ─────────────────────────────────────────
+
+const API_BASE = "https://quizlet.com/webapi/3.4";
+const PER_PAGE = 200; // server max is 500, 200 is a safe default
+
+/** Fetch all flashcards for a set via Quizlet's API, handling pagination. */
+async function fetchCardsFromApi(setId: string): Promise<Flashcard[]> {
+  const allCards: Flashcard[] = [];
+  let page = 1;
+  let pagingToken: string | undefined;
+
+  while (true) {
+    const params = new URLSearchParams({
+      "filters[studiableContainerId]": setId,
+      "filters[studiableContainerType]": "1",
+      perPage: String(PER_PAGE),
+      page: String(page),
+    });
+    if (pagingToken) params.set("pagingToken", pagingToken);
+
+    const res = await fetch(`${API_BASE}/studiable-item-documents?${params}`);
+    if (!res.ok) throw new Error(`API returned ${res.status}`);
+
+    const data = await res.json();
+    const resp = data?.responses?.[0];
+    const items: StudiableItem[] = resp?.models?.studiableItem ?? [];
+
+    for (const item of items) {
+      const term = item.cardSides?.[0]?.media?.[0]?.plainText ?? "";
+      const definition = item.cardSides?.[1]?.media?.[0]?.plainText ?? "";
+      if (term || definition) {
+        allCards.push({ term, definition });
+      }
+    }
+
+    const paging = resp?.paging;
+    const total: number = paging?.total ?? 0;
+
+    // No more pages if we've collected everything or this page was short
+    if (allCards.length >= total || items.length < PER_PAGE) break;
+
+    pagingToken = paging?.token;
+    page++;
+  }
+
+  return allCards;
+}
+
+/** Fetch set metadata (title, description) via Quizlet's API. */
+async function fetchSetMetadata(setId: string): Promise<{ title: string; description: string }> {
+  const res = await fetch(`${API_BASE}/sets/${setId}`);
+  if (!res.ok) throw new Error(`Sets API returned ${res.status}`);
+
+  const data = await res.json();
+  const set = data?.responses?.[0]?.models?.set?.[0];
+  return {
+    title: set?.title ?? "Quizlet Set",
+    description: set?.description ?? "",
+  };
+}
+
+/** Primary method: fetch cards + metadata via Quizlet's web API. */
+async function fetchViaApi(setId: string): Promise<ScrapedData | null> {
+  try {
+    const [cards, meta] = await Promise.all([
+      fetchCardsFromApi(setId),
+      fetchSetMetadata(setId),
+    ]);
+    if (cards.length === 0) return null;
+    return { ...meta, cards };
+  } catch (err) {
+    console.warn("[QuickCards] API fetch failed, falling back to scraper:", err);
+    return null;
+  }
+}
+
+// ── Fallback: __NEXT_DATA__ scraper ─────────────────────
 
 /**
  * Scrape flashcard data from Quizlet's embedded __NEXT_DATA__ JSON.
+ * Used as a fallback when the API is unreachable (e.g. rate-limited).
  *
  * Structure:
- *   <script id="__NEXT_DATA__"> → JSON.parse →
- *     props.pageProps.dehydratedReduxStateKey → JSON.parse (double-encoded) →
- *       studyModesCommon.studiableData.studiableItems[] →
+ *   <script id="__NEXT_DATA__"> -> JSON.parse ->
+ *     props.pageProps.dehydratedReduxStateKey -> JSON.parse (double-encoded) ->
+ *       studyModesCommon.studiableData.studiableItems[] ->
  *         cardSides[0].media[0].plainText = term
  *         cardSides[1].media[0].plainText = definition
  *
@@ -53,7 +153,6 @@ function scrapeQuizletData(): ScrapedData | null {
     for (const item of items) {
       const term = item.cardSides?.[0]?.media?.[0]?.plainText ?? "";
       const definition = item.cardSides?.[1]?.media?.[0]?.plainText ?? "";
-      // Skip empty cards
       if (term || definition) {
         cards.push({ term, definition });
       }
@@ -61,7 +160,6 @@ function scrapeQuizletData(): ScrapedData | null {
 
     if (cards.length === 0) return null;
 
-    // Extract title and description
     const setInfo = reduxState?.setPage?.set;
     const title: string = setInfo?.title ?? "Quizlet Set";
     const description: string = setInfo?.description ?? "";
@@ -73,50 +171,55 @@ function scrapeQuizletData(): ScrapedData | null {
   }
 }
 
-// ── Quizlet page detection ──────────────────────────────
-
-/**
- * Check if this is a Quizlet set's main page (not a learning mode).
- * Main page URL patterns:
- *   quizlet.com/{id}/{slug}           — US/default
- *   quizlet.com/{cc}/{id}/{slug}      — international (e.g. /ch/, /de/, /fr/)
- * Learning modes are excluded:
- *   quizlet.com/{id}/{slug}/learn, /test, /match, /flashcards, etc.
- */
-function isQuizletSetMainPage(): boolean {
-  const path = window.location.pathname;
-  // Optional 2-letter country code prefix, then /{numeric-id}/{slug}, no further segments
-  const setPagePattern = /^\/(?:[a-z]{2}\/)?(\d+)\/[^/]+\/?$/;
-  return setPagePattern.test(path);
-}
-
-// ── Cached scraped data ─────────────────────────────────
+// ── Data loading (API first, scraper fallback) ──────────
 
 let cachedData: ScrapedData | null = null;
+let dataPromise: Promise<ScrapedData | null> | null = null;
 
-function getData(): ScrapedData | null {
-  if (!cachedData) {
-    cachedData = scrapeQuizletData();
+/** Load data: try API first, fall back to __NEXT_DATA__ scraping. */
+async function loadData(): Promise<ScrapedData | null> {
+  if (cachedData) return cachedData;
+
+  const setId = getSetIdFromUrl();
+  if (!setId) return null;
+
+  // Try API first
+  const apiData = await fetchViaApi(setId);
+  if (apiData) {
+    cachedData = apiData;
+    return cachedData;
   }
+
+  // Fallback: scrape __NEXT_DATA__
+  cachedData = scrapeQuizletData();
   return cachedData;
+}
+
+/** Get data, starting the fetch if not already in progress. */
+function getData(): Promise<ScrapedData | null> {
+  if (!dataPromise) {
+    dataPromise = loadData();
+  }
+  return dataPromise;
 }
 
 // ── Message listener (for popup) ────────────────────────
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "getCards") {
-    const data = getData();
-    if (data) {
-      sendResponse({
-        title: data.title,
-        description: data.description,
-        cards: data.cards,
-      });
-    } else {
-      sendResponse({ cards: [] });
-    }
+    getData().then((data) => {
+      if (data) {
+        sendResponse({
+          title: data.title,
+          description: data.description,
+          cards: data.cards,
+        });
+      } else {
+        sendResponse({ cards: [] });
+      }
+    });
   }
-  return true;
+  return true; // keep message channel open for async response
 });
 
 // ── Theme tokens (inline, since Tailwind isn't available on Quizlet) ─
@@ -227,7 +330,7 @@ function injectBanner(cardCount: number) {
   copyBtn.addEventListener("click", async () => {
     if (copyBtn.hasAttribute("disabled")) return;
 
-    const data = getData();
+    const data = await getData();
     if (!data?.cards.length) return;
 
     const text = data.cards
@@ -275,12 +378,9 @@ function injectBanner(cardCount: number) {
 // ── Init ─────────────────────────────────────────────────
 
 if (isQuizletSetMainPage()) {
-  // Delay slightly to let Quizlet's client-side hydration complete
-  // so __NEXT_DATA__ is fully populated.
-  setTimeout(() => {
-    const data = getData();
+  getData().then((data) => {
     if (data && data.cards.length > 0) {
       injectBanner(data.cards.length);
     }
-  }, 1000);
+  });
 }
