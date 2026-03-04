@@ -1,6 +1,6 @@
 import Alpine from "@alpinejs/csp";
 import collapse from "@alpinejs/collapse";
-import type { FlashcardSet } from "../lib/types";
+import type { Flashcard, FlashcardSet } from "../lib/types";
 
 // Separator value mappings
 const TERM_SEP_MAP: Record<string, string> = {
@@ -17,10 +17,10 @@ const CARD_SEP_MAP: Record<string, string> = {
 };
 
 // Shared state
-let currentSet: FlashcardSet | null = null;
+let originalSet: FlashcardSet | null = null; // the current tab's set (never mutated)
+let exportSet: FlashcardSet | null = null;   // the set used for export (may be merged)
 let termSepValue = "Tab";
 let cardSepValue = "Newline";
-// exportSource is tracked as an Alpine property on the popup component
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -38,10 +38,10 @@ function sanitize(text: string): string {
 }
 
 function formatCards(): string {
-  if (!currentSet) return "";
+  if (!exportSet) return "";
   const ts = getTermSeparator();
   const cs = getCardSeparator();
-  return currentSet.cards
+  return exportSet.cards
     .map((c) => `${sanitize(c.term)}${ts}${sanitize(c.definition)}`)
     .join(cs);
 }
@@ -86,6 +86,7 @@ interface MergeSetEntry {
   tabId: number;
   title: string;
   cards: number;
+  cardData: Flashcard[];
   checked: boolean;
   current: boolean;
 }
@@ -96,10 +97,12 @@ Alpine.data("popup", () => ({
   preview: false,
   copied: false,
   exportCopied: false,
-  cardCount: 0,
+  cardCount: 0,      // main screen: always originalSet count
+  exportCount: 0,    // export screen: may differ after merge/dedup
   otherSets: [] as MergeSetEntry[],
   mergeSets: [] as MergeSetEntry[],
   exportSource: "main" as "main" | "merge",
+  dedupEnabled: true,
 
   /** Render the merge set list and wire up checkbox listeners. */
   renderMergeList() {
@@ -157,23 +160,66 @@ Alpine.data("popup", () => ({
       container.appendChild(label);
     }
 
+    // Wire up dedup toggle
+    const dedupLabel = (this as any).$refs?.dedupLabel as HTMLElement | undefined;
+    const dedupTrack = (this as any).$refs?.dedupTrack as HTMLElement | undefined;
+    const dedupThumb = (this as any).$refs?.dedupThumb as HTMLElement | undefined;
+
+    if (dedupLabel && dedupTrack && dedupThumb) {
+      const updateToggleUI = () => {
+        if (this.dedupEnabled) {
+          dedupTrack.classList.replace("bg-muted", "bg-primary");
+          dedupThumb.classList.replace("translate-x-0.5", "translate-x-3.5");
+        } else {
+          dedupTrack.classList.replace("bg-primary", "bg-muted");
+          dedupThumb.classList.replace("translate-x-3.5", "translate-x-0.5");
+        }
+      };
+
+      dedupLabel.addEventListener("click", (e) => {
+        e.preventDefault();
+        this.dedupEnabled = !this.dedupEnabled;
+        updateToggleUI();
+        this.updateMergeSummary();
+      });
+
+      updateToggleUI();
+    }
+
     this.updateMergeSummary();
   },
 
-  /** Update the merge summary text and button state. */
+  /** Update the merge summary text, dedup count, and button state. */
   updateMergeSummary() {
-    const selectedCount = this.mergeSets.filter((s: MergeSetEntry) => s.checked).length;
-    const selectedCards = this.mergeSets
-      .filter((s: MergeSetEntry) => s.checked)
-      .reduce((sum: number, s: MergeSetEntry) => sum + s.cards, 0);
+    const selected = this.mergeSets.filter((s: MergeSetEntry) => s.checked);
+    const selectedCount = selected.length;
+    const selectedCards = selected.reduce((sum: number, s: MergeSetEntry) => sum + s.cards, 0);
 
     const setsEl = (this as any).$refs?.mergeSetsCount as HTMLElement | undefined;
     const cardsEl = (this as any).$refs?.mergeCardsCount as HTMLElement | undefined;
     const btnEl = (this as any).$refs?.mergeExportBtn as HTMLButtonElement | undefined;
+    const dedupCountEl = (this as any).$refs?.dedupCount as HTMLElement | undefined;
 
     if (setsEl) setsEl.textContent = String(selectedCount);
     if (cardsEl) cardsEl.textContent = String(selectedCards);
     if (btnEl) btnEl.disabled = selectedCount < 2;
+
+    // Calculate dedup count from actual card data
+    if (dedupCountEl) {
+      if (this.dedupEnabled && selectedCount >= 2) {
+        const allCards = selected.flatMap((s: MergeSetEntry) => s.cardData);
+        const seen = new Set<string>();
+        let dupes = 0;
+        for (const c of allCards) {
+          const key = c.term.trim().toLowerCase();
+          if (seen.has(key)) dupes++;
+          else seen.add(key);
+        }
+        dedupCountEl.textContent = dupes > 0 ? `-${dupes}` : "";
+      } else {
+        dedupCountEl.textContent = "";
+      }
+    }
   },
 
   async init() {
@@ -195,12 +241,14 @@ Alpine.data("popup", () => ({
       });
 
       if (response?.cards?.length > 0) {
-        currentSet = {
+        originalSet = {
           title: response.title || "Quizlet Set",
           description: response.description || "",
           cards: response.cards,
         };
-        this.cardCount = currentSet.cards.length;
+        exportSet = originalSet;
+        this.cardCount = originalSet.cards.length;
+        this.exportCount = originalSet.cards.length;
 
         this.renderPreview();
 
@@ -241,7 +289,7 @@ Alpine.data("popup", () => ({
   async discoverOtherTabs(currentTabId: number) {
     try {
       const tabs = await chrome.tabs.query({ url: "*://*.quizlet.com/*", currentWindow: true });
-      const currentSetId = currentSet ? getSetIdFromUrl(tabs.find(t => t.id === currentTabId)?.url ?? "") : null;
+      const currentSetId = originalSet ? getSetIdFromUrl(tabs.find(t => t.id === currentTabId)?.url ?? "") : null;
 
       const others: MergeSetEntry[] = [];
       for (const tab of tabs) {
@@ -258,6 +306,7 @@ Alpine.data("popup", () => ({
               tabId: tab.id!,
               title: res.set.title || "Quizlet Set",
               cards: res.set.cards.length,
+              cardData: res.set.cards,
               checked: false,
               current: false,
             });
@@ -279,8 +328,9 @@ Alpine.data("popup", () => ({
       {
         id: "current",
         tabId: 0,
-        title: currentSet?.title || "Current set",
-        cards: currentSet?.cards.length || 0,
+        title: originalSet?.title || "Current set",
+        cards: originalSet?.cards.length || 0,
+        cardData: originalSet?.cards || [],
         checked: true,
         current: true,
       },
@@ -292,59 +342,62 @@ Alpine.data("popup", () => ({
   },
 
   /** Merge selected sets and go to export screen. */
-  async mergeAndExport() {
+  mergeAndExport() {
     const selected = this.mergeSets.filter((s: MergeSetEntry) => s.checked);
     if (selected.length < 2) return;
 
-    const allCards: FlashcardSet["cards"] = [];
+    const allCards: Flashcard[] = [];
     const titles: string[] = [];
 
     for (const entry of selected) {
-      if ((entry as MergeSetEntry).current && currentSet) {
-        allCards.push(...currentSet.cards);
-        titles.push(currentSet.title);
-      } else {
-        // Fetch from API via background
-        try {
-          const res = await chrome.runtime.sendMessage({ action: "fetchSet", setId: entry.id });
-          if (res?.ok && res.set?.cards?.length > 0) {
-            allCards.push(...res.set.cards);
-            titles.push(res.set.title || "Quizlet Set");
-          }
-        } catch {
-          // Skip failed fetches
-        }
-      }
+      allCards.push(...entry.cardData);
+      titles.push(entry.title);
     }
 
     if (allCards.length === 0) return;
 
-    currentSet = {
+    // Deduplicate by normalized term (case-insensitive, trimmed)
+    let cards = allCards;
+    if (this.dedupEnabled) {
+      const seen = new Set<string>();
+      cards = allCards.filter((c) => {
+        const key = c.term.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
+    exportSet = {
       title: titles.join(" + "),
       description: `Merged from ${titles.length} sets`,
-      cards: allCards,
+      cards,
     };
-    this.cardCount = currentSet.cards.length;
+    this.exportCount = exportSet.cards.length;
     this.exportSource = "merge";
+    this.screen = "export";
+  },
+
+  /** Open export screen from main (current tab only). */
+  openExport() {
+    exportSet = originalSet;
+    this.exportCount = originalSet?.cards.length || 0;
+    this.exportSource = "main";
     this.screen = "export";
   },
 
   /** Navigate back from export to the correct screen. */
   goBackFromExport() {
-    if (this.exportSource === "merge") {
-      this.screen = "merge";
-    } else {
-      this.screen = "main";
-    }
+    this.screen = this.exportSource === "merge" ? "merge" : "main";
   },
 
   renderPreview() {
-    if (!currentSet) return;
+    if (!originalSet) return;
 
     const tbody = (this as any).$refs?.previewTable as HTMLElement | undefined;
     if (!tbody) return;
 
-    const rows = currentSet.cards.slice(0, 20);
+    const rows = originalSet.cards.slice(0, 20);
     tbody.innerHTML = rows
       .map(
         (card, i) => `
@@ -355,19 +408,20 @@ Alpine.data("popup", () => ({
       )
       .join("");
 
-    if (currentSet.cards.length > 20) {
+    if (originalSet.cards.length > 20) {
       tbody.innerHTML += `
         <tr>
           <td colspan="2" class="px-2.5 py-1.5 text-muted-foreground text-center text-xs">
-            ... and ${currentSet.cards.length - 20} more
+            ... and ${originalSet.cards.length - 20} more
           </td>
         </tr>`;
     }
   },
 
-  // Copy (main screen)
+  // Copy (main screen — always copies original set)
   async copy() {
-    if (this.copied || !currentSet) return;
+    if (this.copied || !originalSet) return;
+    exportSet = originalSet;
     await navigator.clipboard.writeText(formatCards());
     this.copied = true;
     setTimeout(() => {
@@ -377,7 +431,7 @@ Alpine.data("popup", () => ({
 
   // Copy (export screen)
   async copyFromExport() {
-    if (this.exportCopied || !currentSet) return;
+    if (this.exportCopied || !exportSet) return;
     await navigator.clipboard.writeText(formatCards());
     this.exportCopied = true;
     setTimeout(() => {
@@ -399,17 +453,17 @@ Alpine.data("popup", () => ({
 
   // Export handlers
   exportTXT() {
-    if (!currentSet) return;
+    if (!exportSet) return;
     downloadFile(
       formatCards(),
-      `${currentSet.title || "flashcards"}.txt`,
+      `${exportSet.title || "flashcards"}.txt`,
       "text/plain"
     );
   },
 
   exportCSV() {
-    if (!currentSet) return;
-    const csv = currentSet.cards
+    if (!exportSet) return;
+    const csv = exportSet.cards
       .map((c) => {
         const term = `"${c.term.replace(/"/g, '""')}"`;
         const def = `"${c.definition.replace(/"/g, '""')}"`;
@@ -418,35 +472,35 @@ Alpine.data("popup", () => ({
       .join("\n");
     downloadFile(
       "term,definition\n" + csv,
-      `${currentSet.title || "flashcards"}.csv`,
+      `${exportSet.title || "flashcards"}.csv`,
       "text/csv"
     );
   },
 
   exportJSON() {
-    if (!currentSet) return;
+    if (!exportSet) return;
     downloadFile(
-      JSON.stringify(currentSet, null, 2),
-      `${currentSet.title || "flashcards"}.json`,
+      JSON.stringify(exportSet, null, 2),
+      `${exportSet.title || "flashcards"}.json`,
       "application/json"
     );
   },
 
   exportPDFList() {
-    if (!currentSet) return;
+    if (!exportSet) return;
     chrome.runtime.sendMessage({
       action: "generatePDF",
       type: "list",
-      set: currentSet,
+      set: exportSet,
     });
   },
 
   exportPDFCards() {
-    if (!currentSet) return;
+    if (!exportSet) return;
     chrome.runtime.sendMessage({
       action: "generatePDF",
       type: "cards",
-      set: currentSet,
+      set: exportSet,
     });
   },
 }));

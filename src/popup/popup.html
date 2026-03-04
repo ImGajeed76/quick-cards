@@ -63,7 +63,7 @@
     <!-- Action buttons -->
     <div class="space-y-2">
       <button
-        x-on:click="exportSource = 'main'; screen = 'export'"
+        x-on:click="openExport"
         class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9"
       >
         <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -97,12 +97,24 @@
     <!-- Set list (rendered imperatively — CSP Alpine can't evaluate inline expressions) -->
     <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar" x-ref="mergeList"></div>
 
-    <!-- Summary + action -->
+    <!-- Summary + dedup + action -->
     <div class="space-y-2">
       <div class="text-center text-xs text-muted-foreground">
         <span class="tabular-nums" x-ref="mergeSetsCount"></span> sets &middot;
         <strong class="text-foreground font-semibold tabular-nums" x-ref="mergeCardsCount"></strong> cards total
       </div>
+
+      <!-- Dedup toggle (rendered imperatively) -->
+      <label class="flex items-center justify-between rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors duration-150" x-ref="dedupLabel">
+        <span class="text-xs text-muted-foreground">Remove duplicates</span>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-primary font-medium tabular-nums" x-ref="dedupCount"></span>
+          <div class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200 bg-primary" x-ref="dedupTrack">
+            <span class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-3.5" x-ref="dedupThumb"></span>
+          </div>
+        </div>
+      </label>
+
       <button
         x-on:click="mergeAndExport"
         x-ref="mergeExportBtn"
@@ -126,7 +138,7 @@
         <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         Back
       </button>
-      <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums" x-text="cardCount"></strong> cards</span>
+      <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums" x-text="exportCount"></strong> cards</span>
     </div>
 
     <!-- Separators -->

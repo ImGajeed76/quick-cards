@@ -328,12 +328,28 @@
         </template>
       </div>
 
-      <!-- Summary + action -->
+      <!-- Summary + dedup + action -->
       <div class="space-y-2">
         <div class="text-center text-xs text-muted-foreground">
           <span class="tabular-nums" x-text="selectedSets"></span> sets &middot;
           <strong class="text-foreground font-semibold tabular-nums" x-text="selectedCount"></strong> cards total
         </div>
+
+        <!-- Dedup toggle -->
+        <label class="flex items-center justify-between rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors duration-150"
+               x-data="{ dedup: true }">
+          <span class="text-xs text-muted-foreground">Remove duplicates</span>
+          <div class="flex items-center gap-2">
+            <span x-show="dedup" class="text-xs text-primary font-medium tabular-nums">-18</span>
+            <div class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200"
+                 :class="dedup ? 'bg-primary' : 'bg-muted'"
+                 @click.prevent="dedup = !dedup">
+              <span class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200"
+                    :class="dedup ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
+            </div>
+          </div>
+        </label>
+
         <button
           class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
           :disabled="selectedSets < 2"
@@ -401,7 +417,7 @@
   <script type="module">
     import Alpine from 'alpinejs';
     import collapse from '@alpinejs/collapse';
-    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine } from 'lucide';
+    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus } from 'lucide';
 
     // Register Alpine plugins
     Alpine.plugin(collapse);
@@ -420,7 +436,7 @@
     // Render Lucide icons once after Alpine has processed the DOM
     requestAnimationFrame(() => {
       createIcons({
-        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine },
+        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus },
         attrs: { 'stroke-width': 2 },
       });
     });

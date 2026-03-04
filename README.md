@@ -9,7 +9,7 @@ Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all 
 ## Features
 
 - **No login required** — fetches cards directly via Quizlet's web API, no account needed
-- **Merge sets** — combine cards from multiple open Quizlet tabs into a single export
+- **Merge sets** — combine cards from multiple open Quizlet tabs into a single export, with automatic duplicate removal
 - **Instant copy** — one click from the floating banner or popup
 - **Export formats** — TXT, CSV, JSON, PDF vocab list, PDF printable flashcards
 - **Customizable separators** — pick preset or type your own for term-definition and card separators
