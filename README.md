@@ -9,6 +9,7 @@ Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all 
 ## Features
 
 - **No login required** — fetches cards directly via Quizlet's web API, no account needed
+- **Merge sets** — combine cards from multiple open Quizlet tabs into a single export
 - **Instant copy** — one click from the floating banner or popup
 - **Export formats** — TXT, CSV, JSON, PDF vocab list, PDF printable flashcards
 - **Customizable separators** — pick preset or type your own for term-definition and card separators
@@ -28,6 +29,13 @@ Appears automatically on Quizlet set pages (bottom-right).
 Separator combos, clipboard copy, and all download options.
 
 ![Export screen](assets/pupup_export.png)
+
+### Merge sets
+Combine cards from multiple open Quizlet tabs into one export.
+
+| Main screen | Merge screen | Merged export |
+|:-----------:|:------------:|:-------------:|
+| ![Main with merge](assets/main_screen_with_merge.png) | ![Merge screen](assets/merge_screen.png) | ![Export after merge](assets/export_merge_screen.png) |
 
 ### PDF — Vocab list
 Formatted table with violet header and alternating row tints.

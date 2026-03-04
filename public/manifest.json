@@ -5,6 +5,7 @@
   "description": "Export Quizlet flashcards quickly - Copy, TXT, CSV, JSON, PDF",
   "permissions": [
     "activeTab",
+    "tabs",
     "storage",
     "clipboardWrite",
     "downloads"

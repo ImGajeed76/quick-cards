@@ -89,11 +89,14 @@
   <div class="popup-frame">
     <div class="bg-card text-card-foreground p-4 space-y-4">
 
-      <!-- Back header -->
-      <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-        <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-        Back
-      </button>
+      <!-- Back header + card count -->
+      <div class="flex items-center justify-between">
+        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
+          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+          Back
+        </button>
+        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
+      </div>
 
       <!-- Separators -->
       <div>
@@ -235,6 +238,114 @@
     </div>
   </div>
 
+  <!-- ========== MAIN STATE (with merge button) ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Main State — Multiple Quizlet Tabs Open</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4 space-y-3" x-data="{ preview: false }">
+
+      <!-- Header: count + copy -->
+      <div class="flex items-center justify-between" x-data="{ copied: false }">
+        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold text-base tabular-nums">42</strong> cards</span>
+        <button
+          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+          class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 w-20"
+          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+          :disabled="copied"
+          x-text="copied ? 'Copied' : 'Copy'"
+        ></button>
+      </div>
+
+      <!-- Preview (collapsible) -->
+      <div>
+        <button
+          @click="preview = !preview"
+          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground select-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+        >
+          <span class="inline-flex transition-transform duration-200" :style="preview && 'transform: rotate(90deg)'"><i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-60"></i></span>
+          Preview
+        </button>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="space-y-2">
+        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
+          Export options
+        </button>
+        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          <i data-lucide="combine" class="w-4 h-4" aria-hidden="true"></i>
+          Merge sets
+          <span class="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-semibold tabular-nums h-5 min-w-5 px-1.5">3</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== MERGE SCREEN ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Merge Screen</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4 space-y-4"
+         x-data="{
+           sets: [
+             { id: 1, title: 'Grundwortschatz Beruf', cards: 126, checked: true, current: true },
+             { id: 2, title: 'Les verbes irréguliers', cards: 84, checked: true, current: false },
+             { id: 3, title: 'Vocabulaire de la maison', cards: 42, checked: false, current: false },
+             { id: 4, title: 'Les animaux domestiques et sauvages', cards: 67, checked: false, current: false },
+             { id: 5, title: 'Kapitel 7 - Reisen und Tourismus Vokabeln', cards: 203, checked: false, current: false },
+             { id: 6, title: 'Expressions idiomatiques françaises', cards: 31, checked: true, current: false },
+             { id: 7, title: 'La nourriture', cards: 95, checked: false, current: false },
+             { id: 8, title: 'Informatik Grundbegriffe für Anfänger und Fortgeschrittene', cards: 158, checked: false, current: false },
+             { id: 9, title: 'Les vêtements et la mode', cards: 44, checked: false, current: false },
+             { id: 10, title: 'Mathematische Fachbegriffe', cards: 72, checked: false, current: false },
+           ],
+           get selectedCount() { return this.sets.filter(s => s.checked).reduce((sum, s) => sum + s.cards, 0) },
+           get selectedSets() { return this.sets.filter(s => s.checked).length },
+         }">
+
+      <!-- Back header -->
+      <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
+        <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+        Back
+      </button>
+
+      <!-- Set list -->
+      <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+        <template x-for="set in sets" :key="set.id">
+          <label
+            class="flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors duration-150"
+            :class="set.checked ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-border hover:bg-muted/30'"
+          >
+            <input type="checkbox" x-model="set.checked" class="mt-0.5 h-4 w-4 rounded border-input accent-primary" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-foreground truncate" x-text="set.title"></span>
+                <span x-show="set.current" class="shrink-0 text-[10px] font-medium text-primary bg-primary/15 rounded px-1.5 py-0.5">current</span>
+              </div>
+              <span class="text-xs text-muted-foreground tabular-nums" x-text="set.cards + ' cards'"></span>
+            </div>
+          </label>
+        </template>
+      </div>
+
+      <!-- Summary + action -->
+      <div class="space-y-2">
+        <div class="text-center text-xs text-muted-foreground">
+          <span class="tabular-nums" x-text="selectedSets"></span> sets &middot;
+          <strong class="text-foreground font-semibold tabular-nums" x-text="selectedCount"></strong> cards total
+        </div>
+        <button
+          class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          :disabled="selectedSets < 2"
+        >
+          <i data-lucide="combine" class="w-4 h-4" aria-hidden="true"></i>
+          Merge &amp; Export
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ========== ERROR STATE ========== -->
   <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Error State</p>
   <div class="popup-frame">
@@ -290,7 +401,7 @@
   <script type="module">
     import Alpine from 'alpinejs';
     import collapse from '@alpinejs/collapse';
-    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis } from 'lucide';
+    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine } from 'lucide';
 
     // Register Alpine plugins
     Alpine.plugin(collapse);
@@ -309,7 +420,7 @@
     // Render Lucide icons once after Alpine has processed the DOM
     requestAnimationFrame(() => {
       createIcons({
-        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis },
+        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine },
         attrs: { 'stroke-width': 2 },
       });
     });
