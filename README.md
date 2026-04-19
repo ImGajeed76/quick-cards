@@ -11,7 +11,8 @@ Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all 
 - **No login required** — fetches cards directly via Quizlet's web API, no account needed
 - **Merge sets** — combine cards from multiple open Quizlet tabs into a single export, with automatic duplicate removal
 - **Instant copy** — one click from the floating banner or popup
-- **Export formats** — TXT, CSV, JSON, PDF vocab list, PDF printable flashcards
+- **Export formats** — TXT, CSV, JSON, PDF vocab list, PDF printable flashcards, Anki `.apkg`
+- **Anki export with deadline pacing** — pick a target date and get a ready-to-import `.apkg` with FSRS settings tuned for your deadline. Generates three decks: flashcards (both directions) plus two typing decks
 - **Customizable separators** — pick preset or type your own for term-definition and card separators
 - **Floating banner** — auto-appears on Quizlet set pages with card count and quick copy
 - **PDF vocab list** — formatted table with title, numbering, and alternating row tints
@@ -36,6 +37,11 @@ Combine cards from multiple open Quizlet tabs into one export.
 | Main screen | Merge screen | Merged export |
 |:-----------:|:------------:|:-------------:|
 | ![Main with merge](assets/main_screen_with_merge.png) | ![Merge screen](assets/merge_screen.png) | ![Export after merge](assets/export_merge_screen.png) |
+
+### Anki export
+Pick a target date and get an `.apkg` with FSRS settings tuned to the deadline — shorter deadlines use higher desired retention and more aggressive learning steps. Each export contains three decks: the main flashcards deck (both directions) and two optional typing decks.
+
+![Anki export screen](assets/anki_screen.png)
 
 ### PDF — Vocab list
 Formatted table with violet header and alternating row tints.
@@ -111,6 +117,8 @@ QuickCards fetches flashcard data directly from Quizlet's web API (`/webapi/3.4/
 - [Tailwind CSS v4](https://tailwindcss.com) — styling
 - [jsPDF](https://github.com/parallax/jsPDF) — PDF generation
 - [hyphen](https://github.com/ytiurin/hyphen) — syllable-based word breaking for PDFs
+- [ankipack](https://github.com/ImGajeed76/ankipack) — `.apkg` generation with FSRS support
+- [sql.js](https://github.com/sql-js/sql.js) — SQLite in WebAssembly (used by ankipack)
 - Chrome Extension Manifest V3
 
 ## License

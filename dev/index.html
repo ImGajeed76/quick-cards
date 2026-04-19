@@ -219,6 +219,9 @@
           <div class="h-px flex-1 bg-border"></div>
         </div>
         <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+          Anki (.apkg)
+        </button>
+        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
           TXT
         </button>
         <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
@@ -362,6 +365,105 @@
     </div>
   </div>
 
+  <!-- ========== ANKI EXPORT SCREEN ========== -->
+  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Anki Export Screen</p>
+  <div class="popup-frame">
+    <div class="bg-card text-card-foreground p-4 space-y-4" x-data="ankiPicker">
+
+      <!-- Back + card count -->
+      <div class="flex items-center justify-between">
+        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
+          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+          Back
+        </button>
+        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
+      </div>
+
+      <!-- Subtitle -->
+      <p class="text-xs text-muted-foreground">When do you need to know this set by?</p>
+
+      <!-- Days input -->
+      <div class="space-y-1">
+        <label class="text-xs text-muted-foreground" for="anki-days">Days</label>
+        <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+          <input
+            id="anki-days"
+            type="number"
+            min="1"
+            x-model.number="days"
+            @input="syncFromDays"
+            @blur="ensureValidDays"
+            class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div class="rounded-md border border-border p-3 space-y-2">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <button
+            @click="prevMonth"
+            :disabled="!canGoPrev"
+            class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Previous month"
+          >
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <span class="text-sm font-medium text-foreground" x-text="monthLabel"></span>
+          <button
+            @click="nextMonth"
+            class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Next month"
+          >
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Weekday row -->
+        <div class="grid grid-cols-7">
+          <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d">
+            <div class="text-center text-xs font-normal text-muted-foreground py-1" x-text="d"></div>
+          </template>
+        </div>
+
+        <!-- Days grid -->
+        <div class="grid grid-cols-7">
+          <template x-for="(cell, i) in calendarCells" :key="i">
+            <button
+              type="button"
+              @click="pickDate(cell.date)"
+              :disabled="cell.disabled"
+              class="group relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+              :class="{
+                'bg-primary text-primary-foreground font-medium': cell.selected,
+                'hover:bg-muted text-foreground': !cell.selected && !cell.disabled && !cell.outside,
+                'text-muted-foreground/40 hover:bg-muted/50': cell.outside && !cell.selected && !cell.disabled,
+                'text-muted-foreground/30 line-through pointer-events-none': cell.disabled && !cell.selected
+              }"
+            >
+              <span x-text="cell.day"></span>
+              <span
+                x-show="cell.today && !cell.selected"
+                class="absolute left-1/2 top-1 size-1 -translate-x-1/2 rounded-full bg-primary"
+              ></span>
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <!-- Recommended pace + download -->
+      <div class="space-y-2">
+        <p class="text-center text-xs text-muted-foreground" x-text="recommendedPace"></p>
+        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90">
+          <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
+          Download .apkg
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ========== ERROR STATE ========== -->
   <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Error State</p>
   <div class="popup-frame">
@@ -417,7 +519,7 @@
   <script type="module">
     import Alpine from 'alpinejs';
     import collapse from '@alpinejs/collapse';
-    import { createIcons, ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus } from 'lucide';
+    import { createIcons, ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus } from 'lucide';
 
     // Register Alpine plugins
     Alpine.plugin(collapse);
@@ -429,6 +531,103 @@
       open: false,
     }));
 
+    // Anki date picker component
+    Alpine.data('ankiPicker', () => ({
+      days: 14,
+      cardCount: 42,
+      today: new Date(),
+      selected: new Date(),
+      viewYear: 0,
+      viewMonth: 0,
+
+      init() {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        this.today = now;
+        const sel = new Date(now);
+        sel.setDate(now.getDate() + this.days);
+        this.selected = sel;
+        this.viewYear = sel.getFullYear();
+        this.viewMonth = sel.getMonth();
+      },
+
+      sameDay(a, b) {
+        return a.getFullYear() === b.getFullYear()
+          && a.getMonth() === b.getMonth()
+          && a.getDate() === b.getDate();
+      },
+
+      diffDays(from, to) {
+        return Math.round((to - from) / 86400000);
+      },
+
+      syncFromDays() {
+        if (!Number.isFinite(this.days) || this.days < 1) return;
+        const d = new Date(this.today);
+        d.setDate(this.today.getDate() + this.days);
+        this.selected = d;
+        this.viewYear = d.getFullYear();
+        this.viewMonth = d.getMonth();
+      },
+
+      ensureValidDays() {
+        if (!Number.isFinite(this.days) || this.days < 1) {
+          this.days = this.diffDays(this.today, this.selected);
+        }
+      },
+
+      pickDate(date) {
+        if (this.diffDays(this.today, date) < 1) return;
+        this.selected = date;
+        this.days = this.diffDays(this.today, date);
+      },
+
+      prevMonth() {
+        if (!this.canGoPrev) return;
+        if (this.viewMonth === 0) { this.viewMonth = 11; this.viewYear--; }
+        else this.viewMonth--;
+      },
+
+      nextMonth() {
+        if (this.viewMonth === 11) { this.viewMonth = 0; this.viewYear++; }
+        else this.viewMonth++;
+      },
+
+      get canGoPrev() {
+        return this.viewYear > this.today.getFullYear()
+          || (this.viewYear === this.today.getFullYear() && this.viewMonth > this.today.getMonth());
+      },
+
+      get monthLabel() {
+        return new Date(this.viewYear, this.viewMonth, 1)
+          .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      },
+
+      get recommendedPace() {
+        const count = Math.max(1, Math.ceil(this.cardCount / Math.max(1, this.days * 0.6)));
+        return `Recommended pace: ~${count} cards/day`;
+      },
+
+      get calendarCells() {
+        const first = new Date(this.viewYear, this.viewMonth, 1);
+        // Monday-first: offset = (getDay() + 6) % 7; Sun=0 → 6, Mon=1 → 0
+        const firstOffset = (first.getDay() + 6) % 7;
+        const cells = [];
+        for (let i = 0; i < 42; i++) {
+          const d = new Date(this.viewYear, this.viewMonth, 1 - firstOffset + i);
+          cells.push({
+            date: d,
+            day: d.getDate(),
+            outside: d.getMonth() !== this.viewMonth,
+            today: this.sameDay(d, this.today),
+            selected: this.sameDay(d, this.selected),
+            disabled: this.diffDays(this.today, d) < 1,
+          });
+        }
+        return cells;
+      },
+    }));
+
     // Expose on window and start
     window.Alpine = Alpine;
     Alpine.start();
@@ -436,7 +635,7 @@
     // Render Lucide icons once after Alpine has processed the DOM
     requestAnimationFrame(() => {
       createIcons({
-        icons: { ChevronRight, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus },
+        icons: { ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus },
         attrs: { 'stroke-width': 2 },
       });
     });

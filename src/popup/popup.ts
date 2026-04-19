@@ -93,7 +93,7 @@ interface MergeSetEntry {
 
 // Main popup component
 Alpine.data("popup", () => ({
-  screen: "loading" as "loading" | "error" | "main" | "export" | "merge",
+  screen: "loading" as "loading" | "error" | "main" | "export" | "merge" | "anki",
   preview: false,
   copied: false,
   exportCopied: false,
@@ -103,6 +103,14 @@ Alpine.data("popup", () => ({
   mergeSets: [] as MergeSetEntry[],
   exportSource: "main" as "main" | "merge",
   dedupEnabled: true,
+
+  // Anki picker state
+  ankiDays: 14,
+  ankiToday: new Date(),
+  ankiSelected: new Date(),
+  ankiViewYear: 0,
+  ankiViewMonth: 0,
+  ankiGenerating: false,
 
   /** Render the merge set list and wire up checkbox listeners. */
   renderMergeList() {
@@ -223,6 +231,16 @@ Alpine.data("popup", () => ({
   },
 
   async init() {
+    // Initialize Anki picker state (today at local midnight, selected = today + default days)
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    this.ankiToday = todayMidnight;
+    const sel = new Date(todayMidnight);
+    sel.setDate(todayMidnight.getDate() + this.ankiDays);
+    this.ankiSelected = sel;
+    this.ankiViewYear = sel.getFullYear();
+    this.ankiViewMonth = sel.getMonth();
+
     // Settings are already loaded before Alpine.start() — see bottom of file.
     // Get current tab
     try {
@@ -448,6 +466,153 @@ Alpine.data("popup", () => ({
       });
     } catch {
       // Not in extension context
+    }
+  },
+
+  // ── Anki picker ──────────────────────────────────────────
+
+  openAnki() {
+    this.screen = "anki";
+    requestAnimationFrame(() => this.renderAnkiCalendar());
+  },
+
+  ankiSameDay(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear()
+      && a.getMonth() === b.getMonth()
+      && a.getDate() === b.getDate();
+  },
+
+  ankiDiffDays(from: Date, to: Date): number {
+    return Math.round((to.getTime() - from.getTime()) / 86400000);
+  },
+
+  syncAnkiFromDays() {
+    if (!Number.isFinite(this.ankiDays) || this.ankiDays < 1) return;
+    const d = new Date(this.ankiToday);
+    d.setDate(this.ankiToday.getDate() + this.ankiDays);
+    this.ankiSelected = d;
+    this.ankiViewYear = d.getFullYear();
+    this.ankiViewMonth = d.getMonth();
+    this.renderAnkiCalendar();
+  },
+
+  ensureValidAnkiDays() {
+    if (!Number.isFinite(this.ankiDays) || this.ankiDays < 1) {
+      this.ankiDays = this.ankiDiffDays(this.ankiToday, this.ankiSelected);
+    }
+  },
+
+  ankiPickDate(date: Date) {
+    if (this.ankiDiffDays(this.ankiToday, date) < 1) return;
+    this.ankiSelected = date;
+    this.ankiDays = this.ankiDiffDays(this.ankiToday, date);
+    this.renderAnkiCalendar();
+  },
+
+  ankiPrevMonth() {
+    if (!this.ankiCanGoPrev) return;
+    if (this.ankiViewMonth === 0) {
+      this.ankiViewMonth = 11;
+      this.ankiViewYear--;
+    } else {
+      this.ankiViewMonth--;
+    }
+    this.renderAnkiCalendar();
+  },
+
+  ankiNextMonth() {
+    if (this.ankiViewMonth === 11) {
+      this.ankiViewMonth = 0;
+      this.ankiViewYear++;
+    } else {
+      this.ankiViewMonth++;
+    }
+    this.renderAnkiCalendar();
+  },
+
+  get ankiCanGoPrev(): boolean {
+    return this.ankiViewYear > this.ankiToday.getFullYear()
+      || (this.ankiViewYear === this.ankiToday.getFullYear() && this.ankiViewMonth > this.ankiToday.getMonth());
+  },
+
+  get ankiMonthLabel(): string {
+    return new Date(this.ankiViewYear, this.ankiViewMonth, 1)
+      .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  },
+
+  renderAnkiCalendar() {
+    const container = (this as any).$refs?.ankiGrid as HTMLElement | undefined;
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const first = new Date(this.ankiViewYear, this.ankiViewMonth, 1);
+    // Monday-first: Sun=0 → 6, Mon=1 → 0, ...
+    const firstOffset = (first.getDay() + 6) % 7;
+
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(this.ankiViewYear, this.ankiViewMonth, 1 - firstOffset + i);
+      const outside = d.getMonth() !== this.ankiViewMonth;
+      const isToday = this.ankiSameDay(d, this.ankiToday);
+      const isSelected = this.ankiSameDay(d, this.ankiSelected);
+      const isDisabled = this.ankiDiffDays(this.ankiToday, d) < 1;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.disabled = isDisabled;
+
+      let cls = "relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+      if (isSelected) {
+        cls += " bg-primary text-primary-foreground font-medium";
+      } else if (isDisabled) {
+        cls += " text-muted-foreground/30 line-through pointer-events-none";
+      } else if (outside) {
+        cls += " text-muted-foreground/40 hover:bg-muted/50";
+      } else {
+        cls += " hover:bg-muted text-foreground";
+      }
+      btn.className = cls;
+
+      const num = document.createElement("span");
+      num.textContent = String(d.getDate());
+      btn.appendChild(num);
+
+      if (isToday && !isSelected) {
+        const dot = document.createElement("span");
+        dot.className = "absolute left-1/2 top-1 size-1 -translate-x-1/2 rounded-full bg-primary";
+        btn.appendChild(dot);
+      }
+
+      if (!isDisabled) {
+        const capturedDate = d;
+        btn.addEventListener("click", () => this.ankiPickDate(capturedDate));
+      }
+
+      container.appendChild(btn);
+    }
+  },
+
+  get ankiRecommendedPace(): string {
+    const count = Math.max(1, Math.ceil(this.exportCount / Math.max(1, this.ankiDays * 0.6)));
+    return `Recommended pace: ~${count} cards/day`;
+  },
+
+  async downloadAnki() {
+    if (!exportSet || this.ankiGenerating) return;
+    this.ankiGenerating = true;
+    try {
+      const res = await chrome.runtime.sendMessage({
+        action: "generateAnki",
+        set: exportSet,
+        days: this.ankiDays,
+      });
+      if (!res?.ok) {
+        console.error("[QuickCards] Anki generation failed:", res?.error);
+      }
+    } catch (err) {
+      console.error("[QuickCards] Anki generation error:", err);
+    } finally {
+      this.ankiGenerating = false;
     }
   },
 

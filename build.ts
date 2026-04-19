@@ -67,6 +67,12 @@ async function build() {
     console.log(`   -> dist/icons/${icon}`);
   }
 
+  // Copy sql.js WASM. Bun's "browser" target resolves sql.js to its browser build,
+  // which requests `sql-wasm-browser.wasm` at runtime.
+  const sqlWasm = await Bun.file("node_modules/sql.js/dist/sql-wasm-browser.wasm").arrayBuffer();
+  await Bun.write("dist/sql-wasm-browser.wasm", sqlWasm);
+  console.log("   -> dist/sql-wasm-browser.wasm");
+
   console.log("\nBuild complete!");
 }
 

@@ -264,6 +264,9 @@
         <div class="h-px flex-1 bg-border"></div>
       </div>
 
+      <button x-on:click="openAnki" class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
+        Anki (.apkg)
+      </button>
       <button x-on:click="exportTXT" class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
         TXT
       </button>
@@ -278,6 +281,92 @@
       </button>
       <button x-on:click="exportPDFCards" class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
         PDF &mdash; Flashcards
+      </button>
+    </div>
+  </div>
+
+  <!-- Anki Export Screen -->
+  <div x-show="screen === 'anki'" x-cloak class="p-4 space-y-4">
+
+    <!-- Back + card count -->
+    <div class="flex items-center justify-between">
+      <button
+        x-on:click="screen = 'export'"
+        class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1"
+      >
+        <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Back
+      </button>
+      <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums" x-text="exportCount"></strong> cards</span>
+    </div>
+
+    <!-- Subtitle -->
+    <p class="text-xs text-muted-foreground">When do you need to know this set by?</p>
+
+    <!-- Days input -->
+    <div class="space-y-1">
+      <label class="text-xs text-muted-foreground" for="anki-days">Days</label>
+      <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+        <input
+          id="anki-days"
+          type="number"
+          min="1"
+          x-model.number="ankiDays"
+          x-on:input="syncAnkiFromDays"
+          x-on:blur="ensureValidAnkiDays"
+          class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="rounded-md border border-border p-3 space-y-2">
+      <!-- Header -->
+      <div class="flex items-center justify-between">
+        <button
+          x-on:click="ankiPrevMonth"
+          x-bind:disabled="!ankiCanGoPrev"
+          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Previous month"
+        >
+          <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <span class="text-sm font-medium text-foreground" x-text="ankiMonthLabel"></span>
+        <button
+          x-on:click="ankiNextMonth"
+          class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Next month"
+        >
+          <svg class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+
+      <!-- Weekday row -->
+      <div class="grid grid-cols-7">
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Mo</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Tu</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">We</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Th</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Fr</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Sa</div>
+        <div class="text-center text-xs font-normal text-muted-foreground py-1">Su</div>
+      </div>
+
+      <!-- Days grid (rendered imperatively) -->
+      <div class="grid grid-cols-7" x-ref="ankiGrid"></div>
+    </div>
+
+    <!-- Recommended pace + download -->
+    <div class="space-y-2">
+      <p class="text-center text-xs text-muted-foreground" x-text="ankiRecommendedPace"></p>
+      <button
+        x-on:click="downloadAnki"
+        x-bind:disabled="ankiGenerating"
+        class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-80"
+      >
+        <svg x-show="!ankiGenerating" class="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <svg x-show="ankiGenerating" x-cloak class="w-4 h-4 animate-spin" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        <span x-text="ankiGenerating ? 'Generating…' : 'Download .apkg'"></span>
       </button>
     </div>
   </div>

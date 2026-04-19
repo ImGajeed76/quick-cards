@@ -5,7 +5,9 @@
 
 import { generateFlashcardsPDF } from "../lib/pdf-flashcards";
 import { generateListPDF } from "../lib/pdf-list";
+import { buildAnkiPackage } from "../lib/anki-export";
 import type { Flashcard, FlashcardSet } from "../lib/types";
+import initSqlJs from "sql.js";
 
 // ── Quizlet API helpers ─────────────────────────────────
 
@@ -100,6 +102,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return false;
   }
 
+  if (message.action === "generateAnki") {
+    handleAnkiGeneration(message.set, message.days)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+
   if (message.action === "fetchSet") {
     const setId: string = message.setId;
     Promise.all([fetchCardsFromApi(setId), fetchSetMetadata(setId)])
@@ -154,6 +163,44 @@ async function handlePDFGeneration(type: "list" | "cards", set: FlashcardSet) {
     filename: sanitizeFilename(filename),
     saveAs: true,
   });
+}
+
+// ── Anki export ─────────────────────────────────────────
+
+// sql.js is lazy-loaded on first Anki export and cached for subsequent calls.
+let sqlPromise: Promise<any> | null = null;
+function getSQL(): Promise<any> {
+  if (!sqlPromise) {
+    sqlPromise = initSqlJs({
+      locateFile: (file: string) => chrome.runtime.getURL(file),
+    });
+  }
+  return sqlPromise;
+}
+
+async function handleAnkiGeneration(set: FlashcardSet, days: number) {
+  const SQL = await getSQL();
+  const bytes = await buildAnkiPackage({ set, days, SQL });
+
+  const dataUrl = bytesToDataUrl(bytes, "application/octet-stream");
+  const title = set.title || "flashcards";
+
+  await chrome.downloads.download({
+    url: dataUrl,
+    filename: sanitizeFilename(`${title}.apkg`),
+    saveAs: true,
+  });
+}
+
+function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
+  // Chunked base64 — spreading a large Uint8Array into fromCharCode overflows the arg limit.
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+  }
+  return `data:${mimeType};base64,${btoa(binary)}`;
 }
 
 // ── Helpers ─────────────────────────────────────────────
