@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+defaults:
+  run:
+    working-directory: extension
+
 jobs:
   release:
     runs-on: ubuntu-latest

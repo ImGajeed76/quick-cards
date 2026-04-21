@@ -5,7 +5,7 @@ node_modules
 dist
 
 # Test output
-test/output
+**/test/output
 
 # Temp / working files
 tmp

@@ -4,7 +4,7 @@ Chrome extension to export Quizlet flashcards quickly.
 
 Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all from a clean dark-themed popup.
 
-![Popup main screen](assets/popup_main.png)
+![Popup main screen](../assets/popup_main.png)
 
 ## Features
 
@@ -24,34 +24,34 @@ Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all 
 ### Floating banner
 Appears automatically on Quizlet set pages (bottom-right).
 
-![Floating banner](assets/floating_bottom_right.png)
+![Floating banner](../assets/floating_bottom_right.png)
 
 ### Export screen
 Separator combos, clipboard copy, and all download options.
 
-![Export screen](assets/pupup_export.png)
+![Export screen](../assets/pupup_export.png)
 
 ### Merge sets
 Combine cards from multiple open Quizlet tabs into one export.
 
 | Main screen | Merge screen | Merged export |
 |:-----------:|:------------:|:-------------:|
-| ![Main with merge](assets/main_screen_with_merge.png) | ![Merge screen](assets/merge_screen.png) | ![Export after merge](assets/export_merge_screen.png) |
+| ![Main with merge](../assets/main_screen_with_merge.png) | ![Merge screen](../assets/merge_screen.png) | ![Export after merge](../assets/export_merge_screen.png) |
 
 ### Anki export
 Pick a target date and get an `.apkg` with FSRS settings tuned to the deadline — shorter deadlines use higher desired retention and more aggressive learning steps. Each export contains three decks: the main flashcards deck (both directions) and two optional typing decks.
 
-![Anki export screen](assets/anki_screen.png)
+![Anki export screen](../assets/anki_screen.png)
 
 ### PDF — Vocab list
 Formatted table with violet header and alternating row tints.
 
-![PDF vocab list](assets/pdf_list.png)
+![PDF vocab list](../assets/pdf_list.png)
 
 ### PDF — Flashcards
 Double-sided 2x4 grid with cut guides. Print, fold, study.
 
-![PDF flashcards](assets/pdf_cards.png)
+![PDF flashcards](../assets/pdf_cards.png)
 
 ## Install
 
@@ -67,7 +67,7 @@ Double-sided 2x4 grid with cut guides. Print, fold, study.
 1. Clone the repo and install dependencies:
    ```bash
    git clone https://github.com/ImGajeed76/quick-cards.git
-   cd quick-cards
+   cd quick-cards/extension
    bun install
    ```
 
@@ -123,4 +123,4 @@ QuickCards fetches flashcard data directly from Quizlet's web API (`/webapi/3.4/
 
 ## License
 
-[MIT](LICENSE)
+[MIT](../LICENSE)
