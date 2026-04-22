@@ -1,0 +1,6 @@
+# robots.txt for quickcards.oseifert.ch
+User-agent: *
+Allow: /
+Disallow: /process
+
+Sitemap: https://quickcards.oseifert.ch/sitemap.xml

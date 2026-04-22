@@ -1,0 +1,15 @@
+{
+	"name": "QuickCards",
+	"short_name": "QuickCards",
+	"description": "Export Quizlet flashcards and vocab lists — TXT, CSV, JSON, PDF, Anki.",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#0a0a0c",
+	"theme_color": "#7B4DE4",
+	"icons": [
+		{ "src": "/favicon-16.png", "sizes": "16x16", "type": "image/png" },
+		{ "src": "/favicon-48.png", "sizes": "48x48", "type": "image/png" },
+		{ "src": "/favicon-128.png", "sizes": "128x128", "type": "image/png" },
+		{ "src": "/apple-touch-icon.png", "sizes": "128x128", "type": "image/png", "purpose": "any maskable" }
+	]
+}
