@@ -27,6 +27,7 @@
 		type CalendarDate
 	} from '@internationalized/date';
 	import { decodePayload, encodePayload, type SharePayload } from '$lib/share';
+	import { track, bucketDays } from '$lib/analytics';
 	import {
 		TERM_SEP_PRESETS,
 		CARD_SEP_PRESETS,
@@ -158,11 +159,15 @@
 
 	const baseName = $derived(set?.title?.trim() || 'flashcards');
 
-	async function runDownload(kind: DownloadKind, fn: () => unknown | Promise<unknown>) {
+	async function runDownload(
+		kind: DownloadKind,
+		fn: () => Promise<'ok' | 'cancelled'>
+	) {
 		if (anyBusy || !set) return;
 		busy = kind;
 		try {
-			await fn();
+			const outcome = await fn();
+			if (outcome === 'ok') track('Export', { format: kind });
 		} catch (err) {
 			console.error(`[QuickCards] ${kind} export failed:`, err);
 		} finally {
@@ -234,7 +239,11 @@
 				`${baseName}.apkg`,
 				'application/octet-stream'
 			);
-			if (outcome === 'ok') ankiOpen = false;
+			if (outcome === 'ok') {
+				ankiOpen = false;
+				track('Anki days', { range: bucketDays(ankiDays) });
+			}
+			return outcome;
 		});
 	}
 
@@ -273,6 +282,7 @@
 		history.replaceState(history.state, '', url);
 		await navigator.clipboard.writeText(`${window.location.origin}${url}`);
 		shareCopied = true;
+		track('Share link');
 		setTimeout(() => (shareCopied = false), 1500);
 	}
 </script>

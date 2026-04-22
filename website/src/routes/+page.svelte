@@ -6,6 +6,7 @@
 	import Github from '$lib/components/icons/Github.svelte';
 	import { parseInput } from '$lib/parse';
 	import { encodePayload, type SharePayload } from '$lib/share';
+	import { track } from '$lib/analytics';
 	import {
 		SITE_URL,
 		SITE_NAME,
@@ -56,6 +57,8 @@
 		if (!canContinue) return;
 		error = null;
 		const result = parseInput(value);
+
+		track('Continue', { kind: result.kind });
 
 		let payload: SharePayload;
 		if (result.kind === 'vocab') {
