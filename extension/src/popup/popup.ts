@@ -1,6 +1,7 @@
 import Alpine from "@alpinejs/csp";
 import collapse from "@alpinejs/collapse";
 import type { Flashcard, FlashcardSet } from "../lib/types";
+import { track, bucketDays, bucketSets } from "../lib/analytics";
 
 // Separator value mappings
 const TERM_SEP_MAP: Record<string, string> = {
@@ -394,6 +395,7 @@ Alpine.data("popup", () => ({
     this.exportCount = exportSet.cards.length;
     this.exportSource = "merge";
     this.screen = "export";
+    track("Merge", { sets: bucketSets(selected.length), dedup: this.dedupEnabled });
   },
 
   /** Open export screen from main (current tab only). */
@@ -441,6 +443,7 @@ Alpine.data("popup", () => ({
     if (this.copied || !originalSet) return;
     exportSet = originalSet;
     await navigator.clipboard.writeText(formatCards());
+    track("Export", { format: "copy" });
     this.copied = true;
     setTimeout(() => {
       this.copied = false;
@@ -451,6 +454,7 @@ Alpine.data("popup", () => ({
   async copyFromExport() {
     if (this.exportCopied || !exportSet) return;
     await navigator.clipboard.writeText(formatCards());
+    track("Export", { format: "copy" });
     this.exportCopied = true;
     setTimeout(() => {
       this.exportCopied = false;
@@ -606,7 +610,10 @@ Alpine.data("popup", () => ({
         set: exportSet,
         days: this.ankiDays,
       });
-      if (!res?.ok) {
+      if (res?.ok) {
+        track("Export", { format: "anki" });
+        track("Anki days", { range: bucketDays(this.ankiDays) });
+      } else {
         console.error("[QuickCards] Anki generation failed:", res?.error);
       }
     } catch (err) {
@@ -624,6 +631,7 @@ Alpine.data("popup", () => ({
       `${exportSet.title || "flashcards"}.txt`,
       "text/plain"
     );
+    track("Export", { format: "txt" });
   },
 
   exportCSV() {
@@ -640,6 +648,7 @@ Alpine.data("popup", () => ({
       `${exportSet.title || "flashcards"}.csv`,
       "text/csv"
     );
+    track("Export", { format: "csv" });
   },
 
   exportJSON() {
@@ -649,6 +658,7 @@ Alpine.data("popup", () => ({
       `${exportSet.title || "flashcards"}.json`,
       "application/json"
     );
+    track("Export", { format: "json" });
   },
 
   exportPDFList() {
@@ -658,6 +668,7 @@ Alpine.data("popup", () => ({
       type: "list",
       set: exportSet,
     });
+    track("Export", { format: "pdf-list" });
   },
 
   exportPDFCards() {
@@ -667,6 +678,7 @@ Alpine.data("popup", () => ({
       type: "cards",
       set: exportSet,
     });
+    track("Export", { format: "pdf-cards" });
   },
 }));
 
