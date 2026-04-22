@@ -1,0 +1,32 @@
+{
+	"$schema": "https://openapi.vercel.sh/vercel.json",
+	"headers": [
+		{
+			"source": "/_app/immutable/(.*)",
+			"headers": [
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=31536000, immutable"
+				}
+			]
+		},
+		{
+			"source": "/(.*\\.(png|svg|wasm|ico|webmanifest))",
+			"headers": [
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400"
+				}
+			]
+		},
+		{
+			"source": "/(robots\\.txt|sitemap\\.xml)",
+			"headers": [
+				{
+					"key": "Cache-Control",
+					"value": "public, max-age=3600, s-maxage=86400"
+				}
+			]
+		}
+	]
+}
