@@ -4,6 +4,8 @@ Chrome extension to export Quizlet flashcards quickly.
 
 Copy to clipboard, download as TXT/CSV/JSON, or generate printable PDFs — all from a clean dark-themed popup.
 
+> Also available as a web app at **[quickcards.oseifert.ch](https://quickcards.oseifert.ch)** — paste vocab lists, JSON, or CSV and get the same exports, no install.
+
 ![Popup main screen](../assets/popup_main.png)
 
 ## Features
