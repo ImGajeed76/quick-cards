@@ -147,3 +147,35 @@
 		background: transparent;
 	}
 }
+
+/* Gentle loop for the scroll-down hint — pauses on hover so the user
+   can tell it's an interactive target. */
+@keyframes hint-down {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(4px);
+	}
+}
+.animate-hint-down {
+	animation: hint-down 2.4s ease-in-out infinite;
+}
+.animate-hint-down:hover {
+	animation-play-state: paused;
+}
+
+/* Respect the OS-level motion preference. Reduces all transitions and
+   animations to ~0, which still ends elements in their "visible" state
+   (since our reveals use inline style changes that stick). */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
