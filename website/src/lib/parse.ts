@@ -63,6 +63,13 @@ export function parseInput(raw: string): ParseResult {
 	const alt = tryAlternatingPairs(text);
 	if (alt) return { kind: 'vocab', pairs: alt.pairs, separator: 'alternating-lines' };
 
+	// 9. Single-line hierarchical split — discovery-based. Catches Quizlet
+	//    custom-export formats (`term:def;term:def`) and any other hierarchy
+	//    the text implies. Runs last so the specialized multi-line paths get
+	//    first crack.
+	const hier = tryHierarchySplit(text);
+	if (hier) return { kind: 'vocab', pairs: hier.pairs, separator: hier.separator };
+
 	return {
 		kind: 'unknown',
 		reason: 'Paste a Quizlet link, or a vocab list (one pair per line with a separator).'
@@ -461,4 +468,152 @@ function tryAlternatingPairs(
 		pairs.push({ term: lines[i], definition: lines[i + 1] });
 	}
 	return pairs.length >= 2 ? { pairs } : null;
+}
+
+// --------------------------------------------------------------------------
+// Hierarchical split — discovery-based
+//
+// Every non-word run (and individual non-word char) in the text becomes a
+// candidate separator. We try every (outer, inner) pair, split, and score.
+// No hardcoded list of known delimiters — the algorithm adapts to whatever
+// punctuation the user actually pasted.
+// --------------------------------------------------------------------------
+
+/** How "delimiter-y" a single char is. Higher weight = rarer in prose = safer
+ *  bet as a delimiter. Used as a tiebreaker when multiple combos parse. */
+function charWeight(c: string): number {
+	if (c === '\t' || c === '\n') return 50;
+	if (/[|;@#$%^&*+~`{}[\]<>]/.test(c)) return 50;
+	if (/[=→⇒⟶]/.test(c)) return 30;
+	if (/[\-—–]/.test(c)) return 15;
+	if (/[:/]/.test(c)) return 10;
+	if (/[.,'"()!?]/.test(c)) return 1;
+	if (/\s/.test(c)) return 1;
+	return 5;
+}
+
+function tokenMaxWeight(token: string): number {
+	let max = 0;
+	for (const c of token) max = Math.max(max, charWeight(c));
+	return max;
+}
+
+/** Pull every non-word run out of the text, plus each individual non-space
+ *  non-word character. Pure-space runs are filtered (too noisy). */
+function extractHierarchyCandidates(text: string): string[] {
+	const set = new Set<string>();
+	for (const m of text.matchAll(/[^\p{L}\p{N}]+/gu)) {
+		const run = m[0];
+		if (!/^ +$/.test(run)) set.add(run);
+		for (const c of run) {
+			if (c !== ' ') set.add(c);
+		}
+	}
+	return [...set];
+}
+
+/** Flag systematic non-word boundaries — if all definitions start with the
+ *  same non-word char, or all terms end with the same non-word char, the
+ *  split probably chopped a real delimiter in half. Used to reject the
+ *  "hola##hello@@… split with inner=#" misfire, where every def starts with #. */
+function hasSystematicNonWordBoundary(pairs: VocabPair[]): boolean {
+	if (pairs.length < 2) return false;
+	const isNonWord = (c: string | undefined) =>
+		c !== undefined && !/[\p{L}\p{N}\s]/u.test(c);
+
+	const defStarts = pairs.map((p) => p.definition[0]);
+	if (isNonWord(defStarts[0]) && defStarts.every((c) => c === defStarts[0])) return true;
+
+	const termEnds = pairs.map((p) => p.term[p.term.length - 1]);
+	if (isNonWord(termEnds[0]) && termEnds.every((c) => c === termEnds[0])) return true;
+
+	return false;
+}
+
+function labelHierarchy(inner: string, outer: string): string {
+	const describe = (t: string) => {
+		if (t === '\t') return 'tab';
+		if (t === '\n') return 'newline';
+		return JSON.stringify(t); // shows quotes + escapes for weird chars
+	};
+	return `hierarchy(${describe(inner)} + ${describe(outer)})`;
+}
+
+function tryHierarchySplit(
+	text: string
+): { pairs: VocabPair[]; separator: string } | null {
+	// Single-line only — multi-line inputs that don't match smart-delim / blank-line /
+	// alternating are not our responsibility. Otherwise we'd start rescuing inputs
+	// the existing paths deliberately reject (e.g. compound-word `-` inside `well-being`
+	// or content-comma ambiguity like `hola, amigo, friend`).
+	if (text.includes('\n')) return null;
+
+	const candidates = extractHierarchyCandidates(text);
+	if (candidates.length < 2) return null;
+
+	let best: { pairs: VocabPair[]; outer: string; inner: string; score: number } | null =
+		null;
+
+	for (const outer of candidates) {
+		const chunks = text.split(outer).map((c) => c.trim()).filter(Boolean);
+		if (chunks.length < 2) continue;
+
+		// Rule 1 — reject outer if the chunks still contain a candidate with
+		// strictly-higher max-char-weight. Prevents picking weak delimiters when
+		// a stronger one survives inside the chunks (e.g. splitting on " - " and
+		// leaving " ; " untouched in the middle chunk).
+		const outerMax = tokenMaxWeight(outer);
+		const hasCompetingInChunks = candidates.some((cand) => {
+			if (cand === outer) return false;
+			if (tokenMaxWeight(cand) <= outerMax) return false;
+			return chunks.some((chunk) => chunk.includes(cand));
+		});
+		if (hasCompetingInChunks) continue;
+
+		for (const inner of candidates) {
+			if (inner === outer) continue;
+			// Prevents "-" from being picked as inner when outer is "->" etc.
+			if (outer.includes(inner)) continue;
+
+			const pairs: VocabPair[] = [];
+			let allParsed = true;
+			for (const chunk of chunks) {
+				const idx = chunk.indexOf(inner);
+				if (idx < 0) {
+					allParsed = false;
+					break;
+				}
+				const term = chunk.slice(0, idx).trim();
+				const def = chunk.slice(idx + inner.length).trim();
+				if (!term || !def) {
+					allParsed = false;
+					break;
+				}
+				pairs.push({ term, definition: def });
+			}
+			if (!allParsed || pairs.length < 2) continue;
+
+			// Prefer LONGER inner — ` - ` beats `-` in `hola-world - hello-there …`,
+			// `##` beats `#` in `hola##hello@@…`. The inner-substring-of-outer skip
+			// above already prevents ` - ` from misfiring when outer is `->`.
+			let score =
+				pairs.length * 10000 + outerMax * 100 + tokenMaxWeight(inner) + inner.length;
+
+			// Rule 2 — large negative bias when every def starts (or every term
+			// ends) with the same non-word char. Catches the #/## misfire.
+			if (hasSystematicNonWordBoundary(pairs)) {
+				score -= 1_000_000;
+			}
+
+			if (!best || score > best.score) {
+				best = { pairs, outer, inner, score };
+			}
+		}
+	}
+
+	// If the best combo only survived thanks to the negative-score bias, it's
+	// almost certainly wrong — reject it and fall through to unknown.
+	if (!best || best.score < 0) return null;
+
+	return { pairs: best.pairs, separator: labelHierarchy(best.inner, best.outer) };
 }

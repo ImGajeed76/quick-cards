@@ -629,6 +629,127 @@ describe('multi-line pairs', () => {
 });
 
 // --------------------------------------------------------------------------
+// Single-line hierarchical split — "term<inner>def<outer>term<inner>def…"
+// Covers Quizlet custom-export formats, messaging-app-flattened pastes, and
+// any hierarchical combo discovered from the text itself.
+// --------------------------------------------------------------------------
+
+describe('single-line hierarchical split', () => {
+	test('colon + semicolon (simple)', () => {
+		expectVocab(parseInput('hola:hello;gato:cat;perro:dog;amigo:friend'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' },
+				{ term: 'amigo', definition: 'friend' }
+			]
+		});
+	});
+
+	test('colon + semicolon with accents, apostrophes, parens (real user case)', () => {
+		const r = parseInput(
+			"protéger l'environnement (m):die Umwelt schützen;réduire la pollution:die Verschmutzung reduzieren;polluer l'eau (f):das Wasser verschmutzen"
+		);
+		expect(r.kind).toBe('vocab');
+		if (r.kind === 'vocab') {
+			expect(r.pairs).toHaveLength(3);
+			expect(r.pairs[0]).toEqual({
+				term: "protéger l'environnement (m)",
+				definition: 'die Umwelt schützen'
+			});
+			expect(r.pairs[2]).toEqual({
+				term: "polluer l'eau (f)",
+				definition: 'das Wasser verschmutzen'
+			});
+		}
+	});
+
+	test('tab + semicolon (Quizlet custom export)', () => {
+		expectVocab(parseInput('hola\thello;gato\tcat;perro\tdog'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]
+		});
+	});
+
+	test('spaced hyphen + semicolon', () => {
+		expectVocab(parseInput('hola - hello; gato - cat; perro - dog'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]
+		});
+	});
+
+	test('equals + pipe', () => {
+		expectVocab(parseInput('hola=hello|gato=cat|perro=dog'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]
+		});
+	});
+
+	test('arrow + semicolon', () => {
+		expectVocab(parseInput('hola->hello;gato->cat;perro->dog'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]
+		});
+	});
+
+	test('exotic separators discovered from text (not hardcoded)', () => {
+		expectVocab(parseInput('hola##hello@@gato##cat@@perro##dog'), {
+			pairs: [
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]
+		});
+	});
+
+	test('same char used at both levels → unknown (ambiguous)', () => {
+		expect(parseInput('term;def;term;def').kind).toBe('unknown');
+	});
+
+	test('unbalanced chunks (one missing inner) → unknown', () => {
+		const r = parseInput('hola:hello;junk_no_colon;gato:cat');
+		expect(r.kind).toBe('unknown');
+	});
+
+	test('inner substring of outer does not misfire', () => {
+		// Tempting wrong answer: outer=" - ", inner="-" → 3 pairs (hola, world), etc.
+		// Correct: outer=" ; ", inner=" - " → 2 pairs with hyphens preserved in term.
+		expectVocab(parseInput('hola-world - hello-there ; gato-paw - cat-foot'), {
+			pairs: [
+				{ term: 'hola-world', definition: 'hello-there' },
+				{ term: 'gato-paw', definition: 'cat-foot' }
+			]
+		});
+	});
+
+	test('multi-line semicolon pairs still parse (any path is fine)', () => {
+		// Either smart-delim or hierarchy can claim this one; we just need a
+		// valid vocab result. Guards against hierarchy breaking existing paths.
+		const r = parseInput('hola;hello\ngato;cat\nperro;dog');
+		expect(r.kind).toBe('vocab');
+		if (r.kind === 'vocab') {
+			expect(r.pairs).toEqual([
+				{ term: 'hola', definition: 'hello' },
+				{ term: 'gato', definition: 'cat' },
+				{ term: 'perro', definition: 'dog' }
+			]);
+		}
+	});
+});
+
+// --------------------------------------------------------------------------
 // Encoding / line-ending edge cases
 // --------------------------------------------------------------------------
 
