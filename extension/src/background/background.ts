@@ -6,6 +6,7 @@
 import { generateFlashcardsPDF } from "../lib/pdf-flashcards";
 import { generateListPDF } from "../lib/pdf-list";
 import { buildAnkiPackage } from "../lib/anki-export";
+import { importToKnowt } from "../lib/knowt-api";
 import type { Flashcard, FlashcardSet } from "../lib/types";
 import initSqlJs from "sql.js";
 
@@ -105,6 +106,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "generateAnki") {
     handleAnkiGeneration(message.set, message.days)
       .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+
+  if (message.action === "importToKnowt") {
+    importToKnowt(message.set)
+      .then((res) => sendResponse(res))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }

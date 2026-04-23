@@ -94,7 +94,7 @@ interface MergeSetEntry {
 
 // Main popup component
 Alpine.data("popup", () => ({
-  screen: "loading" as "loading" | "error" | "main" | "export" | "merge" | "anki",
+  screen: "loading" as "loading" | "error" | "main" | "export" | "merge" | "anki" | "knowt",
   preview: false,
   copied: false,
   exportCopied: false,
@@ -112,6 +112,14 @@ Alpine.data("popup", () => ({
   ankiViewYear: 0,
   ankiViewMonth: 0,
   ankiGenerating: false,
+
+  // Knowt import state
+  knowtStep: "form" as "form" | "needsAuth" | "importing" | "success" | "error",
+  knowtTitle: "",
+  knowtDesc: "",
+  knowtError: "",
+  knowtCreatedUrl: "",
+  knowtImporting: false,
 
   /** Render the merge set list and wire up checkbox listeners. */
   renderMergeList() {
@@ -621,6 +629,80 @@ Alpine.data("popup", () => ({
     } finally {
       this.ankiGenerating = false;
     }
+  },
+
+  // ── Knowt import ─────────────────────────────────────────
+
+  openKnowt() {
+    if (!exportSet) return;
+    this.knowtTitle = exportSet.title || "";
+    this.knowtDesc = exportSet.description || "";
+    this.knowtError = "";
+    this.knowtCreatedUrl = "";
+    this.knowtStep = "form";
+    this.screen = "knowt";
+  },
+
+  goBackFromKnowt() {
+    this.screen = "export";
+  },
+
+  get knowtImportDisabled(): boolean {
+    return this.knowtImporting || this.knowtTitle.trim().length === 0;
+  },
+
+  async runKnowtImport() {
+    if (!exportSet || this.knowtImporting) return;
+    const title = this.knowtTitle.trim();
+    if (!title) return;
+
+    this.knowtImporting = true;
+    this.knowtStep = "importing";
+
+    try {
+      const res = await chrome.runtime.sendMessage({
+        action: "importToKnowt",
+        set: {
+          title,
+          description: this.knowtDesc.trim(),
+          cards: exportSet.cards,
+        },
+      });
+
+      if (res?.ok) {
+        this.knowtCreatedUrl = res.url;
+        this.knowtStep = "success";
+      } else if (res?.needsAuth) {
+        this.knowtStep = "needsAuth";
+      } else {
+        this.knowtError = res?.error || "Something went wrong.";
+        this.knowtStep = "error";
+      }
+    } catch (err) {
+      this.knowtError = err instanceof Error ? err.message : String(err);
+      this.knowtStep = "error";
+    } finally {
+      this.knowtImporting = false;
+    }
+  },
+
+  openKnowtLogin() {
+    chrome.tabs.create({ url: "https://knowt.com/login" });
+  },
+
+  openKnowtSet() {
+    if (this.knowtCreatedUrl) {
+      chrome.tabs.create({ url: this.knowtCreatedUrl });
+    }
+  },
+
+  knowtDone() {
+    window.close();
+  },
+
+  knowtTryAgain() {
+    this.knowtError = "";
+    this.knowtStep = "form";
   },
 
   // Export handlers

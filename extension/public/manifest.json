@@ -8,10 +8,13 @@
     "tabs",
     "storage",
     "clipboardWrite",
-    "downloads"
+    "downloads",
+    "cookies"
   ],
   "host_permissions": [
-    "*://*.quizlet.com/*"
+    "*://*.quizlet.com/*",
+    "https://knowt.com/*",
+    "https://3gso5evnnzbr7l4ubazdtfa4wq.appsync-api.us-east-1.amazonaws.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
