@@ -672,15 +672,20 @@ Alpine.data("popup", () => ({
       if (res?.ok) {
         this.knowtCreatedUrl = res.url;
         this.knowtStep = "success";
+        track("Export", { format: "knowt" });
+        track("Knowt import result", { outcome: "success" });
       } else if (res?.needsAuth) {
         this.knowtStep = "needsAuth";
+        track("Knowt import result", { outcome: "needsAuth" });
       } else {
         this.knowtError = res?.error || "Something went wrong.";
         this.knowtStep = "error";
+        track("Knowt import result", { outcome: "error" });
       }
     } catch (err) {
       this.knowtError = err instanceof Error ? err.message : String(err);
       this.knowtStep = "error";
+      track("Knowt import result", { outcome: "error" });
     } finally {
       this.knowtImporting = false;
     }
