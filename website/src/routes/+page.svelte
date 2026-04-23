@@ -576,12 +576,13 @@
 				<div class="grid items-center gap-10 sm:grid-cols-[1fr_auto]">
 					<div>
 						<h2 class="text-3xl font-semibold tracking-tight">
-							Import from Quizlet, too
+							Quizlet in, Knowt out
 						</h2>
 						<p class="mt-4 text-[15px] leading-7 text-muted-foreground">
-							Quizlet's Cloudflare won't let web apps fetch sets cross-origin. The browser
-							extension runs inside your own session — so it works on any Quizlet set page
-							without any workarounds on our side.
+							The browser extension runs inside your own sessions, so it does two things
+							web apps can't: fetch any Quizlet set page directly (Cloudflare blocks
+							cross-origin fetches), and send your cards straight into your Knowt account
+							with one click. No copy-paste between tabs.
 						</p>
 						<div class="mt-6 flex flex-wrap gap-3">
 							<Button href="/install">

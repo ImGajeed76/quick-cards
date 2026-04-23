@@ -1,6 +1,6 @@
 # QuickCards
 
-Export Quizlet flashcards and vocab lists to TXT, CSV, JSON, PDF, and Anki — no account, no server.
+Export Quizlet flashcards and vocab lists to TXT, CSV, JSON, PDF, Anki — or import them straight into Knowt. No account required, no server.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/ImGajeed76/quick-cards)](https://github.com/ImGajeed76/quick-cards/releases/latest)
@@ -14,12 +14,13 @@ Export Quizlet flashcards and vocab lists to TXT, CSV, JSON, PDF, and Anki — n
 Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Nothing to install. Share the URL and the export reproduces on the other side.
 
 **Chrome extension** — [install instructions](extension/README.md#install)
-Works directly on Quizlet set pages: floating banner, one-click copy, merge multiple open tabs into a single export. Fetches cards from Quizlet's web API (no login required).
+Works directly on Quizlet set pages: floating banner, one-click copy, merge multiple open tabs, and one-click import into Knowt. Fetches cards from Quizlet's web API; the Knowt import uses your existing Knowt session — no extra login.
 
 ## Features
 
 - **Paste anything** — single or multiple Quizlet URLs, vocab lists with 15+ separator styles, JSON (common shapes: `{term,definition}`, `{front,back}`, tuples, flat key→value), JSON Lines, quoted CSV, TSV, Markdown tables, TOML
 - **Six export formats** — TXT, CSV, JSON, PDF vocab list, printable PDF flashcards (2×4 grid, double-sided, syllable hyphenation), Anki `.apkg`
+- **Import to Knowt** (extension) — one-click creates a new flashcard set on your existing Knowt account. Runs in your browser session; no separate login, no copy-paste
 - **Anki with FSRS deadline pacing** — pick a target date, get a deck with retention and learning steps tuned to the time you have
 - **Merge multiple sets** (extension) — combine cards from all open Quizlet tabs, with duplicate-removal toggle
 - **Shareable URLs** (web) — the full card set is compressed into the URL; anyone with the link sees the same export
@@ -34,6 +35,10 @@ Works directly on Quizlet set pages: floating banner, one-click copy, merge mult
 | PDF vocab list | PDF flashcards | Merge sets |
 |:-:|:-:|:-:|
 | ![PDF list](assets/pdf_list.png) | ![PDF cards](assets/pdf_cards.png) | ![Merge screen](assets/merge_screen.png) |
+
+| Knowt import — form | Knowt import — importing |
+|:-:|:-:|
+| ![Knowt form](assets/knowt_import_settings.png) | ![Knowt importing](assets/knowt_importing_screen.png) |
 
 ## Repository layout
 
