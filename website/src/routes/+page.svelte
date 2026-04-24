@@ -625,6 +625,12 @@
 			</div>
 			<div class="flex items-center gap-5">
 				<a
+					href="/knowt-alternative"
+					class="transition-colors hover:text-foreground"
+				>
+					Coming from Knowt?
+				</a>
+				<a
 					href="https://github.com/ImGajeed76/quick-cards"
 					class="transition-colors hover:text-foreground"
 				>
