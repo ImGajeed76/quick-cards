@@ -3,18 +3,28 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ArrowLeft, ArrowUpRight, Download, LoaderCircle } from '@lucide/svelte';
 	import { SITE_NAME } from '$lib/site';
+	import { track } from '$lib/analytics';
 
 	const title = `Install ${SITE_NAME} — one-minute setup`;
 	const description = `Install the ${SITE_NAME} browser extension in five steps. Free, open-source, works in Chrome, Edge, Brave, and Opera.`;
 
 	const RELEASES_URL = 'https://github.com/ImGajeed76/quick-cards/releases/latest';
 	const FETCH_TIMEOUT_MS = 2500;
+	const CWS_REQUESTED_KEY = 'quickcards-cws-requested';
 
 	let status = $state<'loading' | 'direct' | 'fallback'>('loading');
 	let download = $state<string | null>(null);
 	let version = $state<string | null>(null);
+	// 'prompt' = show CTA, 'thanks' = just clicked, 'hidden' = already clicked in a prior page load
+	let cwsState = $state<'prompt' | 'thanks' | 'hidden'>('prompt');
 
 	onMount(async () => {
+		try {
+			if (sessionStorage.getItem(CWS_REQUESTED_KEY) === '1') cwsState = 'hidden';
+		} catch {
+			// sessionStorage may throw in sandboxed contexts; ignore.
+		}
+
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 		try {
@@ -44,6 +54,21 @@
 			clearTimeout(timer);
 		}
 	});
+
+	function trackDownload(source: 'github-direct' | 'github-fallback') {
+		track('Install download', { source });
+	}
+
+	function requestCws() {
+		if (cwsState !== 'prompt') return;
+		cwsState = 'thanks';
+		try {
+			sessionStorage.setItem(CWS_REQUESTED_KEY, '1');
+		} catch {
+			// ignore — we still fire the event below
+		}
+		track('Web Store request');
+	}
 </script>
 
 <svelte:head>
@@ -78,15 +103,39 @@
 						Preparing download…
 					</Button>
 				{:else if status === 'direct' && download}
-					<Button href={download} download class="mt-5 min-w-[15rem]">
+					<Button
+						href={download}
+						download
+						onclick={() => trackDownload('github-direct')}
+						class="mt-5 min-w-[15rem]"
+					>
 						<Download />
 						Download{version ? ` ${version}` : ''}
 					</Button>
 				{:else}
-					<Button href={RELEASES_URL} class="mt-5 min-w-[15rem]">
+					<Button
+						href={RELEASES_URL}
+						onclick={() => trackDownload('github-fallback')}
+						class="mt-5 min-w-[15rem]"
+					>
 						<ArrowUpRight />
 						Latest release on GitHub
 					</Button>
+				{/if}
+
+				{#if cwsState === 'prompt'}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={requestCws}
+						class="mt-3 -ml-2.5 cursor-pointer text-muted-foreground hover:text-foreground"
+					>
+						Prefer a one-click Chrome Web Store install?
+					</Button>
+				{:else if cwsState === 'thanks'}
+					<p class="mt-3 text-sm text-muted-foreground">
+						Thanks — we'll prioritise a Chrome Web Store release.
+					</p>
 				{/if}
 			</div>
 		</li>
