@@ -31,6 +31,30 @@
 	import { reveal } from '$lib/actions/reveal';
 	import { nextExample, FORMAT_LABELS, type Example } from '$lib/demo';
 	import { formatCards, toCsv } from '$lib/export/formatting';
+	import { SITE_NAME, SITE_URL, SITE_TAGLINE } from '$lib/site';
+
+	const title = `${SITE_NAME} · ${SITE_TAGLINE}`;
+	const description =
+		'Paste a Quizlet URL or a vocab list. Export to Anki (.apkg), PDF flashcards, PDF vocab list, CSV, JSON, or plain text. Runs in your browser. No account, no install.';
+
+	const appJsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'SoftwareApplication',
+		name: SITE_NAME,
+		applicationCategory: 'BrowserApplication',
+		operatingSystem: 'Chrome, Edge, Brave, Opera',
+		url: SITE_URL,
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+	};
+
+	const orgJsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		name: SITE_NAME,
+		url: SITE_URL,
+		logo: `${SITE_URL}/favicon-128.png`,
+		sameAs: ['https://github.com/ImGajeed76/quick-cards']
+	};
 
 	let { data } = $props();
 
@@ -219,6 +243,19 @@
 
 </script>
 
+<svelte:head>
+	<title>{title}</title>
+	<meta name="description" content={description} />
+	<meta property="og:title" content={title} />
+	<meta property="og:description" content={description} />
+	<meta name="twitter:title" content={title} />
+	<meta name="twitter:description" content={description} />
+	<link rel="preconnect" href="https://api.github.com" crossorigin="anonymous" />
+	<link rel="dns-prefetch" href="https://plausible.axonotes.ch" />
+	{@html `<script type="application/ld+json">${JSON.stringify(appJsonLd)}</script>`}
+	{@html `<script type="application/ld+json">${JSON.stringify(orgJsonLd)}</script>`}
+</svelte:head>
+
 <div class="flex flex-col">
 	<!-- ══════════════ Hero ══════════════ -->
 	<section class="relative flex min-h-screen flex-col">
@@ -300,18 +337,16 @@
 				<h2
 					class="inline-flex items-center justify-center gap-3 text-3xl font-semibold tracking-tight sm:text-4xl"
 				>
-					Paste
+					Paste anything
 					<ArrowRight
 						class="size-7 shrink-0 text-muted-foreground sm:size-8"
 						aria-hidden="true"
 					/>
-					<span class="text-primary">Export</span>
+					<span class="text-primary">Export anywhere</span>
 				</h2>
-				<p class="mx-auto mt-4 max-w-xl text-[15px] leading-7 text-muted-foreground">
-					QuickCards figures out what you gave it and hands back exactly what you need.
-				</p>
-				<p class="mx-auto mt-2 text-xs text-muted-foreground/70">
-					Recognizes vocab lists, JSON, CSV, TSV, Markdown, TOML, Quizlet URLs, and more.
+				<p class="mx-auto mt-3 max-w-xl text-[15px] leading-6 text-muted-foreground">
+					QuickCards figures out what you pasted.<br />
+					Export to Anki, PDF, CSV, JSON, or plain text.
 				</p>
 			</div>
 
@@ -400,6 +435,10 @@
 					</div>
 				</div>
 			</div>
+
+			<p use:reveal class="mt-10 text-center text-xs text-muted-foreground/70">
+				Recognizes vocab lists, JSON, CSV, TSV, Markdown, TOML, Quizlet URLs, and more.
+			</p>
 		</div>
 	</section>
 
