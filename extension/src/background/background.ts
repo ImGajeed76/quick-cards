@@ -8,7 +8,7 @@ import { generateListPDF } from "../lib/pdf-list";
 import { buildAnkiPackage } from "../lib/anki-export";
 import { importToKnowt } from "../lib/knowt-api";
 import type { Flashcard, FlashcardSet } from "../lib/types";
-import initSqlJs from "sql.js";
+import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 // ── Quizlet API helpers ─────────────────────────────────
 
@@ -136,7 +136,7 @@ async function handleFileDownload(
   content: string,
   filename: string,
   mimeType: string,
-) {
+): Promise<void> {
   // Encode content as a data URL — avoids blob URLs entirely.
   // Base64 is used because content may contain newlines, commas, unicode, etc.
   const base64 = btoa(unescape(encodeURIComponent(content)));
@@ -151,7 +151,7 @@ async function handleFileDownload(
 
 // ── PDF generation + download ───────────────────────────
 
-async function handlePDFGeneration(type: "list" | "cards", set: FlashcardSet) {
+async function handlePDFGeneration(type: "list" | "cards", set: FlashcardSet): Promise<void> {
   let doc;
   let filename: string;
 
@@ -176,8 +176,8 @@ async function handlePDFGeneration(type: "list" | "cards", set: FlashcardSet) {
 // ── Anki export ─────────────────────────────────────────
 
 // sql.js is lazy-loaded on first Anki export and cached for subsequent calls.
-let sqlPromise: Promise<any> | null = null;
-function getSQL(): Promise<any> {
+let sqlPromise: Promise<SqlJsStatic> | null = null;
+function getSQL(): Promise<SqlJsStatic> {
   if (!sqlPromise) {
     sqlPromise = initSqlJs({
       locateFile: (file: string) => chrome.runtime.getURL(file),
@@ -186,7 +186,7 @@ function getSQL(): Promise<any> {
   return sqlPromise;
 }
 
-async function handleAnkiGeneration(set: FlashcardSet, days: number) {
+async function handleAnkiGeneration(set: FlashcardSet, days: number): Promise<void> {
   const SQL = await getSQL();
   const bytes = await buildAnkiPackage({ set, days, SQL });
 

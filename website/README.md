@@ -13,13 +13,13 @@ bun run dev        # localhost:5173
 
 ### Scripts
 
-| Command | What it does |
-|---|---|
-| `bun run dev` | Vite dev server |
-| `bun run build` | Static build to `build/` |
-| `bun run preview` | Serve the static build |
-| `bun test` | Parser unit tests (73 — 15 delimiters, JSON variants, CSV, TOML, Markdown tables, alternating + blank-line pairs, encoding edge cases) |
-| `bun run check` | `svelte-check` type validation |
+| Command           | What it does                                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run dev`     | Vite dev server                                                                                                                        |
+| `bun run build`   | Static build to `build/`                                                                                                               |
+| `bun run preview` | Serve the static build                                                                                                                 |
+| `bun test`        | Parser unit tests (73 — 15 delimiters, JSON variants, CSV, TOML, Markdown tables, alternating + blank-line pairs, encoding edge cases) |
+| `bun run check`   | `svelte-check` type validation                                                                                                         |
 
 ## Architecture
 
@@ -52,13 +52,13 @@ bun run dev        # localhost:5173
 
 Vercel — project settings:
 
-| Setting | Value |
-|---|---|
-| Root Directory | `website` |
+| Setting          | Value                     |
+| ---------------- | ------------------------- |
+| Root Directory   | `website`                 |
 | Framework Preset | SvelteKit (auto-detected) |
-| Build Command | `bun run build` |
-| Output Directory | `build` |
-| Install Command | `bun install` |
+| Build Command    | `bun run build`           |
+| Output Directory | `build`                   |
+| Install Command  | `bun install`             |
 
 Then add `quickcards.oseifert.ch` as a custom domain via DNS CNAME to Vercel.
 

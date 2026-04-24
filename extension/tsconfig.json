@@ -23,6 +23,9 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Ambient globals: Chrome extension APIs and the Bun runtime (build.ts, test/).
+    "types": ["chrome", "bun"]
   }
 }

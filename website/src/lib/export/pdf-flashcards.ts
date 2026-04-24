@@ -36,7 +36,7 @@ function fitTextToCard(
   doc: jsPDF,
   text: string,
   maxWidth: number,
-  maxHeight: number
+  maxHeight: number,
 ): { fontSize: number; lines: string[] } {
   let fontSize = MAX_FONT_SIZE;
 
@@ -89,7 +89,7 @@ function drawCardText(
   text: string,
   col: number,
   row: number,
-  mirrored: boolean = false
+  mirrored: boolean = false,
 ): void {
   // Calculate card position
   // For mirrored (back side), we flip horizontally
@@ -113,8 +113,7 @@ function drawCardText(
   // Draw each line centered — terms darker, definitions lighter
   const textColor = mirrored ? DEF_TEXT_COLOR : TERM_TEXT_COLOR;
   doc.setTextColor(...textColor);
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+  for (const [i, line] of lines.entries()) {
     const lineWidth = doc.getTextWidth(line);
     const lineX = x + (CARD_WIDTH - lineWidth) / 2;
     const lineY = startY + i * lineHeight;
@@ -179,10 +178,7 @@ export function generateFlashcardsPDF(set: FlashcardSet): jsPDF {
 /**
  * Generates and saves the flashcards PDF to a file
  */
-export async function saveFlashcardsPDF(
-  set: FlashcardSet,
-  outputPath: string
-): Promise<void> {
+export async function saveFlashcardsPDF(set: FlashcardSet, outputPath: string): Promise<void> {
   const doc = generateFlashcardsPDF(set);
   const pdfOutput = doc.output("arraybuffer");
   await Bun.write(outputPath, pdfOutput);

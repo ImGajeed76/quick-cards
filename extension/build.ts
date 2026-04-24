@@ -2,7 +2,7 @@ import { execSync } from "child_process";
 
 const isWatch = process.argv.includes("--watch");
 
-async function build() {
+async function build(): Promise<void> {
   console.log("Building QuickCards extension...\n");
 
   // Build TypeScript files
@@ -32,19 +32,15 @@ async function build() {
 
     const file = Bun.file(`dist/${config.out}`);
     const size = await file.size;
-    const sizeStr =
-      size > 1024
-        ? `${(size / 1024).toFixed(1)}KB`
-        : `${size}B`;
+    const sizeStr = size > 1024 ? `${(size / 1024).toFixed(1)}KB` : `${size}B`;
     console.log(`   -> dist/${config.out} (${sizeStr})`);
   }
 
   // Build CSS with Tailwind
   console.log("\n2. Building CSS...");
-  execSync(
-    "bunx @tailwindcss/cli -i src/styles/tailwind.css -o dist/styles.css --minify",
-    { stdio: "inherit" }
-  );
+  execSync("bunx @tailwindcss/cli -i src/styles/tailwind.css -o dist/styles.css --minify", {
+    stdio: "inherit",
+  });
 
   // Copy static files
   console.log("\n3. Copying static files...");

@@ -21,17 +21,12 @@ function getHyphenatedParts(word: string): string[] {
  * Breaks a long word at syllable boundaries to fit within maxWidth
  * Adds hyphens at break points
  */
-function breakLongWord(
-  doc: jsPDF,
-  word: string,
-  maxWidth: number
-): string[] {
+function breakLongWord(doc: jsPDF, word: string, maxWidth: number): string[] {
   const parts = getHyphenatedParts(word);
   const chunks: string[] = [];
   let current = "";
 
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i]!;
+  for (const [i, part] of parts.entries()) {
     const isLast = i === parts.length - 1;
     const testWithHyphen = current + part + (isLast ? "" : "-");
 
@@ -79,12 +74,7 @@ function breakLongWord(
  * Wraps text to fit within a given width, returns array of lines
  * Uses syllable-based hyphenation for long words
  */
-export function wrapText(
-  doc: jsPDF,
-  text: string,
-  maxWidth: number,
-  fontSize: number
-): string[] {
+export function wrapText(doc: jsPDF, text: string, maxWidth: number, fontSize: number): string[] {
   doc.setFontSize(fontSize);
   const words = text.split(/\s+/);
   const lines: string[] = [];
@@ -100,12 +90,12 @@ export function wrapText(
       }
       // Break the long word using syllables
       const chunks = breakLongWord(doc, word, maxWidth);
-      for (let i = 0; i < chunks.length; i++) {
+      for (const [i, chunk] of chunks.entries()) {
         if (i < chunks.length - 1) {
-          lines.push(chunks[i]!);
+          lines.push(chunk);
         } else {
           // Last chunk becomes current line (may combine with next word)
-          currentLine = chunks[i]!;
+          currentLine = chunk;
         }
       }
     } else {
@@ -127,5 +117,3 @@ export function wrapText(
 
   return lines.length > 0 ? lines : [""];
 }
-
-

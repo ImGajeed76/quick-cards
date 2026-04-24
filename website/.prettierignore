@@ -1,0 +1,6 @@
+.svelte-kit
+build
+node_modules
+bun.lock
+src/lib/paraglide
+convex/_generated

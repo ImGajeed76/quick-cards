@@ -1,4 +1,5 @@
 import { Package, Deck, DeckConfig, Model, Note } from "ankipack";
+import type { SqlJsStatic } from "sql.js";
 import type { FlashcardSet } from "./types";
 
 // Build a DeckConfig tuned to the remaining deadline.
@@ -11,8 +12,8 @@ function buildConfig(
   isTyping: boolean,
   name: string,
 ): DeckConfig {
-  const baseDR = Math.min(0.95, Math.max(0.90, 0.90 + (14 - days) * 0.005));
-  const desiredRetention = isTyping ? Math.max(0.80, baseDR - 0.05) : baseDR;
+  const baseDR = Math.min(0.95, Math.max(0.9, 0.9 + (14 - days) * 0.005));
+  const desiredRetention = isTyping ? Math.max(0.8, baseDR - 0.05) : baseDR;
 
   let learnSteps: number[];
   let graduatingIntervalGood: number;
@@ -51,7 +52,7 @@ function buildConfig(
 export interface AnkiExportOptions {
   set: FlashcardSet;
   days: number;
-  SQL: any; // sql.js module, initialized by the caller
+  SQL: SqlJsStatic; // sql.js module, initialized by the caller
 }
 
 /**
@@ -81,10 +82,12 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     config: flashcardConfig,
   });
   for (const card of set.cards) {
-    flashcardDeck.addNote(new Note({
-      model: flashcardModel,
-      fields: [card.term, card.definition],
-    }));
+    flashcardDeck.addNote(
+      new Note({
+        model: flashcardModel,
+        fields: [card.term, card.definition],
+      }),
+    );
   }
   pkg.addDeck(flashcardDeck);
 
@@ -97,10 +100,12 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     config: typingConfig,
   });
   for (const card of set.cards) {
-    typingTermDef.addNote(new Note({
-      model: typingModel,
-      fields: [card.term, card.definition],
-    }));
+    typingTermDef.addNote(
+      new Note({
+        model: typingModel,
+        fields: [card.term, card.definition],
+      }),
+    );
   }
   pkg.addDeck(typingTermDef);
 
@@ -109,10 +114,12 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     config: typingConfig,
   });
   for (const card of set.cards) {
-    typingDefTerm.addNote(new Note({
-      model: typingModel,
-      fields: [card.definition, card.term],
-    }));
+    typingDefTerm.addNote(
+      new Note({
+        model: typingModel,
+        fields: [card.definition, card.term],
+      }),
+    );
   }
   pkg.addDeck(typingDefTerm);
 

@@ -3,8 +3,7 @@
 
 import type { FlashcardSet } from "./types";
 
-const ENDPOINT =
-  "https://3gso5evnnzbr7l4ubazdtfa4wq.appsync-api.us-east-1.amazonaws.com/graphql";
+const ENDPOINT = "https://3gso5evnnzbr7l4ubazdtfa4wq.appsync-api.us-east-1.amazonaws.com/graphql";
 const COGNITO_CLIENT_ID = "2nd76e1v5lva4r1nfi3vku56rj";
 // Chunk size for BatchUpdateFlashcard. Keeps payloads small for very large sets.
 const BATCH_SIZE = 100;
@@ -20,7 +19,7 @@ export type KnowtImportResult =
 async function getIdToken(): Promise<string | null> {
   const cookies = await chrome.cookies.getAll({ domain: "knowt.com" });
   const match = cookies.find(
-    (c) => c.name.includes(COGNITO_CLIENT_ID) && c.name.endsWith(".idToken")
+    (c) => c.name.includes(COGNITO_CLIENT_ID) && c.name.endsWith(".idToken"),
   );
   if (!match) return null;
   try {
@@ -36,7 +35,8 @@ interface JwtPayload {
 }
 
 function decodeJwt(token: string): JwtPayload {
-  const [, payload] = token.split(".");
+  const payload = token.split(".")[1];
+  if (!payload) throw new Error("Invalid JWT: missing payload segment");
   const b64 = payload.replace(/-/g, "+").replace(/_/g, "/");
   const padded = b64.padEnd(Math.ceil(b64.length / 4) * 4, "=");
   return JSON.parse(atob(padded));
@@ -48,11 +48,11 @@ function isExpired(payload: JwtPayload): boolean {
 
 // ── GraphQL ───────────────────────────────────────────────
 
-async function gql(
+async function gql<T = unknown>(
   idToken: string,
   query: string,
-  variables: Record<string, unknown>
-): Promise<any> {
+  variables: Record<string, unknown>,
+): Promise<T> {
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: { authorization: idToken, "content-type": "application/json" },

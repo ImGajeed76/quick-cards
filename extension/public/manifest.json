@@ -3,14 +3,7 @@
   "name": "QuickCards",
   "version": "1.0.0",
   "description": "Export Quizlet flashcards: copy, TXT, CSV, JSON, PDF, Anki — or import straight to Knowt.",
-  "permissions": [
-    "activeTab",
-    "tabs",
-    "storage",
-    "clipboardWrite",
-    "downloads",
-    "cookies"
-  ],
+  "permissions": ["activeTab", "tabs", "storage", "clipboardWrite", "downloads", "cookies"],
   "host_permissions": [
     "*://*.quizlet.com/*",
     "https://knowt.com/*",

@@ -1,301 +1,423 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QuickCards - Dev</title>
-  <link rel="stylesheet" href="./styles.css">
-  <style>
-    .popup-frame {
-      width: 340px;
-      margin: 40px auto;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid oklch(1 0 0 / 10%);
-    }
-  </style>
-</head>
-<body class="bg-background min-h-screen p-8">
-
-  <!-- ========== MAIN STATE ========== -->
-  <p class="text-muted-foreground text-center mb-6 text-xs tracking-wide uppercase">Main State</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-3" x-data="{ preview: false }">
-
-      <!-- Header: count + copy -->
-      <div class="flex items-center justify-between" x-data="{ copied: false }">
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold text-base tabular-nums">42</strong> cards</span>
-        <button
-          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
-          class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 w-20"
-          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
-          :disabled="copied"
-          x-text="copied ? 'Copied' : 'Copy'"
-        ></button>
-      </div>
-
-      <!-- Preview (collapsible) -->
-      <div>
-        <button
-          @click="preview = !preview"
-          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground select-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-        >
-          <span class="inline-flex transition-transform duration-200" :style="preview && 'transform: rotate(90deg)'"><i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-60"></i></span>
-          Preview
-        </button>
-        <div x-show="preview" x-collapse x-cloak class="mt-2 max-h-36 overflow-y-auto rounded-md border border-border custom-scrollbar">
-          <table class="w-full text-xs">
-            <tbody>
-              <tr class="border-b border-border last:border-0">
-                <td class="px-2.5 py-1.5 text-foreground font-medium w-[40%] max-w-0 truncate">Hola</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Hello</td>
-              </tr>
-              <tr class="border-b border-border last:border-0 bg-muted/30">
-                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Adios</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Goodbye</td>
-              </tr>
-              <tr class="border-b border-border last:border-0">
-                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Gracias</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Thank you</td>
-              </tr>
-              <tr class="border-b border-border last:border-0 bg-muted/30">
-                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Donaudampfschifffahrtsgesellschaftskapitän</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Danube steamship company captain</td>
-              </tr>
-              <tr class="border-b border-border last:border-0">
-                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Buenos dias</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">Good morning, how are you doing today my friend?</td>
-              </tr>
-              <tr class="border-b border-border last:border-0 bg-muted/30">
-                <td class="px-2.5 py-1.5 text-foreground font-medium max-w-0 truncate">Cuanto cuesta?</td>
-                <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">How much does it cost?</td>
-              </tr>
-            </tbody>
-          </table>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuickCards - Dev</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .popup-frame {
+        width: 340px;
+        margin: 40px auto;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid oklch(1 0 0 / 10%);
+      }
+    </style>
+  </head>
+  <body class="bg-background min-h-screen p-8">
+    <!-- ========== MAIN STATE ========== -->
+    <p class="text-muted-foreground mb-6 text-center text-xs tracking-wide uppercase">Main State</p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-3 p-4" x-data="{ preview: false }">
+        <!-- Header: count + copy -->
+        <div class="flex items-center justify-between" x-data="{ copied: false }">
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground text-base font-semibold tabular-nums">42</strong>
+            cards</span
+          >
+          <button
+            @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+            class="ring-offset-background focus-visible:ring-ring inline-flex h-9 w-20 items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+            :disabled="copied"
+            x-text="copied ? 'Copied' : 'Copy'"
+          ></button>
         </div>
-      </div>
 
-      <!-- Export options button -->
-      <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-        <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
-        Export options
-      </button>
-
-    </div>
-  </div>
-
-  <!-- ========== EXPORT SCREEN ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Export Screen</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4">
-
-      <!-- Back header + card count -->
-      <div class="flex items-center justify-between">
-        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-          Back
-        </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
-
-      <!-- Separators -->
-      <div>
-        <div class="flex gap-2">
-
-          <!-- Term-Def combobox -->
-          <div class="flex-1 space-y-1" x-data="combobox({ value: 'Tab', presets: ['Tab', ',', ':', '\u2192'] })">
-            <label class="text-xs text-muted-foreground">Term-Def separator</label>
-            <div class="relative">
-              <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background" :class="open && 'ring-2 ring-ring ring-offset-2'">
-                <input
-                  type="text"
-                  x-model="value"
-                  @focus="open = true"
-                  @keydown.escape="open = false"
-                  class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                  placeholder="e.g. |"
-                />
-                <button
-                  type="button"
-                  @click="open = !open"
-                  class="flex h-full items-center px-2 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                  aria-label="Show presets"
-                >
-                  <span class="inline-flex transition-transform duration-200" :style="open && 'transform: rotate(180deg)'"><i data-lucide="chevron-down" class="w-4 h-4 opacity-50"></i></span>
-                </button>
-              </div>
-              <div
-                x-show="open"
-                x-cloak
-                @click.outside="open = false"
-                x-transition:enter="transition ease-out duration-100"
-                x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-75"
-                x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="absolute z-50 mt-1 w-full rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1"
-              >
-                <template x-for="preset in presets" :key="preset">
-                  <button
-                    type="button"
-                    @click="value = preset; open = false"
-                    class="flex w-full items-center justify-between rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <span x-text="preset"></span>
-                    <svg x-show="value === preset" class="w-4 h-4 text-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                  </button>
-                </template>
-              </div>
-            </div>
+        <!-- Preview (collapsible) -->
+        <div>
+          <button
+            @click="preview = !preview"
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <span
+              class="inline-flex transition-transform duration-200"
+              :style="preview && 'transform: rotate(90deg)'"
+              ><i data-lucide="chevron-right" class="h-3.5 w-3.5 opacity-60"></i
+            ></span>
+            Preview
+          </button>
+          <div
+            x-show="preview"
+            x-collapse
+            x-cloak
+            class="border-border custom-scrollbar mt-2 max-h-36 overflow-y-auto rounded-md border"
+          >
+            <table class="w-full text-xs">
+              <tbody>
+                <tr class="border-border border-b last:border-0">
+                  <td class="text-foreground w-[40%] max-w-0 truncate px-2.5 py-1.5 font-medium">
+                    Hola
+                  </td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">Hello</td>
+                </tr>
+                <tr class="border-border bg-muted/30 border-b last:border-0">
+                  <td class="text-foreground max-w-0 truncate px-2.5 py-1.5 font-medium">Adios</td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">Goodbye</td>
+                </tr>
+                <tr class="border-border border-b last:border-0">
+                  <td class="text-foreground max-w-0 truncate px-2.5 py-1.5 font-medium">
+                    Gracias
+                  </td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">Thank you</td>
+                </tr>
+                <tr class="border-border bg-muted/30 border-b last:border-0">
+                  <td class="text-foreground max-w-0 truncate px-2.5 py-1.5 font-medium">
+                    Donaudampfschifffahrtsgesellschaftskapitän
+                  </td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">
+                    Danube steamship company captain
+                  </td>
+                </tr>
+                <tr class="border-border border-b last:border-0">
+                  <td class="text-foreground max-w-0 truncate px-2.5 py-1.5 font-medium">
+                    Buenos dias
+                  </td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">
+                    Good morning, how are you doing today my friend?
+                  </td>
+                </tr>
+                <tr class="border-border bg-muted/30 border-b last:border-0">
+                  <td class="text-foreground max-w-0 truncate px-2.5 py-1.5 font-medium">
+                    Cuanto cuesta?
+                  </td>
+                  <td class="text-muted-foreground max-w-0 truncate px-2.5 py-1.5">
+                    How much does it cost?
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          <!-- Cards combobox -->
-          <div class="flex-1 space-y-1" x-data="combobox({ value: 'Newline', presets: ['Newline', 'Double newline', ';'] })">
-            <label class="text-xs text-muted-foreground">Card separator</label>
-            <div class="relative">
-              <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background" :class="open && 'ring-2 ring-ring ring-offset-2'">
-                <input
-                  type="text"
-                  x-model="value"
-                  @focus="open = true"
-                  @keydown.escape="open = false"
-                  class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                  placeholder="e.g. --"
-                />
-                <button
-                  type="button"
-                  @click="open = !open"
-                  class="flex h-full items-center px-2 text-muted-foreground hover:text-foreground transition-colors duration-150"
-                  aria-label="Show presets"
-                >
-                  <span class="inline-flex transition-transform duration-200" :style="open && 'transform: rotate(180deg)'"><i data-lucide="chevron-down" class="w-4 h-4 opacity-50"></i></span>
-                </button>
-              </div>
-              <div
-                x-show="open"
-                x-cloak
-                @click.outside="open = false"
-                x-transition:enter="transition ease-out duration-100"
-                x-transition:enter-start="opacity-0 scale-95"
-                x-transition:enter-end="opacity-100 scale-100"
-                x-transition:leave="transition ease-in duration-75"
-                x-transition:leave-start="opacity-100 scale-100"
-                x-transition:leave-end="opacity-0 scale-95"
-                class="absolute z-50 mt-1 w-full rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 p-1"
-              >
-                <template x-for="preset in presets" :key="preset">
-                  <button
-                    type="button"
-                    @click="value = preset; open = false"
-                    class="flex w-full items-center justify-between rounded-sm py-1.5 pl-2 pr-2 text-sm outline-none transition-colors duration-150 hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <span x-text="preset"></span>
-                    <svg x-show="value === preset" class="w-4 h-4 text-primary" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                  </button>
-                </template>
-              </div>
-            </div>
-          </div>
-
         </div>
-      </div>
 
-      <!-- Export actions (stacked) -->
-      <div class="space-y-2">
+        <!-- Export options button -->
         <button
-          x-data="{ copied: false }"
-          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
-          class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9"
-          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
-          :disabled="copied"
+          class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
-          <svg x-show="copied" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-50" x-transition:enter-end="opacity-100 scale-100" class="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-          <span x-text="copied ? 'Copied' : 'Copy to clipboard'"></span>
-        </button>
-
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          <i data-lucide="cloud-upload" class="w-4 h-4" aria-hidden="true"></i>
-          Import to Knowt
-        </button>
-
-        <div class="flex items-center gap-3 py-1">
-          <div class="h-px flex-1 bg-border"></div>
-          <span class="text-xs text-muted-foreground">Download as file</span>
-          <div class="h-px flex-1 bg-border"></div>
-        </div>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          Anki (.apkg)
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          TXT
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          CSV
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          JSON
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          PDF &mdash; Vocab list
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          PDF &mdash; Flashcards
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ========== MAIN STATE (with merge button) ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Main State — Multiple Quizlet Tabs Open</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-3" x-data="{ preview: false }">
-
-      <!-- Header: count + copy -->
-      <div class="flex items-center justify-between" x-data="{ copied: false }">
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold text-base tabular-nums">42</strong> cards</span>
-        <button
-          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
-          class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 w-20"
-          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
-          :disabled="copied"
-          x-text="copied ? 'Copied' : 'Copy'"
-        ></button>
-      </div>
-
-      <!-- Preview (collapsible) -->
-      <div>
-        <button
-          @click="preview = !preview"
-          class="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground select-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-        >
-          <span class="inline-flex transition-transform duration-200" :style="preview && 'transform: rotate(90deg)'"><i data-lucide="chevron-right" class="w-3.5 h-3.5 opacity-60"></i></span>
-          Preview
-        </button>
-      </div>
-
-      <!-- Action buttons -->
-      <div class="space-y-2">
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
+          <i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i>
           Export options
         </button>
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          <i data-lucide="combine" class="w-4 h-4" aria-hidden="true"></i>
-          Merge sets
-          <span class="inline-flex items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-semibold tabular-nums h-5 min-w-5 px-1.5">3</span>
-        </button>
       </div>
-
     </div>
-  </div>
 
-  <!-- ========== MERGE SCREEN ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Merge Screen</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4"
-         x-data="{
+    <!-- ========== EXPORT SCREEN ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Export Screen
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4">
+        <!-- Back header + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Separators -->
+        <div>
+          <div class="flex gap-2">
+            <!-- Term-Def combobox -->
+            <div
+              class="flex-1 space-y-1"
+              x-data="combobox({ value: 'Tab', presets: ['Tab', ',', ':', '\u2192'] })"
+            >
+              <label class="text-muted-foreground text-xs">Term-Def separator</label>
+              <div class="relative">
+                <div
+                  class="border-input bg-background ring-offset-background flex h-9 w-full items-center rounded-md border text-sm"
+                  :class="open && 'ring-2 ring-ring ring-offset-2'"
+                >
+                  <input
+                    type="text"
+                    x-model="value"
+                    @focus="open = true"
+                    @keydown.escape="open = false"
+                    class="placeholder:text-muted-foreground h-full w-full bg-transparent px-3 py-2 text-sm outline-none"
+                    placeholder="e.g. |"
+                  />
+                  <button
+                    type="button"
+                    @click="open = !open"
+                    class="text-muted-foreground hover:text-foreground flex h-full items-center px-2 transition-colors duration-150"
+                    aria-label="Show presets"
+                  >
+                    <span
+                      class="inline-flex transition-transform duration-200"
+                      :style="open && 'transform: rotate(180deg)'"
+                      ><i data-lucide="chevron-down" class="h-4 w-4 opacity-50"></i
+                    ></span>
+                  </button>
+                </div>
+                <div
+                  x-show="open"
+                  x-cloak
+                  @click.outside="open = false"
+                  x-transition:enter="transition ease-out duration-100"
+                  x-transition:enter-start="opacity-0 scale-95"
+                  x-transition:enter-end="opacity-100 scale-100"
+                  x-transition:leave="transition ease-in duration-75"
+                  x-transition:leave-start="opacity-100 scale-100"
+                  x-transition:leave-end="opacity-0 scale-95"
+                  class="bg-popover text-popover-foreground ring-foreground/10 absolute z-50 mt-1 w-full rounded-md p-1 shadow-md ring-1"
+                >
+                  <template x-for="preset in presets" :key="preset">
+                    <button
+                      type="button"
+                      @click="value = preset; open = false"
+                      class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm py-1.5 pr-2 pl-2 text-sm transition-colors duration-150 outline-none"
+                    >
+                      <span x-text="preset"></span>
+                      <svg
+                        x-show="value === preset"
+                        class="text-primary h-4 w-4"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cards combobox -->
+            <div
+              class="flex-1 space-y-1"
+              x-data="combobox({ value: 'Newline', presets: ['Newline', 'Double newline', ';'] })"
+            >
+              <label class="text-muted-foreground text-xs">Card separator</label>
+              <div class="relative">
+                <div
+                  class="border-input bg-background ring-offset-background flex h-9 w-full items-center rounded-md border text-sm"
+                  :class="open && 'ring-2 ring-ring ring-offset-2'"
+                >
+                  <input
+                    type="text"
+                    x-model="value"
+                    @focus="open = true"
+                    @keydown.escape="open = false"
+                    class="placeholder:text-muted-foreground h-full w-full bg-transparent px-3 py-2 text-sm outline-none"
+                    placeholder="e.g. --"
+                  />
+                  <button
+                    type="button"
+                    @click="open = !open"
+                    class="text-muted-foreground hover:text-foreground flex h-full items-center px-2 transition-colors duration-150"
+                    aria-label="Show presets"
+                  >
+                    <span
+                      class="inline-flex transition-transform duration-200"
+                      :style="open && 'transform: rotate(180deg)'"
+                      ><i data-lucide="chevron-down" class="h-4 w-4 opacity-50"></i
+                    ></span>
+                  </button>
+                </div>
+                <div
+                  x-show="open"
+                  x-cloak
+                  @click.outside="open = false"
+                  x-transition:enter="transition ease-out duration-100"
+                  x-transition:enter-start="opacity-0 scale-95"
+                  x-transition:enter-end="opacity-100 scale-100"
+                  x-transition:leave="transition ease-in duration-75"
+                  x-transition:leave-start="opacity-100 scale-100"
+                  x-transition:leave-end="opacity-0 scale-95"
+                  class="bg-popover text-popover-foreground ring-foreground/10 absolute z-50 mt-1 w-full rounded-md p-1 shadow-md ring-1"
+                >
+                  <template x-for="preset in presets" :key="preset">
+                    <button
+                      type="button"
+                      @click="value = preset; open = false"
+                      class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm py-1.5 pr-2 pl-2 text-sm transition-colors duration-150 outline-none"
+                    >
+                      <span x-text="preset"></span>
+                      <svg
+                        x-show="value === preset"
+                        class="text-primary h-4 w-4"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Export actions (stacked) -->
+        <div class="space-y-2">
+          <button
+            x-data="{ copied: false }"
+            @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+            class="ring-offset-background focus-visible:ring-ring inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+            :disabled="copied"
+          >
+            <svg
+              x-show="copied"
+              x-transition:enter="transition ease-out duration-200"
+              x-transition:enter-start="opacity-0 scale-50"
+              x-transition:enter-end="opacity-100 scale-100"
+              class="h-4 w-4"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span x-text="copied ? 'Copied' : 'Copy to clipboard'"></span>
+          </button>
+
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="cloud-upload" class="h-4 w-4" aria-hidden="true"></i>
+            Import to Knowt
+          </button>
+
+          <div class="flex items-center gap-3 py-1">
+            <div class="bg-border h-px flex-1"></div>
+            <span class="text-muted-foreground text-xs">Download as file</span>
+            <div class="bg-border h-px flex-1"></div>
+          </div>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            Anki (.apkg)
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            TXT
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            CSV
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            JSON
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            PDF &mdash; Vocab list
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          >
+            PDF &mdash; Flashcards
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== MAIN STATE (with merge button) ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Main State — Multiple Quizlet Tabs Open
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-3 p-4" x-data="{ preview: false }">
+        <!-- Header: count + copy -->
+        <div class="flex items-center justify-between" x-data="{ copied: false }">
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground text-base font-semibold tabular-nums">42</strong>
+            cards</span
+          >
+          <button
+            @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+            class="ring-offset-background focus-visible:ring-ring inline-flex h-9 w-20 items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+            :disabled="copied"
+            x-text="copied ? 'Copied' : 'Copy'"
+          ></button>
+        </div>
+
+        <!-- Preview (collapsible) -->
+        <div>
+          <button
+            @click="preview = !preview"
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 select-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <span
+              class="inline-flex transition-transform duration-200"
+              :style="preview && 'transform: rotate(90deg)'"
+              ><i data-lucide="chevron-right" class="h-3.5 w-3.5 opacity-60"></i
+            ></span>
+            Preview
+          </button>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="space-y-2">
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i>
+            Export options
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="combine" class="h-4 w-4" aria-hidden="true"></i>
+            Merge sets
+            <span
+              class="bg-primary/15 text-primary inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold tabular-nums"
+              >3</span
+            >
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== MERGE SCREEN ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Merge Screen
+    </p>
+    <div class="popup-frame">
+      <div
+        class="bg-card text-card-foreground space-y-4 p-4"
+        x-data="{
            sets: [
              { id: 1, title: 'Grundwortschatz Beruf', cards: 126, checked: true, current: true },
              { id: 2, title: 'Les verbes irréguliers', cards: 84, checked: true, current: false },
@@ -310,525 +432,674 @@
            ],
            get selectedCount() { return this.sets.filter(s => s.checked).reduce((sum, s) => sum + s.cards, 0) },
            get selectedSets() { return this.sets.filter(s => s.checked).length },
-         }">
-
-      <!-- Back header -->
-      <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-        <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-        Back
-      </button>
-
-      <!-- Set list -->
-      <div class="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-        <template x-for="set in sets" :key="set.id">
-          <label
-            class="flex items-start gap-3 rounded-md border px-3 py-2.5 cursor-pointer transition-colors duration-150"
-            :class="set.checked ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-border hover:bg-muted/30'"
-          >
-            <input type="checkbox" x-model="set.checked" class="mt-0.5 h-4 w-4 rounded border-input accent-primary" />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-foreground truncate" x-text="set.title"></span>
-                <span x-show="set.current" class="shrink-0 text-[10px] font-medium text-primary bg-primary/15 rounded px-1.5 py-0.5">current</span>
-              </div>
-              <span class="text-xs text-muted-foreground tabular-nums" x-text="set.cards + ' cards'"></span>
-            </div>
-          </label>
-        </template>
-      </div>
-
-      <!-- Summary + dedup + action -->
-      <div class="space-y-2">
-        <div class="text-center text-xs text-muted-foreground">
-          <span class="tabular-nums" x-text="selectedSets"></span> sets &middot;
-          <strong class="text-foreground font-semibold tabular-nums" x-text="selectedCount"></strong> cards total
-        </div>
-
-        <!-- Dedup toggle -->
-        <label class="flex items-center justify-between rounded-md border border-border px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors duration-150"
-               x-data="{ dedup: true }">
-          <span class="text-xs text-muted-foreground">Remove duplicates</span>
-          <div class="flex items-center gap-2">
-            <span x-show="dedup" class="text-xs text-primary font-medium tabular-nums">-18</span>
-            <div class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200"
-                 :class="dedup ? 'bg-primary' : 'bg-muted'"
-                 @click.prevent="dedup = !dedup">
-              <span class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200"
-                    :class="dedup ? 'translate-x-3.5' : 'translate-x-0.5'"></span>
-            </div>
-          </div>
-        </label>
-
+         }"
+      >
+        <!-- Back header -->
         <button
-          class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-          :disabled="selectedSets < 2"
+          class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
-          <i data-lucide="combine" class="w-4 h-4" aria-hidden="true"></i>
-          Merge &amp; Export
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ========== ANKI EXPORT SCREEN ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Anki Export Screen</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4" x-data="ankiPicker">
-
-      <!-- Back + card count -->
-      <div class="flex items-center justify-between">
-        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+          <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
           Back
         </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
 
-      <!-- Subtitle -->
-      <p class="text-xs text-muted-foreground">When do you need to know this set by?</p>
-
-      <!-- Days input -->
-      <div class="space-y-1">
-        <label class="text-xs text-muted-foreground" for="anki-days">Days</label>
-        <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <input
-            id="anki-days"
-            type="number"
-            min="1"
-            x-model.number="days"
-            @input="syncFromDays"
-            @blur="ensureValidDays"
-            class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
-        </div>
-      </div>
-
-      <!-- Calendar -->
-      <div class="rounded-md border border-border p-3 space-y-2">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-          <button
-            @click="prevMonth"
-            :disabled="!canGoPrev"
-            class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label="Previous month"
-          >
-            <i data-lucide="chevron-left" class="w-4 h-4"></i>
-          </button>
-          <span class="text-sm font-medium text-foreground" x-text="monthLabel"></span>
-          <button
-            @click="nextMonth"
-            class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label="Next month"
-          >
-            <i data-lucide="chevron-right" class="w-4 h-4"></i>
-          </button>
-        </div>
-
-        <!-- Weekday row -->
-        <div class="grid grid-cols-7">
-          <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d">
-            <div class="text-center text-xs font-normal text-muted-foreground py-1" x-text="d"></div>
+        <!-- Set list -->
+        <div class="custom-scrollbar max-h-64 space-y-1.5 overflow-y-auto">
+          <template x-for="set in sets" :key="set.id">
+            <label
+              class="flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 transition-colors duration-150"
+              :class="set.checked ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-border hover:bg-muted/30'"
+            >
+              <input
+                type="checkbox"
+                x-model="set.checked"
+                class="border-input accent-primary mt-0.5 h-4 w-4 rounded"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span
+                    class="text-foreground truncate text-sm font-medium"
+                    x-text="set.title"
+                  ></span>
+                  <span
+                    x-show="set.current"
+                    class="text-primary bg-primary/15 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    >current</span
+                  >
+                </div>
+                <span
+                  class="text-muted-foreground text-xs tabular-nums"
+                  x-text="set.cards + ' cards'"
+                ></span>
+              </div>
+            </label>
           </template>
         </div>
 
-        <!-- Days grid -->
-        <div class="grid grid-cols-7">
-          <template x-for="(cell, i) in calendarCells" :key="i">
+        <!-- Summary + dedup + action -->
+        <div class="space-y-2">
+          <div class="text-muted-foreground text-center text-xs">
+            <span class="tabular-nums" x-text="selectedSets"></span> sets &middot;
+            <strong
+              class="text-foreground font-semibold tabular-nums"
+              x-text="selectedCount"
+            ></strong>
+            cards total
+          </div>
+
+          <!-- Dedup toggle -->
+          <label
+            class="border-border hover:bg-muted/30 flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 transition-colors duration-150"
+            x-data="{ dedup: true }"
+          >
+            <span class="text-muted-foreground text-xs">Remove duplicates</span>
+            <div class="flex items-center gap-2">
+              <span x-show="dedup" class="text-primary text-xs font-medium tabular-nums">-18</span>
+              <div
+                class="relative inline-flex h-4 w-7 items-center rounded-full transition-colors duration-200"
+                :class="dedup ? 'bg-primary' : 'bg-muted'"
+                @click.prevent="dedup = !dedup"
+              >
+                <span
+                  class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200"
+                  :class="dedup ? 'translate-x-3.5' : 'translate-x-0.5'"
+                ></span>
+              </div>
+            </div>
+          </label>
+
+          <button
+            class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+            :disabled="selectedSets < 2"
+          >
+            <i data-lucide="combine" class="h-4 w-4" aria-hidden="true"></i>
+            Merge &amp; Export
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ANKI EXPORT SCREEN ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Anki Export Screen
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4" x-data="ankiPicker">
+        <!-- Back + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Subtitle -->
+        <p class="text-muted-foreground text-xs">When do you need to know this set by?</p>
+
+        <!-- Days input -->
+        <div class="space-y-1">
+          <label class="text-muted-foreground text-xs" for="anki-days">Days</label>
+          <div
+            class="border-input bg-background ring-offset-background focus-within:ring-ring flex h-9 w-full items-center rounded-md border text-sm focus-within:ring-2 focus-within:ring-offset-2"
+          >
+            <input
+              id="anki-days"
+              type="number"
+              min="1"
+              x-model.number="days"
+              @input="syncFromDays"
+              @blur="ensureValidDays"
+              class="h-full w-full bg-transparent px-3 py-2 text-sm tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="border-border space-y-2 rounded-md border p-3">
+          <!-- Header -->
+          <div class="flex items-center justify-between">
             <button
-              type="button"
-              @click="pickDate(cell.date)"
-              :disabled="cell.disabled"
-              class="group relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-              :class="{
+              @click="prevMonth"
+              :disabled="!canGoPrev"
+              class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+              aria-label="Previous month"
+            >
+              <i data-lucide="chevron-left" class="h-4 w-4"></i>
+            </button>
+            <span class="text-foreground text-sm font-medium" x-text="monthLabel"></span>
+            <button
+              @click="nextMonth"
+              class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              aria-label="Next month"
+            >
+              <i data-lucide="chevron-right" class="h-4 w-4"></i>
+            </button>
+          </div>
+
+          <!-- Weekday row -->
+          <div class="grid grid-cols-7">
+            <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d">
+              <div
+                class="text-muted-foreground py-1 text-center text-xs font-normal"
+                x-text="d"
+              ></div>
+            </template>
+          </div>
+
+          <!-- Days grid -->
+          <div class="grid grid-cols-7">
+            <template x-for="(cell, i) in calendarCells" :key="i">
+              <button
+                type="button"
+                @click="pickDate(cell.date)"
+                :disabled="cell.disabled"
+                class="group focus-visible:ring-ring relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+                :class="{
                 'bg-primary text-primary-foreground font-medium': cell.selected,
                 'hover:bg-muted text-foreground': !cell.selected && !cell.disabled && !cell.outside,
                 'text-muted-foreground/40 hover:bg-muted/50': cell.outside && !cell.selected && !cell.disabled,
                 'text-muted-foreground/30 line-through pointer-events-none': cell.disabled && !cell.selected
               }"
-            >
-              <span x-text="cell.day"></span>
-              <span
-                x-show="cell.today && !cell.selected"
-                class="absolute left-1/2 top-1 size-1 -translate-x-1/2 rounded-full bg-primary"
-              ></span>
-            </button>
-          </template>
+              >
+                <span x-text="cell.day"></span>
+                <span
+                  x-show="cell.today && !cell.selected"
+                  class="bg-primary absolute top-1 left-1/2 size-1 -translate-x-1/2 rounded-full"
+                ></span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Recommended pace + download -->
+        <div class="space-y-2">
+          <p class="text-muted-foreground text-center text-xs" x-text="recommendedPace"></p>
+          <button
+            class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i>
+            Download .apkg
+          </button>
         </div>
       </div>
-
-      <!-- Recommended pace + download -->
-      <div class="space-y-2">
-        <p class="text-center text-xs text-muted-foreground" x-text="recommendedPace"></p>
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90">
-          <i data-lucide="download" class="w-4 h-4" aria-hidden="true"></i>
-          Download .apkg
-        </button>
-      </div>
-
     </div>
-  </div>
 
-  <!-- ========== KNOWT — FORM ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Knowt Import — Form</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4"
-         x-data="{ title: 'Umweltvokabeln FR-DE', desc: '' }">
-
-      <!-- Back + card count -->
-      <div class="flex items-center justify-between">
-        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-          Back
-        </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
-
-      <!-- Subtitle -->
-      <p class="text-xs text-muted-foreground">Create a new flashcard set on your Knowt account.</p>
-
-      <!-- Title -->
-      <div class="space-y-1">
-        <label class="text-xs text-muted-foreground" for="knowt-title">Title</label>
-        <div class="flex h-9 w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-          <input
-            id="knowt-title"
-            type="text"
-            x-model="title"
-            maxlength="100"
-            class="h-full w-full bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-            placeholder="Set title"
-          />
-        </div>
-      </div>
-
-      <!-- Description (optional) -->
-      <div class="space-y-1">
-        <label class="text-xs text-muted-foreground" for="knowt-desc">Description <span class="opacity-60">(optional)</span></label>
-        <textarea
-          id="knowt-desc"
-          x-model="desc"
-          rows="2"
-          maxlength="300"
-          class="w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 px-3 py-2 placeholder:text-muted-foreground resize-none custom-scrollbar"
-          placeholder="Short description"
-        ></textarea>
-      </div>
-
-      <!-- Privacy note -->
-      <p class="text-[11px] text-muted-foreground flex items-start gap-1.5 leading-snug">
-        <i data-lucide="info" class="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" aria-hidden="true"></i>
-        <span>Will be created as a private set. You can make it public from Knowt later.</span>
-      </p>
-
-      <!-- Import button -->
-      <button
-        class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-        :disabled="!title.trim()"
+    <!-- ========== KNOWT — FORM ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Knowt Import — Form
+    </p>
+    <div class="popup-frame">
+      <div
+        class="bg-card text-card-foreground space-y-4 p-4"
+        x-data="{ title: 'Umweltvokabeln FR-DE', desc: '' }"
       >
-        <i data-lucide="cloud-upload" class="w-4 h-4" aria-hidden="true"></i>
-        Import to Knowt
-      </button>
-    </div>
-  </div>
-
-  <!-- ========== KNOWT — NEEDS AUTH ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Knowt Import — Sign In Needed</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4">
-
-      <!-- Back + card count -->
-      <div class="flex items-center justify-between">
-        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-          Back
-        </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
-
-      <!-- Empty state -->
-      <div class="flex flex-col items-center text-center py-6 gap-3">
-        <div class="rounded-full bg-muted p-3">
-          <i data-lucide="log-in" class="w-5 h-5 text-muted-foreground" aria-hidden="true"></i>
+        <!-- Back + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
         </div>
+
+        <!-- Subtitle -->
+        <p class="text-muted-foreground text-xs">
+          Create a new flashcard set on your Knowt account.
+        </p>
+
+        <!-- Title -->
         <div class="space-y-1">
-          <p class="text-sm font-medium text-foreground">Sign in to Knowt</p>
-          <p class="text-xs text-muted-foreground leading-snug max-w-[240px]">We'll open Knowt in a new tab. After signing in, come back and click Import again.</p>
+          <label class="text-muted-foreground text-xs" for="knowt-title">Title</label>
+          <div
+            class="border-input bg-background ring-offset-background focus-within:ring-ring flex h-9 w-full items-center rounded-md border text-sm focus-within:ring-2 focus-within:ring-offset-2"
+          >
+            <input
+              id="knowt-title"
+              type="text"
+              x-model="title"
+              maxlength="100"
+              class="placeholder:text-muted-foreground h-full w-full bg-transparent px-3 py-2 text-sm outline-none"
+              placeholder="Set title"
+            />
+          </div>
         </div>
-      </div>
 
-      <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90">
-        <i data-lucide="external-link" class="w-4 h-4" aria-hidden="true"></i>
-        Open Knowt
-      </button>
-    </div>
-  </div>
-
-  <!-- ========== KNOWT — IMPORTING ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Knowt Import — Importing</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4">
-
-      <!-- Back + card count (back disabled) -->
-      <div class="flex items-center justify-between">
-        <button disabled class="inline-flex items-center gap-1.5 text-sm text-muted-foreground/40 pointer-events-none rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-          Back
-        </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
-
-      <!-- Status -->
-      <div class="flex flex-col items-center text-center py-8 gap-3">
-        <i data-lucide="loader-circle" class="w-6 h-6 text-primary animate-spin" aria-hidden="true"></i>
+        <!-- Description (optional) -->
         <div class="space-y-1">
-          <p class="text-sm font-medium text-foreground">Creating set on Knowt…</p>
-          <p class="text-xs text-muted-foreground">Uploading 42 cards</p>
+          <label class="text-muted-foreground text-xs" for="knowt-desc"
+            >Description <span class="opacity-60">(optional)</span></label
+          >
+          <textarea
+            id="knowt-desc"
+            x-model="desc"
+            rows="2"
+            maxlength="300"
+            class="border-input bg-background ring-offset-background focus-visible:ring-ring placeholder:text-muted-foreground custom-scrollbar w-full resize-none rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            placeholder="Short description"
+          ></textarea>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- ========== KNOWT — SUCCESS ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Knowt Import — Success</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4">
+        <!-- Privacy note -->
+        <p class="text-muted-foreground flex items-start gap-1.5 text-[11px] leading-snug">
+          <i
+            data-lucide="info"
+            class="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-70"
+            aria-hidden="true"
+          ></i>
+          <span>Will be created as a private set. You can make it public from Knowt later.</span>
+        </p>
 
-      <!-- Status -->
-      <div class="flex flex-col items-center text-center py-6 gap-3">
-        <div class="rounded-full bg-primary/15 p-3">
-          <i data-lucide="circle-check" class="w-6 h-6 text-primary" aria-hidden="true"></i>
-        </div>
-        <div class="space-y-1">
-          <p class="text-sm font-medium text-foreground">Set created on Knowt</p>
-          <p class="text-xs text-muted-foreground">42 cards imported successfully.</p>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="space-y-2">
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90">
-          <i data-lucide="external-link" class="w-4 h-4" aria-hidden="true"></i>
-          Open in Knowt
-        </button>
-        <button class="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9">
-          Done
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== KNOWT — ERROR ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Knowt Import — Error</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4 space-y-4">
-
-      <!-- Back + card count -->
-      <div class="flex items-center justify-between">
-        <button class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm -ml-1">
-          <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
-          Back
-        </button>
-        <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      </div>
-
-      <!-- Status -->
-      <div class="flex flex-col items-center text-center py-6 gap-3">
-        <div class="rounded-full bg-muted p-3">
-          <i data-lucide="circle-alert" class="w-6 h-6 text-destructive" aria-hidden="true"></i>
-        </div>
-        <div class="space-y-1">
-          <p class="text-sm font-medium text-foreground">Import failed</p>
-          <p class="text-xs text-muted-foreground leading-snug max-w-[260px]">Your Knowt session may have expired. Sign in again and retry.</p>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="space-y-2">
-        <button class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-9 bg-primary text-primary-foreground hover:bg-primary/90">
-          <i data-lucide="refresh-cw" class="w-4 h-4" aria-hidden="true"></i>
-          Try again
+        <!-- Import button -->
+        <button
+          class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          :disabled="!title.trim()"
+        >
+          <i data-lucide="cloud-upload" class="h-4 w-4" aria-hidden="true"></i>
+          Import to Knowt
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- ========== ERROR STATE ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Error State</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4">
-      <div class="flex flex-col items-center py-8 gap-3">
-        <i data-lucide="circle-alert" class="w-6 h-6 text-muted-foreground" aria-hidden="true"></i>
-        <p class="text-sm text-muted-foreground">Open a Quizlet set to get started</p>
+    <!-- ========== KNOWT — NEEDS AUTH ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Knowt Import — Sign In Needed
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4">
+        <!-- Back + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Empty state -->
+        <div class="flex flex-col items-center gap-3 py-6 text-center">
+          <div class="bg-muted rounded-full p-3">
+            <i data-lucide="log-in" class="text-muted-foreground h-5 w-5" aria-hidden="true"></i>
+          </div>
+          <div class="space-y-1">
+            <p class="text-foreground text-sm font-medium">Sign in to Knowt</p>
+            <p class="text-muted-foreground max-w-[240px] text-xs leading-snug">
+              We'll open Knowt in a new tab. After signing in, come back and click Import again.
+            </p>
+          </div>
+        </div>
+
+        <button
+          class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>
+          Open Knowt
+        </button>
       </div>
     </div>
-  </div>
 
-  <!-- ========== LOADING STATE ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Loading State</p>
-  <div class="popup-frame">
-    <div class="bg-card text-card-foreground p-4">
-      <div class="flex items-center justify-center py-8 gap-2">
-        <i data-lucide="loader-circle" class="h-4 w-4 animate-spin text-primary" aria-hidden="true"></i>
-        <span class="text-sm text-muted-foreground">Scanning cards...</span>
+    <!-- ========== KNOWT — IMPORTING ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Knowt Import — Importing
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4">
+        <!-- Back + card count (back disabled) -->
+        <div class="flex items-center justify-between">
+          <button
+            disabled
+            class="text-muted-foreground/40 pointer-events-none -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Status -->
+        <div class="flex flex-col items-center gap-3 py-8 text-center">
+          <i
+            data-lucide="loader-circle"
+            class="text-primary h-6 w-6 animate-spin"
+            aria-hidden="true"
+          ></i>
+          <div class="space-y-1">
+            <p class="text-foreground text-sm font-medium">Creating set on Knowt…</p>
+            <p class="text-muted-foreground text-xs">Uploading 42 cards</p>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ========== FLOATING BANNER (auto-inject on Quizlet set page) ========== -->
-  <p class="text-muted-foreground text-center mb-6 mt-12 text-xs tracking-wide uppercase">Floating Banner</p>
-  <div class="fixed bottom-6 right-6">
-    <div
-      x-data="{ copied: false, show: false }"
-      x-init="setTimeout(() => show = true, 300)"
-      x-show="show"
-      x-transition:enter="transition ease-out duration-300"
-      x-transition:enter-start="opacity-0 translate-y-2"
-      x-transition:enter-end="opacity-100 translate-y-0"
-      class="inline-flex items-center gap-3 rounded-lg border border-border bg-card text-card-foreground px-4 py-2 shadow-md"
-    >
-      <span class="text-sm text-muted-foreground"><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span>
-      <div class="h-4 w-px bg-border"></div>
-      <button
-        @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
-        class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-8 w-18"
-        :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
-        :disabled="copied"
-        x-text="copied ? 'Copied' : 'Copy'"
-      ></button>
-      <button
-        class="inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 h-8 w-8"
-        aria-label="More export options"
+    <!-- ========== KNOWT — SUCCESS ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Knowt Import — Success
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4">
+        <!-- Status -->
+        <div class="flex flex-col items-center gap-3 py-6 text-center">
+          <div class="bg-primary/15 rounded-full p-3">
+            <i data-lucide="circle-check" class="text-primary h-6 w-6" aria-hidden="true"></i>
+          </div>
+          <div class="space-y-1">
+            <p class="text-foreground text-sm font-medium">Set created on Knowt</p>
+            <p class="text-muted-foreground text-xs">42 cards imported successfully.</p>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-2">
+          <button
+            class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="external-link" class="h-4 w-4" aria-hidden="true"></i>
+            Open in Knowt
+          </button>
+          <button
+            class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 w-full items-center justify-center rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== KNOWT — ERROR ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Knowt Import — Error
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4">
+        <!-- Back + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Status -->
+        <div class="flex flex-col items-center gap-3 py-6 text-center">
+          <div class="bg-muted rounded-full p-3">
+            <i data-lucide="circle-alert" class="text-destructive h-6 w-6" aria-hidden="true"></i>
+          </div>
+          <div class="space-y-1">
+            <p class="text-foreground text-sm font-medium">Import failed</p>
+            <p class="text-muted-foreground max-w-[260px] text-xs leading-snug">
+              Your Knowt session may have expired. Sign in again and retry.
+            </p>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="space-y-2">
+          <button
+            class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="refresh-cw" class="h-4 w-4" aria-hidden="true"></i>
+            Try again
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ERROR STATE ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Error State
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground p-4">
+        <div class="flex flex-col items-center gap-3 py-8">
+          <i
+            data-lucide="circle-alert"
+            class="text-muted-foreground h-6 w-6"
+            aria-hidden="true"
+          ></i>
+          <p class="text-muted-foreground text-sm">Open a Quizlet set to get started</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== LOADING STATE ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Loading State
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground p-4">
+        <div class="flex items-center justify-center gap-2 py-8">
+          <i
+            data-lucide="loader-circle"
+            class="text-primary h-4 w-4 animate-spin"
+            aria-hidden="true"
+          ></i>
+          <span class="text-muted-foreground text-sm">Scanning cards...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== FLOATING BANNER (auto-inject on Quizlet set page) ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Floating Banner
+    </p>
+    <div class="fixed right-6 bottom-6">
+      <div
+        x-data="{ copied: false, show: false }"
+        x-init="setTimeout(() => show = true, 300)"
+        x-show="show"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        class="border-border bg-card text-card-foreground inline-flex items-center gap-3 rounded-lg border px-4 py-2 shadow-md"
       >
-        <i data-lucide="ellipsis" class="w-4 h-4" aria-hidden="true"></i>
-      </button>
+        <span class="text-muted-foreground text-sm"
+          ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+        >
+        <div class="bg-border h-4 w-px"></div>
+        <button
+          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+          class="focus-visible:ring-ring inline-flex h-8 w-18 items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          :class="copied ? 'bg-primary/20 text-primary' : 'bg-primary text-primary-foreground hover:bg-primary/90'"
+          :disabled="copied"
+          x-text="copied ? 'Copied' : 'Copy'"
+        ></button>
+        <button
+          class="text-muted-foreground hover:text-foreground hover:bg-accent focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          aria-label="More export options"
+        >
+          <i data-lucide="ellipsis" class="h-4 w-4" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
-  </div>
 
-  <script type="module">
-    import Alpine from 'alpinejs';
-    import collapse from '@alpinejs/collapse';
-    import { createIcons, ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus, CloudUpload, ExternalLink, CircleCheck, LogIn, Info, RefreshCw } from 'lucide';
+    <script type="module">
+      import Alpine from "alpinejs";
+      import collapse from "@alpinejs/collapse";
+      import {
+        createIcons,
+        ChevronRight,
+        ChevronLeft,
+        ChevronDown,
+        ArrowLeft,
+        Download,
+        CircleAlert,
+        LoaderCircle,
+        Check,
+        Ellipsis,
+        Combine,
+        CopyMinus,
+        CloudUpload,
+        ExternalLink,
+        CircleCheck,
+        LogIn,
+        Info,
+        RefreshCw,
+      } from "lucide";
 
-    // Register Alpine plugins
-    Alpine.plugin(collapse);
+      // Register Alpine plugins
+      Alpine.plugin(collapse);
 
-    // Combobox component
-    Alpine.data('combobox', ({ value, presets }) => ({
-      value,
-      presets,
-      open: false,
-    }));
+      // Combobox component
+      Alpine.data("combobox", ({ value, presets }) => ({
+        value,
+        presets,
+        open: false,
+      }));
 
-    // Anki date picker component
-    Alpine.data('ankiPicker', () => ({
-      days: 14,
-      cardCount: 42,
-      today: new Date(),
-      selected: new Date(),
-      viewYear: 0,
-      viewMonth: 0,
+      // Anki date picker component
+      Alpine.data("ankiPicker", () => ({
+        days: 14,
+        cardCount: 42,
+        today: new Date(),
+        selected: new Date(),
+        viewYear: 0,
+        viewMonth: 0,
 
-      init() {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        this.today = now;
-        const sel = new Date(now);
-        sel.setDate(now.getDate() + this.days);
-        this.selected = sel;
-        this.viewYear = sel.getFullYear();
-        this.viewMonth = sel.getMonth();
-      },
+        init() {
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          this.today = now;
+          const sel = new Date(now);
+          sel.setDate(now.getDate() + this.days);
+          this.selected = sel;
+          this.viewYear = sel.getFullYear();
+          this.viewMonth = sel.getMonth();
+        },
 
-      sameDay(a, b) {
-        return a.getFullYear() === b.getFullYear()
-          && a.getMonth() === b.getMonth()
-          && a.getDate() === b.getDate();
-      },
+        sameDay(a, b) {
+          return (
+            a.getFullYear() === b.getFullYear() &&
+            a.getMonth() === b.getMonth() &&
+            a.getDate() === b.getDate()
+          );
+        },
 
-      diffDays(from, to) {
-        return Math.round((to - from) / 86400000);
-      },
+        diffDays(from, to) {
+          return Math.round((to - from) / 86400000);
+        },
 
-      syncFromDays() {
-        if (!Number.isFinite(this.days) || this.days < 1) return;
-        const d = new Date(this.today);
-        d.setDate(this.today.getDate() + this.days);
-        this.selected = d;
-        this.viewYear = d.getFullYear();
-        this.viewMonth = d.getMonth();
-      },
+        syncFromDays() {
+          if (!Number.isFinite(this.days) || this.days < 1) return;
+          const d = new Date(this.today);
+          d.setDate(this.today.getDate() + this.days);
+          this.selected = d;
+          this.viewYear = d.getFullYear();
+          this.viewMonth = d.getMonth();
+        },
 
-      ensureValidDays() {
-        if (!Number.isFinite(this.days) || this.days < 1) {
-          this.days = this.diffDays(this.today, this.selected);
-        }
-      },
+        ensureValidDays() {
+          if (!Number.isFinite(this.days) || this.days < 1) {
+            this.days = this.diffDays(this.today, this.selected);
+          }
+        },
 
-      pickDate(date) {
-        if (this.diffDays(this.today, date) < 1) return;
-        this.selected = date;
-        this.days = this.diffDays(this.today, date);
-      },
+        pickDate(date) {
+          if (this.diffDays(this.today, date) < 1) return;
+          this.selected = date;
+          this.days = this.diffDays(this.today, date);
+        },
 
-      prevMonth() {
-        if (!this.canGoPrev) return;
-        if (this.viewMonth === 0) { this.viewMonth = 11; this.viewYear--; }
-        else this.viewMonth--;
-      },
+        prevMonth() {
+          if (!this.canGoPrev) return;
+          if (this.viewMonth === 0) {
+            this.viewMonth = 11;
+            this.viewYear--;
+          } else this.viewMonth--;
+        },
 
-      nextMonth() {
-        if (this.viewMonth === 11) { this.viewMonth = 0; this.viewYear++; }
-        else this.viewMonth++;
-      },
+        nextMonth() {
+          if (this.viewMonth === 11) {
+            this.viewMonth = 0;
+            this.viewYear++;
+          } else this.viewMonth++;
+        },
 
-      get canGoPrev() {
-        return this.viewYear > this.today.getFullYear()
-          || (this.viewYear === this.today.getFullYear() && this.viewMonth > this.today.getMonth());
-      },
+        get canGoPrev() {
+          return (
+            this.viewYear > this.today.getFullYear() ||
+            (this.viewYear === this.today.getFullYear() && this.viewMonth > this.today.getMonth())
+          );
+        },
 
-      get monthLabel() {
-        return new Date(this.viewYear, this.viewMonth, 1)
-          .toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      },
-
-      get recommendedPace() {
-        const count = Math.max(1, Math.ceil(this.cardCount / Math.max(1, this.days * 0.6)));
-        return `Recommended pace: ~${count} cards/day`;
-      },
-
-      get calendarCells() {
-        const first = new Date(this.viewYear, this.viewMonth, 1);
-        // Monday-first: offset = (getDay() + 6) % 7; Sun=0 → 6, Mon=1 → 0
-        const firstOffset = (first.getDay() + 6) % 7;
-        const cells = [];
-        for (let i = 0; i < 42; i++) {
-          const d = new Date(this.viewYear, this.viewMonth, 1 - firstOffset + i);
-          cells.push({
-            date: d,
-            day: d.getDate(),
-            outside: d.getMonth() !== this.viewMonth,
-            today: this.sameDay(d, this.today),
-            selected: this.sameDay(d, this.selected),
-            disabled: this.diffDays(this.today, d) < 1,
+        get monthLabel() {
+          return new Date(this.viewYear, this.viewMonth, 1).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
           });
-        }
-        return cells;
-      },
-    }));
+        },
 
-    // Expose on window and start
-    window.Alpine = Alpine;
-    Alpine.start();
+        get recommendedPace() {
+          const count = Math.max(1, Math.ceil(this.cardCount / Math.max(1, this.days * 0.6)));
+          return `Recommended pace: ~${count} cards/day`;
+        },
 
-    // Render Lucide icons once after Alpine has processed the DOM
-    requestAnimationFrame(() => {
-      createIcons({
-        icons: { ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, Download, CircleAlert, LoaderCircle, Check, Ellipsis, Combine, CopyMinus, CloudUpload, ExternalLink, CircleCheck, LogIn, Info, RefreshCw },
-        attrs: { 'stroke-width': 2 },
+        get calendarCells() {
+          const first = new Date(this.viewYear, this.viewMonth, 1);
+          // Monday-first: offset = (getDay() + 6) % 7; Sun=0 → 6, Mon=1 → 0
+          const firstOffset = (first.getDay() + 6) % 7;
+          const cells = [];
+          for (let i = 0; i < 42; i++) {
+            const d = new Date(this.viewYear, this.viewMonth, 1 - firstOffset + i);
+            cells.push({
+              date: d,
+              day: d.getDate(),
+              outside: d.getMonth() !== this.viewMonth,
+              today: this.sameDay(d, this.today),
+              selected: this.sameDay(d, this.selected),
+              disabled: this.diffDays(this.today, d) < 1,
+            });
+          }
+          return cells;
+        },
+      }));
+
+      // Expose on window and start
+      window.Alpine = Alpine;
+      Alpine.start();
+
+      // Render Lucide icons once after Alpine has processed the DOM
+      requestAnimationFrame(() => {
+        createIcons({
+          icons: {
+            ChevronRight,
+            ChevronLeft,
+            ChevronDown,
+            ArrowLeft,
+            Download,
+            CircleAlert,
+            LoaderCircle,
+            Check,
+            Ellipsis,
+            Combine,
+            CopyMinus,
+            CloudUpload,
+            ExternalLink,
+            CircleCheck,
+            LogIn,
+            Info,
+            RefreshCw,
+          },
+          attrs: { "stroke-width": 2 },
+        });
       });
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>

@@ -103,10 +103,7 @@ async function fetchSetMetadata(setId: string): Promise<{ title: string; descrip
 /** Primary method: fetch cards + metadata via Quizlet's web API. */
 async function fetchViaApi(setId: string): Promise<ScrapedData | null> {
   try {
-    const [cards, meta] = await Promise.all([
-      fetchCardsFromApi(setId),
-      fetchSetMetadata(setId),
-    ]);
+    const [cards, meta] = await Promise.all([fetchCardsFromApi(setId), fetchSetMetadata(setId)]);
     if (cards.length === 0) return null;
     return { ...meta, cards };
   } catch (err) {
@@ -225,15 +222,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 // ── Theme tokens (inline, since Tailwind isn't available on Quizlet) ─
 
 const T = {
-  card:              "oklch(0.21 0.006 285.885)",
-  foreground:        "oklch(0.985 0 0)",
-  muted:             "oklch(0.705 0.015 286.067)",
-  border:            "oklch(1 0 0 / 10%)",
-  primary:           "oklch(0.541 0.281 293.009)",
+  card: "oklch(0.21 0.006 285.885)",
+  foreground: "oklch(0.985 0 0)",
+  muted: "oklch(0.705 0.015 286.067)",
+  border: "oklch(1 0 0 / 10%)",
+  primary: "oklch(0.541 0.281 293.009)",
   primaryForeground: "oklch(0.969 0.016 293.756)",
-  primaryMuted:      "oklch(0.541 0.281 293.009 / 0.2)",
-  primaryHover:      "oklch(0.541 0.281 293.009 / 0.9)",
-  accent:            "oklch(0.274 0.006 286.033)",
+  primaryMuted: "oklch(0.541 0.281 293.009 / 0.2)",
+  primaryHover: "oklch(0.541 0.281 293.009 / 0.9)",
+  accent: "oklch(0.274 0.006 286.033)",
 };
 
 // Lucide "ellipsis" icon (inline SVG — can't use createIcons in content script)
@@ -241,12 +238,14 @@ const ELLIPSIS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height=
 
 // ── Floating banner (auto-inject on set pages) ──────────
 
-function injectBanner(cardCount: number) {
+function injectBanner(cardCount: number): void {
   if (document.getElementById("quickcards-banner")) return;
 
   const banner = document.createElement("div");
   banner.id = "quickcards-banner";
-  banner.setAttribute("style", `
+  banner.setAttribute(
+    "style",
+    `
     position: fixed;
     bottom: 24px;
     right: 24px;
@@ -265,7 +264,8 @@ function injectBanner(cardCount: number) {
     opacity: 0;
     transform: translateY(8px);
     transition: opacity 0.3s ease, transform 0.3s ease;
-  `);
+  `,
+  );
 
   banner.innerHTML = `
     <span style="color: ${T.muted};">
@@ -314,7 +314,7 @@ function injectBanner(cardCount: number) {
 
   // ── Copy button ───────────────────────────────────────
 
-  const copyBtn = document.getElementById("quickcards-copy")!;
+  const copyBtn = document.getElementById("quickcards-copy") as HTMLButtonElement;
 
   copyBtn.addEventListener("mouseenter", () => {
     if (!copyBtn.hasAttribute("disabled")) {
@@ -333,9 +333,7 @@ function injectBanner(cardCount: number) {
     const data = await getData();
     if (!data?.cards.length) return;
 
-    const text = data.cards
-      .map((c: Flashcard) => `${c.term}\t${c.definition}`)
-      .join("\n");
+    const text = data.cards.map((c: Flashcard) => `${c.term}\t${c.definition}`).join("\n");
     await navigator.clipboard.writeText(text);
 
     copyBtn.textContent = "Copied";
@@ -353,7 +351,7 @@ function injectBanner(cardCount: number) {
 
   // ── "..." (more) button ───────────────────────────────
 
-  const moreBtn = document.getElementById("quickcards-more")!;
+  const moreBtn = document.getElementById("quickcards-more") as HTMLButtonElement;
 
   moreBtn.addEventListener("mouseenter", () => {
     moreBtn.style.background = T.accent;

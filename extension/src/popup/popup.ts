@@ -3,6 +3,17 @@ import collapse from "@alpinejs/collapse";
 import type { Flashcard, FlashcardSet } from "../lib/types";
 import { track, bucketDays, bucketSets } from "../lib/analytics";
 
+// Alpine components' `this` isn't typed against $refs by default.
+interface AlpineThis {
+  $refs?: Record<string, HTMLElement>;
+}
+
+declare global {
+  interface Window {
+    Alpine: typeof Alpine;
+  }
+}
+
 // Separator value mappings
 const TERM_SEP_MAP: Record<string, string> = {
   Tab: "\t",
@@ -19,7 +30,7 @@ const CARD_SEP_MAP: Record<string, string> = {
 
 // Shared state
 let originalSet: FlashcardSet | null = null; // the current tab's set (never mutated)
-let exportSet: FlashcardSet | null = null;   // the set used for export (may be merged)
+let exportSet: FlashcardSet | null = null; // the set used for export (may be merged)
 let termSepValue = "Tab";
 let cardSepValue = "Newline";
 
@@ -35,19 +46,20 @@ function getCardSeparator(): string {
 
 function sanitize(text: string): string {
   // Replace embedded newlines with a space so they don't collide with card separators
-  return text.replace(/\r?\n/g, " ").replace(/\s{2,}/g, " ").trim();
+  return text
+    .replace(/\r?\n/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function formatCards(): string {
   if (!exportSet) return "";
   const ts = getTermSeparator();
   const cs = getCardSeparator();
-  return exportSet.cards
-    .map((c) => `${sanitize(c.term)}${ts}${sanitize(c.definition)}`)
-    .join(cs);
+  return exportSet.cards.map((c) => `${sanitize(c.term)}${ts}${sanitize(c.definition)}`).join(cs);
 }
 
-function downloadFile(content: string, filename: string, mimeType: string) {
+function downloadFile(content: string, filename: string, mimeType: string): void {
   // Delegate to background script — blob URLs in the popup crash the browser.
   chrome.runtime.sendMessage({
     action: "downloadFile",
@@ -98,8 +110,8 @@ Alpine.data("popup", () => ({
   preview: false,
   copied: false,
   exportCopied: false,
-  cardCount: 0,      // main screen: always originalSet count
-  exportCount: 0,    // export screen: may differ after merge/dedup
+  cardCount: 0, // main screen: always originalSet count
+  exportCount: 0, // export screen: may differ after merge/dedup
   otherSets: [] as MergeSetEntry[],
   mergeSets: [] as MergeSetEntry[],
   exportSource: "main" as "main" | "merge",
@@ -123,7 +135,7 @@ Alpine.data("popup", () => ({
 
   /** Render the merge set list and wire up checkbox listeners. */
   renderMergeList() {
-    const container = (this as any).$refs?.mergeList as HTMLElement | undefined;
+    const container = (this as unknown as AlpineThis).$refs?.mergeList as HTMLElement | undefined;
     if (!container) return;
 
     container.innerHTML = "";
@@ -160,7 +172,8 @@ Alpine.data("popup", () => ({
 
       if (set.current) {
         const badge = document.createElement("span");
-        badge.className = "shrink-0 text-[10px] font-medium text-primary bg-primary/15 rounded px-1.5 py-0.5";
+        badge.className =
+          "shrink-0 text-[10px] font-medium text-primary bg-primary/15 rounded px-1.5 py-0.5";
         badge.textContent = "current";
         titleRow.appendChild(badge);
       }
@@ -178,12 +191,12 @@ Alpine.data("popup", () => ({
     }
 
     // Wire up dedup toggle
-    const dedupLabel = (this as any).$refs?.dedupLabel as HTMLElement | undefined;
-    const dedupTrack = (this as any).$refs?.dedupTrack as HTMLElement | undefined;
-    const dedupThumb = (this as any).$refs?.dedupThumb as HTMLElement | undefined;
+    const dedupLabel = (this as unknown as AlpineThis).$refs?.dedupLabel as HTMLElement | undefined;
+    const dedupTrack = (this as unknown as AlpineThis).$refs?.dedupTrack as HTMLElement | undefined;
+    const dedupThumb = (this as unknown as AlpineThis).$refs?.dedupThumb as HTMLElement | undefined;
 
     if (dedupLabel && dedupTrack && dedupThumb) {
-      const updateToggleUI = () => {
+      const updateToggleUI = (): void => {
         if (this.dedupEnabled) {
           dedupTrack.classList.replace("bg-muted", "bg-primary");
           dedupThumb.classList.replace("translate-x-0.5", "translate-x-3.5");
@@ -212,10 +225,16 @@ Alpine.data("popup", () => ({
     const selectedCount = selected.length;
     const selectedCards = selected.reduce((sum: number, s: MergeSetEntry) => sum + s.cards, 0);
 
-    const setsEl = (this as any).$refs?.mergeSetsCount as HTMLElement | undefined;
-    const cardsEl = (this as any).$refs?.mergeCardsCount as HTMLElement | undefined;
-    const btnEl = (this as any).$refs?.mergeExportBtn as HTMLButtonElement | undefined;
-    const dedupCountEl = (this as any).$refs?.dedupCount as HTMLElement | undefined;
+    const setsEl = (this as unknown as AlpineThis).$refs?.mergeSetsCount as HTMLElement | undefined;
+    const cardsEl = (this as unknown as AlpineThis).$refs?.mergeCardsCount as
+      | HTMLElement
+      | undefined;
+    const btnEl = (this as unknown as AlpineThis).$refs?.mergeExportBtn as
+      | HTMLButtonElement
+      | undefined;
+    const dedupCountEl = (this as unknown as AlpineThis).$refs?.dedupCount as
+      | HTMLElement
+      | undefined;
 
     if (setsEl) setsEl.textContent = String(selectedCount);
     if (cardsEl) cardsEl.textContent = String(selectedCards);
@@ -263,7 +282,7 @@ Alpine.data("popup", () => ({
         return;
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id!, {
+      const response = await chrome.tabs.sendMessage(tab.id as number, {
         action: "getCards",
       });
 
@@ -280,7 +299,7 @@ Alpine.data("popup", () => ({
         this.renderPreview();
 
         // Discover other Quizlet tabs before deciding which screen to show
-        await this.discoverOtherTabs(tab.id!);
+        await this.discoverOtherTabs(tab.id as number);
 
         // Check if "..." banner button requested the export/main view
         let openedFromBanner = false;
@@ -316,7 +335,9 @@ Alpine.data("popup", () => ({
   async discoverOtherTabs(currentTabId: number) {
     try {
       const tabs = await chrome.tabs.query({ url: "*://*.quizlet.com/*", currentWindow: true });
-      const currentSetId = originalSet ? getSetIdFromUrl(tabs.find(t => t.id === currentTabId)?.url ?? "") : null;
+      const currentSetId = originalSet
+        ? getSetIdFromUrl(tabs.find((t) => t.id === currentTabId)?.url ?? "")
+        : null;
 
       const others: MergeSetEntry[] = [];
       for (const tab of tabs) {
@@ -330,7 +351,7 @@ Alpine.data("popup", () => ({
           if (res?.ok && res.set?.cards?.length > 0) {
             others.push({
               id: setId,
-              tabId: tab.id!,
+              tabId: tab.id as number,
               title: res.set.title || "Quizlet Set",
               cards: res.set.cards.length,
               cardData: res.set.cards,
@@ -422,7 +443,7 @@ Alpine.data("popup", () => ({
   renderPreview() {
     if (!originalSet) return;
 
-    const tbody = (this as any).$refs?.previewTable as HTMLElement | undefined;
+    const tbody = (this as unknown as AlpineThis).$refs?.previewTable as HTMLElement | undefined;
     if (!tbody) return;
 
     const rows = originalSet.cards.slice(0, 20);
@@ -432,7 +453,7 @@ Alpine.data("popup", () => ({
         <tr class="border-b border-border last:border-0 ${i % 2 === 1 ? "bg-muted/30" : ""}">
           <td class="px-2.5 py-1.5 text-foreground font-medium w-[40%] max-w-0 truncate">${escapeHtml(card.term)}</td>
           <td class="px-2.5 py-1.5 text-muted-foreground max-w-0 truncate">${escapeHtml(card.definition)}</td>
-        </tr>`
+        </tr>`,
       )
       .join("");
 
@@ -489,9 +510,11 @@ Alpine.data("popup", () => ({
   },
 
   ankiSameDay(a: Date, b: Date): boolean {
-    return a.getFullYear() === b.getFullYear()
-      && a.getMonth() === b.getMonth()
-      && a.getDate() === b.getDate();
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
   },
 
   ankiDiffDays(from: Date, to: Date): number {
@@ -543,17 +566,22 @@ Alpine.data("popup", () => ({
   },
 
   get ankiCanGoPrev(): boolean {
-    return this.ankiViewYear > this.ankiToday.getFullYear()
-      || (this.ankiViewYear === this.ankiToday.getFullYear() && this.ankiViewMonth > this.ankiToday.getMonth());
+    return (
+      this.ankiViewYear > this.ankiToday.getFullYear() ||
+      (this.ankiViewYear === this.ankiToday.getFullYear() &&
+        this.ankiViewMonth > this.ankiToday.getMonth())
+    );
   },
 
   get ankiMonthLabel(): string {
-    return new Date(this.ankiViewYear, this.ankiViewMonth, 1)
-      .toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    return new Date(this.ankiViewYear, this.ankiViewMonth, 1).toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
   },
 
   renderAnkiCalendar() {
-    const container = (this as any).$refs?.ankiGrid as HTMLElement | undefined;
+    const container = (this as unknown as AlpineThis).$refs?.ankiGrid as HTMLElement | undefined;
     if (!container) return;
 
     container.innerHTML = "";
@@ -573,7 +601,8 @@ Alpine.data("popup", () => ({
       btn.type = "button";
       btn.disabled = isDisabled;
 
-      let cls = "relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
+      let cls =
+        "relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
       if (isSelected) {
         cls += " bg-primary text-primary-foreground font-medium";
       } else if (isDisabled) {
@@ -713,11 +742,7 @@ Alpine.data("popup", () => ({
   // Export handlers
   exportTXT() {
     if (!exportSet) return;
-    downloadFile(
-      formatCards(),
-      `${exportSet.title || "flashcards"}.txt`,
-      "text/plain"
-    );
+    downloadFile(formatCards(), `${exportSet.title || "flashcards"}.txt`, "text/plain");
     track("Export", { format: "txt" });
   },
 
@@ -730,11 +755,7 @@ Alpine.data("popup", () => ({
         return `${term},${def}`;
       })
       .join("\n");
-    downloadFile(
-      "term,definition\n" + csv,
-      `${exportSet.title || "flashcards"}.csv`,
-      "text/csv"
-    );
+    downloadFile("term,definition\n" + csv, `${exportSet.title || "flashcards"}.csv`, "text/csv");
     track("Export", { format: "csv" });
   },
 
@@ -743,7 +764,7 @@ Alpine.data("popup", () => ({
     downloadFile(
       JSON.stringify(exportSet, null, 2),
       `${exportSet.title || "flashcards"}.json`,
-      "application/json"
+      "application/json",
     );
     track("Export", { format: "json" });
   },
@@ -811,7 +832,7 @@ Alpine.data("combobox", () => ({
 }));
 
 // Load saved settings BEFORE Alpine starts, so combobox x-init reads correct values.
-(window as any).Alpine = Alpine;
+window.Alpine = Alpine;
 
 (async () => {
   try {

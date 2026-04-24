@@ -114,7 +114,7 @@ const longSentencesSet: FlashcardSet = {
   ],
 };
 
-async function runTests() {
+async function runTests(): Promise<void> {
   console.log("Generating test PDFs...\n");
 
   // Ensure output directory exists

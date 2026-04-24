@@ -48,7 +48,7 @@ function calculateRowHeight(
   doc: jsPDF,
   term: string,
   definition: string,
-  lineHeight: number
+  lineHeight: number,
 ): { height: number; termLines: string[]; defLines: string[] } {
   const termLines = wrapText(doc, term, COL_TERM_WIDTH - 4, TABLE_BODY_FONT_SIZE);
   const defLines = wrapText(doc, definition, COL_DEF_WIDTH - 4, TABLE_BODY_FONT_SIZE);
@@ -85,7 +85,7 @@ function drawTableHeader(doc: jsPDF, y: number): number {
     x + COL_NUM_WIDTH + COL_TERM_WIDTH,
     y,
     x + COL_NUM_WIDTH + COL_TERM_WIDTH,
-    y + HEADER_HEIGHT
+    y + HEADER_HEIGHT,
   );
 
   return y + HEADER_HEIGHT;
@@ -101,7 +101,7 @@ function drawTableRow(
   termLines: string[],
   defLines: string[],
   rowHeight: number,
-  isAlternate: boolean
+  isAlternate: boolean,
 ): number {
   const x = MARGIN_LEFT;
   const lineHeight = TABLE_BODY_FONT_SIZE * 0.4;
@@ -123,7 +123,7 @@ function drawTableRow(
     x + COL_NUM_WIDTH + COL_TERM_WIDTH,
     y,
     x + COL_NUM_WIDTH + COL_TERM_WIDTH,
-    y + rowHeight
+    y + rowHeight,
   );
 
   // Text
@@ -137,17 +137,13 @@ function drawTableRow(
 
   // Term (multiple lines if needed)
   const textStartY = y + 3 + lineHeight;
-  for (let i = 0; i < termLines.length; i++) {
-    doc.text(termLines[i]!, x + COL_NUM_WIDTH + 2, textStartY + i * lineHeight);
+  for (const [i, line] of termLines.entries()) {
+    doc.text(line, x + COL_NUM_WIDTH + 2, textStartY + i * lineHeight);
   }
 
   // Definition (multiple lines if needed)
-  for (let i = 0; i < defLines.length; i++) {
-    doc.text(
-      defLines[i]!,
-      x + COL_NUM_WIDTH + COL_TERM_WIDTH + 2,
-      textStartY + i * lineHeight
-    );
+  for (const [i, line] of defLines.entries()) {
+    doc.text(line, x + COL_NUM_WIDTH + COL_TERM_WIDTH + 2, textStartY + i * lineHeight);
   }
 
   return y + rowHeight;
@@ -198,13 +194,12 @@ export function generateListPDF(set: FlashcardSet): jsPDF {
   const lineHeight = TABLE_BODY_FONT_SIZE * 0.4;
   doc.setFontSize(TABLE_BODY_FONT_SIZE);
 
-  for (let i = 0; i < set.cards.length; i++) {
-    const card = set.cards[i]!;
+  for (const [i, card] of set.cards.entries()) {
     const { height, termLines, defLines } = calculateRowHeight(
       doc,
       card.term,
       card.definition,
-      lineHeight
+      lineHeight,
     );
 
     // Check if we need a new page
@@ -214,15 +209,7 @@ export function generateListPDF(set: FlashcardSet): jsPDF {
       currentY = drawTableHeader(doc, currentY);
     }
 
-    currentY = drawTableRow(
-      doc,
-      currentY,
-      i + 1,
-      termLines,
-      defLines,
-      height,
-      i % 2 === 1
-    );
+    currentY = drawTableRow(doc, currentY, i + 1, termLines, defLines, height, i % 2 === 1);
   }
 
   return doc;
@@ -231,10 +218,7 @@ export function generateListPDF(set: FlashcardSet): jsPDF {
 /**
  * Generates and saves the vocabulary list PDF to a file
  */
-export async function saveListPDF(
-  set: FlashcardSet,
-  outputPath: string
-): Promise<void> {
+export async function saveListPDF(set: FlashcardSet, outputPath: string): Promise<void> {
   const doc = generateListPDF(set);
   const pdfOutput = doc.output("arraybuffer");
   await Bun.write(outputPath, pdfOutput);
