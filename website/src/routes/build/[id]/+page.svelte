@@ -11,8 +11,9 @@
   import { loadPackage } from "$lib/builder/store/load";
   import { createAutosave } from "$lib/builder/store/autosave";
   import { createHistory } from "$lib/builder/history";
-  import { newId } from "$lib/builder/defaults";
-  import type { Id, PackageData, PackageState, Selection } from "$lib/builder/types";
+  import { createActions } from "$lib/builder/actions";
+  import { buildDeckForest, isSimpleFlashcardDeck } from "$lib/builder/deck-tree";
+  import type { BuilderDeck, Id, PackageData, PackageState, Selection } from "$lib/builder/types";
 
   let pkgState = $state<PackageState | null>(null);
   let loadError = $state<string | null>(null);
@@ -21,8 +22,6 @@
   const history = createHistory<PackageState>();
   const autosave = createAutosave();
 
-  // Snapshot of can-undo/can-redo. The history module isn't reactive on its
-  // own; we re-read after every mutation.
   let canUndo = $state(false);
   let canRedo = $state(false);
 
@@ -53,6 +52,8 @@
     syncHistoryFlags();
   }
 
+  const actions = createActions(mutate);
+
   // ---- load ---------------------------------------------------------------
 
   onMount(async () => {
@@ -68,11 +69,7 @@
         loadError = "This deck doesn't exist on this device.";
         return;
       }
-      const initial: PackageState = {
-        data,
-        selection: pickInitialSelection(data),
-      };
-      pkgState = initial;
+      pkgState = { data, selection: pickInitialSelection(data) };
       window.addEventListener("keydown", handleKeydown);
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
@@ -96,9 +93,6 @@
     if (!pkgState) return;
     saveStatus = "saving";
     autosave.schedule(pkgState.data);
-    // The flush() promise fires on the next debounce tick; we mark "saved"
-    // via a microtask after schedule returns. flush() is awaited here only
-    // so failures surface to UI; the actual write is debounced.
     autosave
       .flush()
       .then(() => {
@@ -125,76 +119,82 @@
     }
   }
 
-  // Skip global undo when the user is mid-edit in a textarea/input;
-  // the browser's native field-level undo is the right behavior there.
   function isFromEditableField(e: KeyboardEvent): boolean {
     const t = e.target as HTMLElement | null;
     if (!t) return false;
-    return (
-      t.tagName === "INPUT" ||
-      t.tagName === "TEXTAREA" ||
-      t.isContentEditable
-    );
+    return t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable;
   }
 
-  // ---- actions ------------------------------------------------------------
+  // ---- delete with confirm ------------------------------------------------
 
-  function setTitle(next: string) {
-    mutate(
-      (draft) => {
-        draft.data.package.title = next;
-      },
-      "Rename package",
-    );
-  }
-
-  function selectDeck(id: Id) {
-    mutate(
-      (draft) => {
-        draft.selection = { kind: "deck", id };
-      },
-      "Select deck",
-    );
-  }
-
-  function addDeck() {
-    mutate((draft) => {
-      const id = newId();
-      const existing = Object.values(draft.data.decks);
-      const order = existing.length === 0 ? 0 : Math.max(...existing.map((d) => d.order)) + 1;
-      // Reuse the first config so the new deck has scheduling out of the box.
-      // Phase 2 introduces per-deck preset assignment.
-      const fallbackConfigId = Object.values(draft.data.configs)[0]?.id ?? "";
-      draft.data.decks[id] = {
-        id,
-        packageId: draft.data.package.id,
-        parentDeckId: null,
-        name: "New deck",
-        description: "",
-        configId: fallbackConfigId,
-        order,
-        deadline: null,
-      };
-      draft.selection = { kind: "deck", id };
-    }, "Add deck");
+  function confirmAndDelete(id: Id) {
+    if (!pkgState) return;
+    const deck = pkgState.data.decks[id];
+    if (!deck) return;
+    const childCount = Object.values(pkgState.data.decks).filter(
+      (d) => d.parentDeckId === id,
+    ).length;
+    const noteCount = Object.values(pkgState.data.notes).filter((n) => n.deckId === id).length;
+    const detail =
+      childCount > 0
+        ? `"${deck.name}" has ${childCount} subdeck${childCount === 1 ? "" : "s"}. They will also be deleted.`
+        : noteCount > 0
+          ? `"${deck.name}" has ${noteCount} card${noteCount === 1 ? "" : "s"}. They will be deleted.`
+          : `Delete "${deck.name}"?`;
+    if (!confirm(`${detail}\n\nUse Ctrl+Z to undo.`)) return;
+    actions.deck.delete(id);
   }
 
   // ---- derived view -------------------------------------------------------
 
-  const decks = $derived(pkgState ? Object.values(pkgState.data.decks) : []);
-
-  const noteCounts = $derived.by(() => {
-    const counts: Record<Id, number> = {};
-    if (!pkgState) return counts;
-    for (const note of Object.values(pkgState.data.notes)) {
-      counts[note.deckId] = (counts[note.deckId] ?? 0) + 1;
-    }
-    return counts;
+  const forest = $derived.by(() => {
+    if (!pkgState) return [];
+    return buildDeckForest({ decks: pkgState.data.decks, notes: pkgState.data.notes });
   });
 
   const selectedDeck = $derived(
-    pkgState && pkgState.selection.kind === "deck" ? pkgState.data.decks[pkgState.selection.id] : null,
+    pkgState && pkgState.selection.kind === "deck"
+      ? pkgState.data.decks[pkgState.selection.id]
+      : null,
   );
+
+  const selectedDeckCount = $derived.by(() => {
+    if (!pkgState || !selectedDeck) return 0;
+    let n = 0;
+    for (const note of Object.values(pkgState.data.notes)) {
+      if (note.deckId === selectedDeck.id) n++;
+    }
+    return n;
+  });
+
+  function canDuplicateAsWriting(deckId: Id): boolean {
+    if (!pkgState) return false;
+    const deck = pkgState.data.decks[deckId];
+    if (!deck) return false;
+    return (
+      isSimpleFlashcardDeck({
+        deck,
+        decks: pkgState.data.decks,
+        notes: pkgState.data.notes,
+        models: pkgState.data.models,
+      }) !== null
+    );
+  }
+
+  // Breadcrumbs from root to selected deck.
+  const breadcrumbs = $derived.by<string[]>(() => {
+    if (!pkgState || !selectedDeck) return [];
+    const decks = pkgState.data.decks;
+    const trail: string[] = [];
+    let cur: Id | null = selectedDeck.id;
+    while (cur) {
+      const next: BuilderDeck | undefined = decks[cur];
+      if (!next) break;
+      trail.unshift(next.name || "Untitled deck");
+      cur = next.parentDeckId;
+    }
+    return trail;
+  });
 </script>
 
 <svelte:head>
@@ -210,7 +210,10 @@
       <Button onclick={() => goto(resolve("/build"))}>Back to overview</Button>
     </div>
   {:else if !pkgState}
-    <div class="text-muted-foreground flex flex-1 items-center justify-center text-sm" aria-live="polite">
+    <div
+      class="text-muted-foreground flex flex-1 items-center justify-center text-sm"
+      aria-live="polite"
+    >
       Loading deck…
     </div>
   {:else}
@@ -219,27 +222,37 @@
       {canUndo}
       {canRedo}
       {saveStatus}
-      onTitleChange={setTitle}
+      onTitleChange={actions.package.setTitle}
       onUndo={undo}
       onRedo={redo}
     />
 
     <div class="flex flex-1 overflow-hidden">
       <Sidebar
-        {decks}
-        {noteCounts}
+        {forest}
         selection={pkgState.selection}
-        onSelectDeck={selectDeck}
-        onAddDeck={addDeck}
+        {canDuplicateAsWriting}
+        onSelect={actions.deck.select}
+        onAddRoot={actions.deck.addRoot}
+        onAddSubdeck={actions.deck.addUnder}
+        onRename={actions.deck.rename}
+        onDelete={confirmAndDelete}
+        onDuplicateWriting={actions.deck.duplicateAsWriting}
+        onMove={actions.deck.move}
       />
 
       <main class="flex-1 overflow-y-auto px-8 py-10">
         {#if selectedDeck}
-          <div class="mx-auto max-w-3xl space-y-2">
+          <div class="mx-auto max-w-3xl space-y-3">
+            {#if breadcrumbs.length > 1}
+              <nav class="text-muted-foreground text-xs" aria-label="Deck path">
+                {breadcrumbs.slice(0, -1).join(" / ")} /
+              </nav>
+            {/if}
             <h2 class="text-2xl font-semibold tracking-tight">{selectedDeck.name}</h2>
             <p class="text-muted-foreground text-sm">
-              {noteCounts[selectedDeck.id] ?? 0}
-              {(noteCounts[selectedDeck.id] ?? 0) === 1 ? "card" : "cards"}
+              {selectedDeckCount}
+              {selectedDeckCount === 1 ? "card" : "cards"}
             </p>
             <p class="text-muted-foreground pt-12 text-center text-sm">
               The card editor lands in the next iteration.
