@@ -66,6 +66,10 @@ export const decks = {
     const db = await getDB();
     return db.getAllFromIndex("decks", "byPackage", packageId);
   },
+  async countByPackage(packageId: Id): Promise<number> {
+    const db = await getDB();
+    return db.countFromIndex("decks", "byPackage", packageId);
+  },
 };
 
 // ----- notes --------------------------------------------------------------
@@ -102,6 +106,10 @@ export const notes = {
   async listByDeck(deckId: Id): Promise<BuilderNote[]> {
     const db = await getDB();
     return db.getAllFromIndex("notes", "byDeck", deckId);
+  },
+  async countByPackage(packageId: Id): Promise<number> {
+    const db = await getDB();
+    return db.countFromIndex("notes", "byPackage", packageId);
   },
 };
 

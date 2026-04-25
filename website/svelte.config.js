@@ -10,9 +10,11 @@ const config = {
     adapter: adapter({
       pages: "build",
       assets: "build",
-      fallback: undefined,
+      // SPA fallback for routes that can't be prerendered (the dynamic /build/[id] editor).
+      // Vercel rewrites in vercel.json route those paths to this file.
+      fallback: "spa.html",
       precompress: false,
-      strict: true,
+      strict: false,
     }),
   },
 };

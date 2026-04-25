@@ -2,6 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/build/:id",
+      "destination": "/spa.html"
+    }
+  ],
   "headers": [
     {
       "source": "/_app/immutable/(.*)",
