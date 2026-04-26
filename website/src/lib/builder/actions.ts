@@ -8,6 +8,7 @@
  */
 
 import type { BuilderConfig, DeadlineSpec, Id, PackageState } from "./types";
+import { MEDIA_PER_FILE_LIMIT, MEDIA_PER_PACKAGE_LIMIT } from "./types";
 import { newId, builtinModel, deadlineTunedConfig, defaultConfig } from "./defaults";
 
 /**
@@ -68,6 +69,17 @@ export interface BuilderActions {
     /** Add a tag (lowercased, deduped). */
     addTag(noteId: Id, tag: string): void;
     removeTag(noteId: Id, tag: string): void;
+  };
+  media: {
+    /**
+     * Add a file as media. Returns the new id, or throws an Error with a
+     * user-readable message when the per-file or per-package quota is
+     * exceeded. The filename inside the package is auto-uniqued so duplicates
+     * don't collide.
+     */
+    add(file: File): Promise<Id>;
+    delete(id: Id): void;
+    rename(id: Id, filename: string): void;
   };
   config: {
     select(id: Id): void;
@@ -438,6 +450,85 @@ export function createActions(mutate: Mutate): BuilderActions {
         }, `Move ${noteIds.length} cards`);
       },
     },
+    media: {
+      async add(file) {
+        if (file.size > MEDIA_PER_FILE_LIMIT) {
+          throw new Error(
+            `"${file.name}" is ${formatBytes(file.size)}. The per-file limit is ${formatBytes(MEDIA_PER_FILE_LIMIT)}.`,
+          );
+        }
+        // Read the blob into a fresh Blob so the IDB-stored copy is detached
+        // from any incoming File reference (which may be revoked later).
+        const buffer = await file.arrayBuffer();
+        const blob = new Blob([buffer], { type: file.type || "application/octet-stream" });
+        const id = newId();
+        // We need a synchronous mutate after the async read; assemble outside
+        // and apply inside.
+        const desiredFilename = file.name || "file";
+        let savedFilename = desiredFilename;
+        mutate((draft) => {
+          const total = Object.values(draft.data.media).reduce((sum, m) => sum + m.size, 0);
+          if (total + blob.size > MEDIA_PER_PACKAGE_LIMIT) {
+            // Throwing inside mutate would leave history half-applied; instead
+            // we abort by leaving the recipe a no-op and signal through the
+            // closed-over savedFilename. Caller checks the returned id.
+            savedFilename = "";
+            return;
+          }
+          savedFilename = uniqueFilename(draft, desiredFilename);
+          draft.data.media[id] = {
+            id,
+            packageId: draft.data.package.id,
+            filename: savedFilename,
+            mimeType: blob.type,
+            size: blob.size,
+            blob,
+          };
+        }, "Add media");
+        if (!savedFilename) {
+          throw new Error(
+            `Adding "${desiredFilename}" would exceed the ${formatBytes(MEDIA_PER_PACKAGE_LIMIT)} package limit.`,
+          );
+        }
+        return id;
+      },
+
+      delete(id) {
+        mutate((draft) => {
+          const m = draft.data.media[id];
+          if (!m) return;
+          // Refuse if any note references this filename (defensive; UI prompts).
+          const ref = m.filename;
+          const used = Object.values(draft.data.notes).some((n) =>
+            n.fields.some((f) => f.includes(ref)),
+          );
+          if (used) return;
+          Reflect.deleteProperty(draft.data.media, id);
+        }, "Delete media");
+      },
+
+      rename(id, filename) {
+        const trimmed = filename.trim();
+        if (!trimmed) return;
+        mutate((draft) => {
+          const m = draft.data.media[id];
+          if (!m) return;
+          const next = uniqueFilename(draft, trimmed, id);
+          // Rewrite references in note fields so card templates keep working.
+          const old = m.filename;
+          if (old !== next) {
+            for (const note of Object.values(draft.data.notes)) {
+              for (let i = 0; i < note.fields.length; i++) {
+                if (note.fields[i].includes(old)) {
+                  note.fields[i] = note.fields[i].split(old).join(next);
+                }
+              }
+            }
+            m.filename = next;
+          }
+        }, "Rename media");
+      },
+    },
     config: {
       select(id) {
         mutate((draft) => {
@@ -771,6 +862,28 @@ function pickModelForDeck(draft: PackageState, deckId: Id): Id {
   const any = Object.values(draft.data.models)[0];
   if (any) return any.id;
   throw new Error("Package has no models. Cannot add a note.");
+}
+
+function uniqueFilename(draft: PackageState, desired: string, ignoreId?: Id): string {
+  const taken = new Set(
+    Object.values(draft.data.media)
+      .filter((m) => m.id !== ignoreId)
+      .map((m) => m.filename),
+  );
+  if (!taken.has(desired)) return desired;
+  const dot = desired.lastIndexOf(".");
+  const stem = dot > 0 ? desired.slice(0, dot) : desired;
+  const ext = dot > 0 ? desired.slice(dot) : "";
+  let n = 2;
+  while (taken.has(`${stem}-${n}${ext}`)) n += 1;
+  return `${stem}-${n}${ext}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 function repackNoteOrder(draft: PackageState, deckId: Id): void {

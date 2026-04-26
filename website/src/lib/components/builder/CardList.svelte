@@ -20,6 +20,7 @@
     onMove: (sourceId: Id, targetId: Id, position: "before" | "after") => void;
     onAddTag: (noteId: Id, tag: string) => void;
     onRemoveTag: (noteId: Id, tag: string) => void;
+    onAttachFile: (file: File) => Promise<string | null>;
   }
 
   let {
@@ -33,6 +34,7 @@
     onMove,
     onAddTag,
     onRemoveTag,
+    onAttachFile,
   }: Props = $props();
 
   // Notes already arrive sorted, but we resort defensively.
@@ -266,6 +268,7 @@
             onToggleSelect={({ extend }) => toggleSelect(note.id, i, extend)}
             onAddTag={(tag) => onAddTag(note.id, tag)}
             onRemoveTag={(tag) => onRemoveTag(note.id, tag)}
+            {onAttachFile}
           />
         {/if}
         {#if showAfterIndicator}

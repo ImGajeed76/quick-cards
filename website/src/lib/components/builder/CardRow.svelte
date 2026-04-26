@@ -21,6 +21,12 @@
     onToggleSelect: (event: { extend: boolean }) => void;
     onAddTag: (tag: string) => void;
     onRemoveTag: (tag: string) => void;
+    /**
+     * Upload a file and return the Anki reference string to insert at the
+     * cursor (img tag for images, [sound:...] for audio, plain filename
+     * otherwise). Returns null when the upload was rejected.
+     */
+    onAttachFile: (file: File) => Promise<string | null>;
   }
 
   let {
@@ -37,7 +43,36 @@
     onToggleSelect,
     onAddTag,
     onRemoveTag,
+    onAttachFile,
   }: Props = $props();
+
+  // ---- file drop ---------------------------------------------------------
+
+  function handleDragOver(e: DragEvent) {
+    if (!e.dataTransfer) return;
+    if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  async function handleFieldDrop(e: DragEvent, fieldIndex: number) {
+    if (!e.dataTransfer || e.dataTransfer.files.length === 0) return;
+    e.preventDefault();
+    const textarea = e.currentTarget as HTMLTextAreaElement;
+    for (const file of Array.from(e.dataTransfer.files)) {
+      const ref = await onAttachFile(file);
+      if (!ref) continue;
+      const start = textarea.selectionStart ?? textarea.value.length;
+      const end = textarea.selectionEnd ?? textarea.value.length;
+      const next = textarea.value.slice(0, start) + ref + textarea.value.slice(end);
+      onUpdateField(fieldIndex, next);
+      requestAnimationFrame(() => {
+        const caret = start + ref.length;
+        textarea.focus();
+        textarea.setSelectionRange(caret, caret);
+      });
+    }
+  }
 
   const isCloze = $derived(model.type === "cloze");
   const isSideBySide = $derived(!isCloze && model.fields.length === 2);
@@ -187,6 +222,10 @@
           value={fieldValue(0)}
           oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
           onkeydown={(e) => handleFieldKeydown(e, 0)}
+          ondragover={handleDragOver}
+          ondrop={(e) => {
+            void handleFieldDrop(e, 0);
+          }}
           use:autoresize={fieldValue(0)}
           placeholder={"The capital of France is " + clozeExample + "."}
           rows="1"
@@ -204,6 +243,10 @@
               value={fieldValue(1)}
               oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
               onkeydown={(e) => handleFieldKeydown(e, 1)}
+              ondragover={handleDragOver}
+              ondrop={(e) => {
+                void handleFieldDrop(e, 1);
+              }}
               use:autoresize={fieldValue(1)}
               placeholder="Optional back-extra"
               rows="1"
@@ -222,6 +265,10 @@
           value={fieldValue(0)}
           oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
           onkeydown={(e) => handleFieldKeydown(e, 0)}
+          ondragover={handleDragOver}
+          ondrop={(e) => {
+            void handleFieldDrop(e, 0);
+          }}
           use:autoresize={fieldValue(0)}
           placeholder={model.fields[0]?.name ?? "Term"}
           rows="1"
@@ -238,6 +285,10 @@
           value={fieldValue(1)}
           oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
           onkeydown={(e) => handleFieldKeydown(e, 1)}
+          ondragover={handleDragOver}
+          ondrop={(e) => {
+            void handleFieldDrop(e, 1);
+          }}
           use:autoresize={fieldValue(1)}
           placeholder={model.fields[1]?.name ?? "Definition"}
           rows="1"
@@ -257,6 +308,10 @@
               value={fieldValue(i)}
               oninput={(e) => onUpdateField(i, (e.currentTarget as HTMLTextAreaElement).value)}
               onkeydown={(e) => handleFieldKeydown(e, i)}
+              ondragover={handleDragOver}
+              ondrop={(e) => {
+                void handleFieldDrop(e, i);
+              }}
               use:autoresize={fieldValue(i)}
               placeholder={field.description ?? field.name}
               rows="1"

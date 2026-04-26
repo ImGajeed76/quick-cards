@@ -194,6 +194,53 @@
       : null,
   );
 
+  // ---- media --------------------------------------------------------------
+
+  const allMedia = $derived(pkgState ? Object.values(pkgState.data.media) : []);
+
+  const mediaUsage = $derived.by(() => {
+    const counts: Record<string, number> = {};
+    if (!pkgState) return counts;
+    const filenames = Object.values(pkgState.data.media).map((m) => m.filename);
+    for (const note of Object.values(pkgState.data.notes)) {
+      for (const filename of filenames) {
+        if (note.fields.some((f) => f.includes(filename))) {
+          counts[filename] = (counts[filename] ?? 0) + 1;
+        }
+      }
+    }
+    return counts;
+  });
+
+  async function handleAddMedia(file: File): Promise<void> {
+    try {
+      await actions.media.add(file);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(message);
+    }
+  }
+
+  /**
+   * Upload a file and return the Anki reference token for it (an `<img>` tag
+   * for images, a `[sound:...]` token for audio, and the filename otherwise).
+   * Returns null if the upload was rejected.
+   */
+  async function attachFile(file: File): Promise<string | null> {
+    try {
+      const id = await actions.media.add(file);
+      const m = pkgState?.data.media[id];
+      if (!m) return null;
+      if (m.mimeType.startsWith("image/")) return `<img src="${m.filename}">`;
+      if (m.mimeType.startsWith("audio/")) return `[sound:${m.filename}]`;
+      return m.filename;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert(message);
+      return null;
+    }
+  }
+
   // ---- configs ------------------------------------------------------------
 
   const allConfigs = $derived(pkgState ? Object.values(pkgState.data.configs) : []);
@@ -314,6 +361,12 @@
         onAddConfig={() => {
           actions.config.add();
         }}
+        media={allMedia}
+        {mediaUsage}
+        onAddMedia={(file) => {
+          void handleAddMedia(file);
+        }}
+        onDeleteMedia={actions.media.delete}
       />
 
       <main class="flex-1 overflow-y-auto px-6 py-8">
@@ -389,6 +442,7 @@
               onMove={actions.note.move}
               onAddTag={actions.note.addTag}
               onRemoveTag={actions.note.removeTag}
+              onAttachFile={attachFile}
             />
           </div>
         {:else}

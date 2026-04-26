@@ -4,8 +4,15 @@
   import DeckTree from "./DeckTree.svelte";
   import NoteTypesSection from "./NoteTypesSection.svelte";
   import PresetsSection from "./PresetsSection.svelte";
+  import MediaSection from "./MediaSection.svelte";
   import type { DeckNode, DropPosition } from "$lib/builder/deck-tree";
-  import type { BuilderConfig, BuilderModel, Id, Selection } from "$lib/builder/types";
+  import type {
+    BuilderConfig,
+    BuilderMedia,
+    BuilderModel,
+    Id,
+    Selection,
+  } from "$lib/builder/types";
 
   interface Props {
     forest: DeckNode[];
@@ -30,6 +37,12 @@
     configUsage: Record<Id, number>;
     onSelectConfig: (id: Id) => void;
     onAddConfig: () => void;
+    /** All media files in the package. */
+    media: BuilderMedia[];
+    /** Map from media filename to count of notes referencing it. */
+    mediaUsage: Record<string, number>;
+    onAddMedia: (file: File) => void;
+    onDeleteMedia: (id: Id) => void;
   }
 
   let {
@@ -51,6 +64,10 @@
     configUsage,
     onSelectConfig,
     onAddConfig,
+    media,
+    mediaUsage,
+    onAddMedia,
+    onDeleteMedia,
   }: Props = $props();
 </script>
 
@@ -97,6 +114,12 @@
         {selection}
         onSelect={onSelectConfig}
         onAdd={onAddConfig}
+      />
+      <MediaSection
+        {media}
+        usageByFilename={mediaUsage}
+        onAdd={onAddMedia}
+        onDelete={onDeleteMedia}
       />
     </div>
   </div>
