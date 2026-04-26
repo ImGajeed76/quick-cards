@@ -115,6 +115,25 @@ export interface BuilderActions {
     removeField(modelId: Id, fieldIndex: number): void;
     /** Move a field up or down; reorders existing notes' values to match. */
     moveField(modelId: Id, fieldIndex: number, direction: "up" | "down"): void;
+    /** Update one optional attribute of a field. */
+    updateFieldOption<
+      K extends "description" | "sticky" | "rtl" | "plainText" | "fontName" | "fontSize",
+    >(
+      modelId: Id,
+      fieldIndex: number,
+      key: K,
+      value: K extends "description" | "fontName"
+        ? string
+        : K extends "fontSize"
+          ? number
+          : boolean,
+    ): void;
+    /** Update LaTeX preamble / postamble / SVG flag on the model. */
+    updateLatex(
+      modelId: Id,
+      key: "latexPre" | "latexPost" | "latexSvg",
+      value: string | boolean,
+    ): void;
     /** Append a new template (only valid on non-cloze models). */
     addTemplate(modelId: Id, name: string): void;
     removeTemplate(modelId: Id, templateIndex: number): void;
@@ -734,6 +753,32 @@ export function createActions(mutate: Mutate): BuilderActions {
             if (note.modelId === modelId) note.fields.splice(fieldIndex, 1);
           }
         }, "Remove field");
+      },
+
+      updateFieldOption(modelId, fieldIndex, key, value) {
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            const field = model.fields[fieldIndex];
+            if (!field) return;
+            (field as unknown as Record<string, unknown>)[key] = value;
+          },
+          "Edit field option",
+          `field-${modelId}-${fieldIndex}-${key}`,
+        );
+      },
+
+      updateLatex(modelId, key, value) {
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            (model as unknown as Record<string, unknown>)[key] = value;
+          },
+          "Edit LaTeX",
+          `model-${modelId}-${key}`,
+        );
       },
 
       moveField(modelId, fieldIndex, direction) {

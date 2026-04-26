@@ -397,6 +397,19 @@
               onRenameTemplate={actions.model.renameTemplate}
               onUpdateTemplate={actions.model.updateTemplate}
               onUpdateCss={actions.model.updateCss}
+              onUpdateFieldOption={(id, fi, key, value) =>
+                actions.model.updateFieldOption(
+                  id,
+                  fi,
+                  key,
+                  value as never,
+                )}
+              onUpdateLatex={(id, key, value) =>
+                actions.model.updateLatex(
+                  id,
+                  key,
+                  value,
+                )}
             />
           </div>
         {:else if selectedDeck}
