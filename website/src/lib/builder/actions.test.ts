@@ -34,6 +34,7 @@ function deck(id: string, parent: string | null = null, order = 0): BuilderDeck 
     name: id,
     description: "",
     configId: "",
+    modelId: "",
     order,
     deadline: null,
   };

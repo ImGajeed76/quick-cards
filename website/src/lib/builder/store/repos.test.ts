@@ -27,6 +27,7 @@ function deck(id: string, packageId = "p1", configId = "c1"): BuilderDeck {
     name: id,
     description: "",
     configId,
+    modelId: "m1",
     order: 0,
     deadline: null,
   };

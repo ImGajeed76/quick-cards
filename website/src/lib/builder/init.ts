@@ -48,6 +48,7 @@ export async function createBlankPackage(args: BlankArgs = {}): Promise<Id> {
     name: pkg.title,
     description: "",
     configId: config.id,
+    modelId: model.id,
     order: 0,
     deadline: null,
   };
@@ -74,6 +75,7 @@ export async function createPackageFromFlashcardSet(set: FlashcardSet): Promise<
     name: title,
     description: "",
     configId: config.id,
+    modelId: model.id,
     order: 0,
     deadline: null,
   };

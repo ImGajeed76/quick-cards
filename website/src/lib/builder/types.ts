@@ -41,6 +41,8 @@ export interface BuilderDeck {
   /** HTML, shown in Anki's deck list. */
   description: string;
   configId: Id;
+  /** Default note type for new cards added to this deck. */
+  modelId: Id;
   /** Sort order among siblings sharing the same parentDeckId. */
   order: number;
   /** Last deadline picked for this deck. Drives the deadline-bar UI. */

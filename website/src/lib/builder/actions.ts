@@ -38,6 +38,11 @@ export interface BuilderActions {
      * config is cleaned up if no other deck still references it.
      */
     setDeadline(deckIds: Id[], deadline: DeadlineSpec): void;
+    /**
+     * Set the default note type for cards added to this deck. Existing notes
+     * keep their own modelId; only future cards adopt the new type.
+     */
+    setNoteType(deckId: Id, modelId: Id): void;
   };
   note: {
     /** Append a new empty note to the deck. Returns the new id so callers can focus it. */
@@ -154,6 +159,16 @@ export function createActions(mutate: Mutate): BuilderActions {
         }, "Move deck");
       },
 
+      setNoteType(deckId, modelId) {
+        mutate((draft) => {
+          const deck = draft.data.decks[deckId];
+          const model = draft.data.models[modelId];
+          if (!deck || !model) return;
+          if (deck.modelId === modelId) return;
+          deck.modelId = modelId;
+        }, "Set deck note type");
+      },
+
       setDeadline(deckIds, deadline) {
         if (deckIds.length === 0) return;
         mutate(
@@ -234,6 +249,7 @@ export function createActions(mutate: Mutate): BuilderActions {
               name: `${source.name} (${v.suffix})`,
               description: source.description,
               configId: source.configId,
+              modelId: typingModelId,
               order: baseOrder + 1 + i,
               deadline: source.deadline,
             };
@@ -613,8 +629,10 @@ function nextNoteOrder(draft: PackageState, deckId: Id): number {
 }
 
 function pickModelForDeck(draft: PackageState, deckId: Id): Id {
-  // Prefer the model already used in this deck so adding cards keeps shape.
-  // Falls back to the first basicAndReversed model in the package, or any model.
+  // The deck's default model wins. Falls back to whatever existing notes use,
+  // then to the package's basicAndReversed, then to any model.
+  const deck = draft.data.decks[deckId];
+  if (deck?.modelId && draft.data.models[deck.modelId]) return deck.modelId;
   const existingNote = Object.values(draft.data.notes).find((n) => n.deckId === deckId);
   if (existingNote) return existingNote.modelId;
   const reversed = Object.values(draft.data.models).find((m) => m.builtin === "basicAndReversed");
@@ -642,6 +660,9 @@ function addDeckIn(draft: PackageState, parentId: Id | null): void {
   // Reuse the package's first config so new decks have scheduling out of the
   // box. The user can swap to a custom preset later from deck options.
   const fallbackConfigId = Object.values(draft.data.configs)[0]?.id ?? "";
+  // Default to the parent's note type if there is one, otherwise the
+  // package's basicAndReversed model, otherwise any model.
+  const fallbackModelId = pickDefaultDeckModel(draft, parentId);
   draft.data.decks[id] = {
     id,
     packageId: draft.data.package.id,
@@ -649,10 +670,23 @@ function addDeckIn(draft: PackageState, parentId: Id | null): void {
     name: "New deck",
     description: "",
     configId: fallbackConfigId,
+    modelId: fallbackModelId,
     order,
     deadline: null,
   };
   draft.selection = { kind: "deck", id };
+}
+
+function pickDefaultDeckModel(draft: PackageState, parentId: Id | null): Id {
+  if (parentId) {
+    const parent = draft.data.decks[parentId];
+    if (parent?.modelId) return parent.modelId;
+  }
+  const reversed = Object.values(draft.data.models).find((m) => m.builtin === "basicAndReversed");
+  if (reversed) return reversed.id;
+  const any = Object.values(draft.data.models)[0];
+  if (any) return any.id;
+  return "";
 }
 
 /**

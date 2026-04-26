@@ -11,6 +11,7 @@
   import DeadlineBar from "$lib/components/builder/DeadlineBar.svelte";
   import DeadlineModal from "$lib/components/builder/DeadlineModal.svelte";
   import ModelEditor from "$lib/components/builder/ModelEditor.svelte";
+  import NoteTypePill from "$lib/components/builder/NoteTypePill.svelte";
   import type { DeadlineDeck } from "$lib/components/builder/DeadlineModal.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
@@ -324,6 +325,11 @@
                 <DeadlineBar
                   deadline={selectedDeck.deadline}
                   onOpen={() => (deadlineModalOpen = true)}
+                />
+                <NoteTypePill
+                  selectedModelId={selectedDeck.modelId}
+                  models={allModels}
+                  onSelect={(modelId) => actions.deck.setNoteType(selectedDeck.id, modelId)}
                 />
               </div>
             </header>

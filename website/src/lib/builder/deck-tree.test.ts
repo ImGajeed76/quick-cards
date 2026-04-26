@@ -18,6 +18,7 @@ function deck(id: string, parent: Id | null, order: number, name = id): BuilderD
     name,
     description: "",
     configId: "c",
+    modelId: "m",
     order,
     deadline: null,
   };
