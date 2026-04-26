@@ -610,6 +610,30 @@ describe("config actions", () => {
   });
 });
 
+describe("note.addTag / removeTag", () => {
+  test("normalizes tag (lowercase, dash for spaces) and dedupes", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a")] }));
+    ctx.actions.note.addTag("n1", "Chapter 1");
+    ctx.actions.note.addTag("n1", "chapter-1"); // duplicate
+    expect(ctx.state.data.notes.n1.tags).toEqual(["chapter-1"]);
+  });
+
+  test("removeTag drops the tag", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a")] }));
+    ctx.actions.note.addTag("n1", "x");
+    ctx.actions.note.addTag("n1", "y");
+    ctx.actions.note.removeTag("n1", "x");
+    expect(ctx.state.data.notes.n1.tags).toEqual(["y"]);
+  });
+
+  test("removeTag is a noop on missing tags", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a")] }));
+    const before = ctx.state.data.notes.n1;
+    ctx.actions.note.removeTag("n1", "doesnt-exist");
+    expect(ctx.state.data.notes.n1).toBe(before);
+  });
+});
+
 describe("note.moveToDeck", () => {
   test("relocates notes to another deck and repacks both", () => {
     const ctx = setup(

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Check, Copy, Trash2 } from "@lucide/svelte";
   import { autoresize } from "$lib/actions/autoresize";
+  import TagPills from "./TagPills.svelte";
   import type { BuilderNote } from "$lib/builder/types";
 
   interface Props {
@@ -20,6 +21,8 @@
     onTabOffEnd: () => void;
     /** Toggle this row in the bulk selection. `extend` is true on shift-click. */
     onToggleSelect: (event: { extend: boolean }) => void;
+    onAddTag: (tag: string) => void;
+    onRemoveTag: (tag: string) => void;
   }
 
   let {
@@ -33,6 +36,8 @@
     onDelete,
     onTabOffEnd,
     onToggleSelect,
+    onAddTag,
+    onRemoveTag,
   }: Props = $props();
 
   let termValue = $derived(note.fields[0] ?? "");
@@ -98,35 +103,49 @@
     </span>
   </button>
 
-  <div class="flex flex-1 items-start gap-3">
-    <textarea
-      value={termValue}
-      oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
-      use:autoresize={termValue}
-      placeholder="Term"
-      rows="1"
-      data-field-index="0"
-      class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-        rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-        focus-visible:outline-none"
-      aria-label="Term"
-    ></textarea>
+  <div class="flex flex-1 flex-col gap-1">
+    <div class="flex items-start gap-3">
+      <textarea
+        value={termValue}
+        oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
+        use:autoresize={termValue}
+        placeholder="Term"
+        rows="1"
+        data-field-index="0"
+        class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
+          rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+          focus-visible:outline-none"
+        aria-label="Term"
+      ></textarea>
 
-    <div class="bg-border mt-2 w-px self-stretch" aria-hidden="true"></div>
+      <div class="bg-border mt-2 w-px self-stretch" aria-hidden="true"></div>
 
-    <textarea
-      value={defValue}
-      oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
-      onkeydown={handleDefKeydown}
-      use:autoresize={defValue}
-      placeholder="Definition"
-      rows="1"
-      data-field-index="1"
-      class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-        rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-        focus-visible:outline-none"
-      aria-label="Definition"
-    ></textarea>
+      <textarea
+        value={defValue}
+        oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
+        onkeydown={handleDefKeydown}
+        use:autoresize={defValue}
+        placeholder="Definition"
+        rows="1"
+        data-field-index="1"
+        class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
+          rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+          focus-visible:outline-none"
+        aria-label="Definition"
+      ></textarea>
+    </div>
+
+    {#if note.tags.length > 0}
+      <div class="px-1">
+        <TagPills tags={note.tags} onAdd={onAddTag} onRemove={onRemoveTag} />
+      </div>
+    {:else}
+      <div
+        class="px-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+      >
+        <TagPills tags={note.tags} onAdd={onAddTag} onRemove={onRemoveTag} />
+      </div>
+    {/if}
   </div>
 
   <div

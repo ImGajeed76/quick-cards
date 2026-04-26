@@ -16,10 +16,21 @@
     onDelete: (noteId: Id) => void;
     onDeleteMany: (noteIds: Id[]) => void;
     onMove: (sourceId: Id, targetId: Id, position: "before" | "after") => void;
+    onAddTag: (noteId: Id, tag: string) => void;
+    onRemoveTag: (noteId: Id, tag: string) => void;
   }
 
-  let { notes, onAdd, onUpdateField, onDuplicate, onDelete, onDeleteMany, onMove }: Props =
-    $props();
+  let {
+    notes,
+    onAdd,
+    onUpdateField,
+    onDuplicate,
+    onDelete,
+    onDeleteMany,
+    onMove,
+    onAddTag,
+    onRemoveTag,
+  }: Props = $props();
 
   // Notes already arrive sorted, but we resort defensively.
   const sorted = $derived([...notes].sort((a, b) => a.order - b.order));
@@ -33,7 +44,11 @@
 
   const filtered = $derived.by(() => {
     if (!trimmedQuery) return sorted;
-    return sorted.filter((n) => n.fields.some((f) => f.toLowerCase().includes(trimmedQuery)));
+    return sorted.filter(
+      (n) =>
+        n.fields.some((f) => f.toLowerCase().includes(trimmedQuery)) ||
+        n.tags.some((t) => t.toLowerCase().includes(trimmedQuery)),
+    );
   });
 
   const filterActive = $derived(trimmedQuery.length > 0);
@@ -243,6 +258,8 @@
             void tabOffEnd();
           }}
           onToggleSelect={({ extend }) => toggleSelect(note.id, i, extend)}
+          onAddTag={(tag) => onAddTag(note.id, tag)}
+          onRemoveTag={(tag) => onRemoveTag(note.id, tag)}
         />
         {#if showAfterIndicator}
           <span class="bg-primary pointer-events-none absolute right-0 bottom-0 left-0 h-0.5"

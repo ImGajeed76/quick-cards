@@ -386,6 +386,8 @@
               onDelete={actions.note.delete}
               onDeleteMany={actions.note.deleteMany}
               onMove={actions.note.move}
+              onAddTag={actions.note.addTag}
+              onRemoveTag={actions.note.removeTag}
             />
           </div>
         {:else}

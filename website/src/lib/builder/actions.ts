@@ -65,6 +65,9 @@ export interface BuilderActions {
     move(source: Id, target: Id, position: "before" | "after"): void;
     /** Move notes to a different deck (bulk). */
     moveToDeck(noteIds: Id[], targetDeckId: Id): void;
+    /** Add a tag (lowercased, deduped). */
+    addTag(noteId: Id, tag: string): void;
+    removeTag(noteId: Id, tag: string): void;
   };
   config: {
     select(id: Id): void;
@@ -393,6 +396,28 @@ export function createActions(mutate: Mutate): BuilderActions {
           src.order = newOrder;
           repackNoteOrder(draft, src.deckId);
         }, "Reorder card");
+      },
+
+      addTag(noteId, tag) {
+        const normalized = tag.trim().toLowerCase().replace(/\s+/g, "-");
+        if (!normalized) return;
+        mutate((draft) => {
+          const note = draft.data.notes[noteId];
+          if (!note) return;
+          if (note.tags.includes(normalized)) return;
+          note.tags.push(normalized);
+          note.tags.sort();
+        }, "Add tag");
+      },
+
+      removeTag(noteId, tag) {
+        mutate((draft) => {
+          const note = draft.data.notes[noteId];
+          if (!note) return;
+          const idx = note.tags.indexOf(tag);
+          if (idx === -1) return;
+          note.tags.splice(idx, 1);
+        }, "Remove tag");
       },
 
       moveToDeck(noteIds, targetDeckId) {
