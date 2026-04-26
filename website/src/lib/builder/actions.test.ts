@@ -557,6 +557,59 @@ describe("model.delete", () => {
   });
 });
 
+// ---- config actions -------------------------------------------------------
+
+describe("config actions", () => {
+  test("add creates a default-source preset and selects it", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.config.add();
+    expect(ctx.state.data.configs[id].source).toBe("default");
+    expect(ctx.state.selection).toEqual({ kind: "config", id });
+  });
+
+  test("updateField flips source to custom on first edit", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.config.add();
+    expect(ctx.state.data.configs[id].source).toBe("default");
+    ctx.actions.config.updateField(id, "newPerDay", 50);
+    expect(ctx.state.data.configs[id].source).toBe("custom");
+    expect(ctx.state.data.configs[id].newPerDay).toBe(50);
+  });
+
+  test("updateField is a no-op when value is unchanged", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.config.add();
+    const before = ctx.state.data.configs[id];
+    ctx.actions.config.updateField(id, "newPerDay", before.newPerDay);
+    expect(ctx.state.data.configs[id]).toBe(before);
+  });
+
+  test("delete refuses when the preset is in use", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const inUseId = ctx.state.data.decks.a.configId;
+    ctx.actions.config.delete(inUseId);
+    expect(ctx.state.data.configs[inUseId]).toBeDefined();
+  });
+
+  test("setForDeck switches the deck's config and prunes the orphan", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const oldConfigId = ctx.state.data.decks.a.configId;
+    const newId_ = ctx.actions.config.add();
+
+    ctx.actions.config.setForDeck("a", newId_);
+    expect(ctx.state.data.decks.a.configId).toBe(newId_);
+    expect(ctx.state.data.configs[oldConfigId]).toBeUndefined();
+  });
+
+  test("setForDeck keeps the previous config if other decks still reference it", () => {
+    const ctx = setup(buildState({ decks: [deck("a"), deck("b", null, 1)], notes: [] }));
+    const sharedConfigId = ctx.state.data.decks.a.configId;
+    const newId_ = ctx.actions.config.add();
+    ctx.actions.config.setForDeck("a", newId_);
+    expect(ctx.state.data.configs[sharedConfigId]).toBeDefined();
+  });
+});
+
 describe("note.moveToDeck", () => {
   test("relocates notes to another deck and repacks both", () => {
     const ctx = setup(

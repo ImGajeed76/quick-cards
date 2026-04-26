@@ -3,8 +3,9 @@
   import { Plus } from "@lucide/svelte";
   import DeckTree from "./DeckTree.svelte";
   import NoteTypesSection from "./NoteTypesSection.svelte";
+  import PresetsSection from "./PresetsSection.svelte";
   import type { DeckNode, DropPosition } from "$lib/builder/deck-tree";
-  import type { BuilderModel, Id, Selection } from "$lib/builder/types";
+  import type { BuilderConfig, BuilderModel, Id, Selection } from "$lib/builder/types";
 
   interface Props {
     forest: DeckNode[];
@@ -23,6 +24,12 @@
     modelUsage: Record<Id, number>;
     onSelectModel: (id: Id) => void;
     onAddCustomModel: () => void;
+    /** All configs (presets) in the package. */
+    configs: BuilderConfig[];
+    /** Map from config id to count of decks referencing it. */
+    configUsage: Record<Id, number>;
+    onSelectConfig: (id: Id) => void;
+    onAddConfig: () => void;
   }
 
   let {
@@ -40,6 +47,10 @@
     modelUsage,
     onSelectModel,
     onAddCustomModel,
+    configs,
+    configUsage,
+    onSelectConfig,
+    onAddConfig,
   }: Props = $props();
 </script>
 
@@ -79,6 +90,13 @@
         {selection}
         onSelect={onSelectModel}
         onAddCustom={onAddCustomModel}
+      />
+      <PresetsSection
+        {configs}
+        usageByConfig={configUsage}
+        {selection}
+        onSelect={onSelectConfig}
+        onAdd={onAddConfig}
       />
     </div>
   </div>

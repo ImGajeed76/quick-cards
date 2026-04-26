@@ -7,8 +7,18 @@
  * stack handles every change.
  */
 
-import type { DeadlineSpec, Id, PackageState } from "./types";
-import { newId, builtinModel, deadlineTunedConfig } from "./defaults";
+import type { BuilderConfig, DeadlineSpec, Id, PackageState } from "./types";
+import { newId, builtinModel, deadlineTunedConfig, defaultConfig } from "./defaults";
+
+/**
+ * Keys on `BuilderConfig` that the user may edit through the preset editor.
+ * Excludes identity (id, packageId, name, source, generatedFromDeadline) which
+ * have dedicated actions or shouldn't change during normal editing.
+ */
+export type ConfigUpdatableKey = Exclude<
+  keyof BuilderConfig,
+  "id" | "packageId" | "name" | "source" | "generatedFromDeadline"
+>;
 import {
   collectSubtreeIds,
   isSimpleFlashcardDeck,
@@ -55,6 +65,21 @@ export interface BuilderActions {
     move(source: Id, target: Id, position: "before" | "after"): void;
     /** Move notes to a different deck (bulk). */
     moveToDeck(noteIds: Id[], targetDeckId: Id): void;
+  };
+  config: {
+    select(id: Id): void;
+    add(): Id;
+    /** Refuses if any deck still references the config. */
+    delete(id: Id): void;
+    rename(id: Id, name: string): void;
+    /**
+     * Update one config field at runtime. Any edit flips `source` to
+     * `"custom"` so the deadline picker knows to confirm before overwriting.
+     * Coalesced per (configId, fieldKey).
+     */
+    updateField<K extends ConfigUpdatableKey>(id: Id, key: K, value: BuilderConfig[K]): void;
+    /** Set which deck uses which preset. */
+    setForDeck(deckId: Id, configId: Id): void;
   };
   model: {
     select(id: Id): void;
@@ -386,6 +411,87 @@ export function createActions(mutate: Mutate): BuilderActions {
           for (const did of fromDecks) repackNoteOrder(draft, did);
           repackNoteOrder(draft, targetDeckId);
         }, `Move ${noteIds.length} cards`);
+      },
+    },
+    config: {
+      select(id) {
+        mutate((draft) => {
+          if (!draft.data.configs[id]) return;
+          draft.selection = { kind: "config", id };
+        }, "Select preset");
+      },
+
+      add() {
+        const cfg = defaultConfig({ packageId: "", name: "New preset" });
+        const id = cfg.id;
+        mutate((draft) => {
+          // Use the live package id from the draft, not the placeholder above.
+          draft.data.configs[id] = { ...cfg, packageId: draft.data.package.id };
+          draft.selection = { kind: "config", id };
+        }, "Add preset");
+        return id;
+      },
+
+      delete(id) {
+        mutate((draft) => {
+          const inUse = Object.values(draft.data.decks).some((d) => d.configId === id);
+          if (inUse) return;
+          if (!draft.data.configs[id]) return;
+          Reflect.deleteProperty(draft.data.configs, id);
+          if (draft.selection.kind === "config" && draft.selection.id === id) {
+            draft.selection = { kind: "none" };
+          }
+        }, "Delete preset");
+      },
+
+      rename(id, name) {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        mutate(
+          (draft) => {
+            const cfg = draft.data.configs[id];
+            if (!cfg) return;
+            cfg.name = trimmed;
+          },
+          "Rename preset",
+          `rename-config-${id}`,
+        );
+      },
+
+      updateField(id, key, value) {
+        mutate(
+          (draft) => {
+            const cfg = draft.data.configs[id];
+            if (!cfg) return;
+            if (cfg[key] === value) return;
+            // Cast through unknown because the discriminated key narrowing
+            // doesn't propagate to the assignment target.
+            (cfg as unknown as Record<string, unknown>)[key as string] = value as unknown;
+            // The first edit promotes the preset to "custom" so the deadline
+            // picker confirms before regenerating.
+            if (cfg.source !== "custom") cfg.source = "custom";
+          },
+          "Edit preset",
+          `config-${id}-${String(key)}`,
+        );
+      },
+
+      setForDeck(deckId, configId) {
+        mutate((draft) => {
+          const deck = draft.data.decks[deckId];
+          const cfg = draft.data.configs[configId];
+          if (!deck || !cfg) return;
+          if (deck.configId === configId) return;
+          const oldConfigId = deck.configId;
+          deck.configId = configId;
+          // Clean up if the previous config was orphaned.
+          const stillReferenced = Object.values(draft.data.decks).some(
+            (d) => d.configId === oldConfigId,
+          );
+          if (!stillReferenced && draft.data.configs[oldConfigId]) {
+            Reflect.deleteProperty(draft.data.configs, oldConfigId);
+          }
+        }, "Set deck preset");
       },
     },
     model: {

@@ -12,6 +12,8 @@
   import DeadlineModal from "$lib/components/builder/DeadlineModal.svelte";
   import ModelEditor from "$lib/components/builder/ModelEditor.svelte";
   import NoteTypePill from "$lib/components/builder/NoteTypePill.svelte";
+  import PresetEditor from "$lib/components/builder/PresetEditor.svelte";
+  import PresetPill from "$lib/components/builder/PresetPill.svelte";
   import type { DeadlineDeck } from "$lib/components/builder/DeadlineModal.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
@@ -192,6 +194,25 @@
       : null,
   );
 
+  // ---- configs ------------------------------------------------------------
+
+  const allConfigs = $derived(pkgState ? Object.values(pkgState.data.configs) : []);
+
+  const configUsage = $derived.by(() => {
+    const counts: Record<Id, number> = {};
+    if (!pkgState) return counts;
+    for (const d of Object.values(pkgState.data.decks)) {
+      counts[d.configId] = (counts[d.configId] ?? 0) + 1;
+    }
+    return counts;
+  });
+
+  const selectedConfig = $derived(
+    pkgState && pkgState.selection.kind === "config"
+      ? pkgState.data.configs[pkgState.selection.id]
+      : null,
+  );
+
   function canDuplicateAsWriting(deckId: Id): boolean {
     if (!pkgState) return false;
     const deck = pkgState.data.decks[deckId];
@@ -286,10 +307,26 @@
         onAddCustomModel={() => {
           actions.model.addCustom();
         }}
+        configs={allConfigs}
+        {configUsage}
+        onSelectConfig={actions.config.select}
+        onAddConfig={() => {
+          actions.config.add();
+        }}
       />
 
       <main class="flex-1 overflow-y-auto px-6 py-8">
-        {#if selectedModel}
+        {#if selectedConfig}
+          <div class="mx-auto max-w-3xl">
+            <PresetEditor
+              config={selectedConfig}
+              usage={configUsage[selectedConfig.id] ?? 0}
+              onRename={actions.config.rename}
+              onDelete={actions.config.delete}
+              onUpdate={actions.config.updateField}
+            />
+          </div>
+        {:else if selectedModel}
           <div class="mx-auto max-w-3xl">
             <ModelEditor
               model={selectedModel}
@@ -330,6 +367,12 @@
                   selectedModelId={selectedDeck.modelId}
                   models={allModels}
                   onSelect={(modelId) => actions.deck.setNoteType(selectedDeck.id, modelId)}
+                />
+                <PresetPill
+                  selectedConfigId={selectedDeck.configId}
+                  configs={allConfigs}
+                  onSelect={(configId) => actions.config.setForDeck(selectedDeck.id, configId)}
+                  onCreate={() => actions.config.add()}
                 />
               </div>
             </header>
