@@ -2,6 +2,8 @@
   import { ArrowDown, ArrowUp, Copy, Lock, Plus, Trash2 } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
+  import ModelTemplatesSection from "./ModelTemplatesSection.svelte";
+  import ModelCssSection from "./ModelCssSection.svelte";
   import type { BuilderModel, Id } from "$lib/builder/types";
 
   interface Props {
@@ -15,6 +17,11 @@
     onRenameField: (id: Id, fieldIndex: number, name: string) => void;
     onRemoveField: (id: Id, fieldIndex: number) => void;
     onMoveField: (id: Id, fieldIndex: number, direction: "up" | "down") => void;
+    onAddTemplate: (id: Id) => void;
+    onRemoveTemplate: (id: Id, index: number) => void;
+    onRenameTemplate: (id: Id, index: number, name: string) => void;
+    onUpdateTemplate: (id: Id, index: number, side: "question" | "answer", value: string) => void;
+    onUpdateCss: (id: Id, css: string) => void;
   }
 
   let {
@@ -27,6 +34,11 @@
     onRenameField,
     onRemoveField,
     onMoveField,
+    onAddTemplate,
+    onRemoveTemplate,
+    onRenameTemplate,
+    onUpdateTemplate,
+    onUpdateCss,
   }: Props = $props();
 
   const isLocked = $derived(model.builtin !== null);
@@ -184,7 +196,13 @@
     </ul>
   </section>
 
-  <section class="text-muted-foreground border-t pt-6 text-sm">
-    Templates and CSS arrive in the next iteration.
-  </section>
+  <ModelTemplatesSection
+    {model}
+    {onAddTemplate}
+    {onRemoveTemplate}
+    {onRenameTemplate}
+    {onUpdateTemplate}
+  />
+
+  <ModelCssSection {model} {onUpdateCss} />
 </div>

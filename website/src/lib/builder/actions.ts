@@ -70,6 +70,19 @@ export interface BuilderActions {
     removeField(modelId: Id, fieldIndex: number): void;
     /** Move a field up or down; reorders existing notes' values to match. */
     moveField(modelId: Id, fieldIndex: number, direction: "up" | "down"): void;
+    /** Append a new template (only valid on non-cloze models). */
+    addTemplate(modelId: Id, name: string): void;
+    removeTemplate(modelId: Id, templateIndex: number): void;
+    renameTemplate(modelId: Id, templateIndex: number, name: string): void;
+    /** Update either the question or answer side of a template. Coalesced. */
+    updateTemplate(
+      modelId: Id,
+      templateIndex: number,
+      side: "question" | "answer",
+      value: string,
+    ): void;
+    /** Replace the model's CSS. Coalesced. */
+    updateCss(modelId: Id, css: string): void;
   };
 }
 
@@ -501,6 +514,79 @@ export function createActions(mutate: Mutate): BuilderActions {
             note.fields[target] = tmpVal;
           }
         }, "Reorder field");
+      },
+
+      addTemplate(modelId, name) {
+        const trimmed = name.trim() || `Card ${0}`;
+        mutate((draft) => {
+          const model = draft.data.models[modelId];
+          if (!model || model.builtin !== null) return;
+          if (model.type === "cloze") return; // Cloze models always have one template.
+          const next = model.templates.length + 1;
+          model.templates.push({
+            name: trimmed === "Card 0" ? `Card ${next}` : trimmed,
+            questionFormat: "{{Front}}",
+            answerFormat: '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
+          });
+        }, "Add template");
+      },
+
+      removeTemplate(modelId, templateIndex) {
+        mutate((draft) => {
+          const model = draft.data.models[modelId];
+          if (!model || model.builtin !== null) return;
+          if (model.templates.length <= 1) return; // Always keep one template.
+          model.templates.splice(templateIndex, 1);
+        }, "Remove template");
+      },
+
+      renameTemplate(modelId, templateIndex, name) {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            const template = model.templates[templateIndex];
+            if (!template) return;
+            template.name = trimmed;
+          },
+          "Rename template",
+          `template-${modelId}-${templateIndex}-name`,
+        );
+      },
+
+      updateTemplate(modelId, templateIndex, side, value) {
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            const template = model.templates[templateIndex];
+            if (!template) return;
+            if (side === "question") {
+              if (template.questionFormat === value) return;
+              template.questionFormat = value;
+            } else {
+              if (template.answerFormat === value) return;
+              template.answerFormat = value;
+            }
+          },
+          "Edit template",
+          `template-${modelId}-${templateIndex}-${side}`,
+        );
+      },
+
+      updateCss(modelId, css) {
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            if (model.css === css) return;
+            model.css = css;
+          },
+          "Edit card styling",
+          `model-${modelId}-css`,
+        );
       },
     },
   };

@@ -300,6 +300,11 @@
               onRenameField={actions.model.renameField}
               onRemoveField={actions.model.removeField}
               onMoveField={actions.model.moveField}
+              onAddTemplate={(id) => actions.model.addTemplate(id, "")}
+              onRemoveTemplate={actions.model.removeTemplate}
+              onRenameTemplate={actions.model.renameTemplate}
+              onUpdateTemplate={actions.model.updateTemplate}
+              onUpdateCss={actions.model.updateCss}
             />
           </div>
         {:else if selectedDeck}
