@@ -284,6 +284,7 @@
       {canUndo}
       {canRedo}
       {saveStatus}
+      data={pkgState.data}
       onTitleChange={actions.package.setTitle}
       onUndo={undo}
       onRedo={redo}

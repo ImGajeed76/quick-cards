@@ -4,18 +4,23 @@
   import { ArrowLeft, Redo2, Undo2 } from "@lucide/svelte";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
+  import ExportMenu from "./ExportMenu.svelte";
+  import type { PackageData } from "$lib/builder/types";
 
   interface Props {
     title: string;
     canUndo: boolean;
     canRedo: boolean;
     saveStatus: "saved" | "saving" | "error";
+    /** Snapshot of the current package; passed through to ExportMenu. */
+    data: PackageData;
     onTitleChange: (next: string) => void;
     onUndo: () => void;
     onRedo: () => void;
   }
 
-  let { title, canUndo, canRedo, saveStatus, onTitleChange, onUndo, onRedo }: Props = $props();
+  let { title, canUndo, canRedo, saveStatus, data, onTitleChange, onUndo, onRedo }: Props =
+    $props();
 
   // Writable derived: mirrors `title` but accepts local edits while focused.
   // Reassigns to the source value when `title` changes externally (e.g. undo).
@@ -82,5 +87,9 @@
         <Redo2 class="h-4 w-4" />
       </Button>
     </div>
+
+    <div class="bg-border h-5 w-px" aria-hidden="true"></div>
+
+    <ExportMenu {data} />
   </div>
 </header>
