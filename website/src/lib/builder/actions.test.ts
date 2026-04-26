@@ -225,3 +225,158 @@ describe("deck.move via actions", () => {
     expect(ctx.state.data.decks.b.parentDeckId).toBeNull();
   });
 });
+
+// ---- note actions ---------------------------------------------------------
+
+describe("note.add", () => {
+  test("creates an empty note in the deck and returns its id", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.note.add("a");
+    const created = ctx.state.data.notes[id];
+    expect(created).toBeDefined();
+    expect(created.deckId).toBe("a");
+    expect(created.fields).toEqual(["", ""]);
+    expect(created.order).toBe(0);
+  });
+
+  test("appends at end (max order + 1)", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a")],
+        notes: [
+          { ...note("n1", "a"), order: 0 },
+          { ...note("n2", "a"), order: 1 },
+        ],
+      }),
+    );
+    const id = ctx.actions.note.add("a");
+    expect(ctx.state.data.notes[id].order).toBe(2);
+  });
+
+  test("uses the model already present in the deck", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a")],
+        notes: [note("n1", "a")],
+      }),
+    );
+    const existingModelId = ctx.state.data.notes.n1.modelId;
+    const id = ctx.actions.note.add("a");
+    expect(ctx.state.data.notes[id].modelId).toBe(existingModelId);
+  });
+});
+
+describe("note.updateField", () => {
+  test("sets the field value", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a", "old", "def")] }));
+    ctx.actions.note.updateField("n1", 0, "new");
+    expect(ctx.state.data.notes.n1.fields[0]).toBe("new");
+  });
+
+  test("noop when value unchanged (no history entry)", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a", "x", "y")] }));
+    const before = ctx.state.data.notes.n1;
+    ctx.actions.note.updateField("n1", 0, "x");
+    // Same reference because mutate returned early on no-op (mutative produced no patches).
+    expect(ctx.state.data.notes.n1).toBe(before);
+  });
+});
+
+describe("note.delete / deleteMany", () => {
+  test("removes the note and repacks orders", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a")],
+        notes: [
+          { ...note("n1", "a"), order: 0 },
+          { ...note("n2", "a"), order: 1 },
+          { ...note("n3", "a"), order: 2 },
+        ],
+      }),
+    );
+    ctx.actions.note.delete("n2");
+    expect(Object.keys(ctx.state.data.notes).sort()).toEqual(["n1", "n3"]);
+    expect(ctx.state.data.notes.n1.order).toBe(0);
+    expect(ctx.state.data.notes.n3.order).toBe(1);
+  });
+
+  test("deleteMany removes multiple and repacks each affected deck", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a"), deck("b", null, 1)],
+        notes: [
+          { ...note("n1", "a"), order: 0 },
+          { ...note("n2", "a"), order: 1 },
+          { ...note("n3", "b"), order: 0 },
+          { ...note("n4", "b"), order: 1 },
+        ],
+      }),
+    );
+    ctx.actions.note.deleteMany(["n1", "n3"]);
+    expect(Object.keys(ctx.state.data.notes).sort()).toEqual(["n2", "n4"]);
+    expect(ctx.state.data.notes.n2.order).toBe(0);
+    expect(ctx.state.data.notes.n4.order).toBe(0);
+  });
+});
+
+describe("note.duplicate", () => {
+  test("inserts a copy directly after the source", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a")],
+        notes: [
+          { ...note("n1", "a", "alpha", "AAA"), order: 0 },
+          { ...note("n2", "a", "beta", "BBB"), order: 1 },
+        ],
+      }),
+    );
+    const newId_ = ctx.actions.note.duplicate("n1");
+    expect(ctx.state.data.notes[newId_].fields).toEqual(["alpha", "AAA"]);
+    expect(ctx.state.data.notes[newId_].order).toBe(1);
+    expect(ctx.state.data.notes.n2.order).toBe(2);
+  });
+});
+
+describe("note.move", () => {
+  test("moves a note above another within the same deck", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a")],
+        notes: [
+          { ...note("n1", "a"), order: 0 },
+          { ...note("n2", "a"), order: 1 },
+          { ...note("n3", "a"), order: 2 },
+        ],
+      }),
+    );
+    ctx.actions.note.move("n3", "n1", "before");
+    expect(
+      Object.values(ctx.state.data.notes)
+        .sort((a, b) => a.order - b.order)
+        .map((n) => n.id),
+    ).toEqual(["n3", "n1", "n2"]);
+  });
+});
+
+describe("note.moveToDeck", () => {
+  test("relocates notes to another deck and repacks both", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a"), deck("b", null, 1)],
+        notes: [
+          { ...note("n1", "a"), order: 0 },
+          { ...note("n2", "a"), order: 1 },
+          { ...note("n3", "b"), order: 0 },
+        ],
+      }),
+    );
+    ctx.actions.note.moveToDeck(["n1"], "b");
+    expect(ctx.state.data.notes.n1.deckId).toBe("b");
+    expect(ctx.state.data.notes.n2.order).toBe(0);
+    const inB = Object.values(ctx.state.data.notes)
+      .filter((n) => n.deckId === "b")
+      .sort((a, b) => a.order - b.order)
+      .map((n) => n.id);
+    expect(inB).toEqual(["n3", "n1"]);
+  });
+});

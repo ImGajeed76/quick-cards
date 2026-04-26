@@ -33,6 +33,18 @@ export interface BuilderActions {
     move(source: Id, target: Id, position: DropPosition): void;
     duplicateAsWriting(sourceId: Id, direction: "termDef" | "defTerm" | "both"): void;
   };
+  note: {
+    /** Append a new empty note to the deck. Returns the new id so callers can focus it. */
+    add(deckId: Id, fields?: string[]): Id;
+    updateField(noteId: Id, fieldIndex: number, value: string): void;
+    delete(noteId: Id): void;
+    deleteMany(noteIds: Id[]): void;
+    /** Duplicate `noteId` as a sibling positioned right after it. Returns the new id. */
+    duplicate(noteId: Id): Id;
+    move(source: Id, target: Id, position: "before" | "after"): void;
+    /** Move notes to a different deck (bulk). */
+    moveToDeck(noteIds: Id[], targetDeckId: Id): void;
+  };
 }
 
 export function createActions(mutate: Mutate): BuilderActions {
@@ -103,7 +115,7 @@ export function createActions(mutate: Mutate): BuilderActions {
         }, "Move deck");
       },
 
-      duplicateAsWriting(sourceId, direction) {
+      duplicateAsWriting(sourceId, direction): void {
         mutate((draft) => {
           const source = draft.data.decks[sourceId];
           if (!source) return;
@@ -168,7 +180,152 @@ export function createActions(mutate: Mutate): BuilderActions {
         }, "Duplicate as writing deck");
       },
     },
+    note: {
+      add(deckId, fields) {
+        const id = newId();
+        mutate((draft) => {
+          const deck = draft.data.decks[deckId];
+          if (!deck) return;
+          const modelId = pickModelForDeck(draft, deckId);
+          const order = nextNoteOrder(draft, deckId);
+          const fieldCount = draft.data.models[modelId]?.fields.length ?? 2;
+          const initial = fields ?? Array.from({ length: fieldCount }, () => "");
+          // Pad/trim to model's field count.
+          const padded = Array.from({ length: fieldCount }, (_, i) => initial[i] ?? "");
+          draft.data.notes[id] = {
+            id,
+            packageId: draft.data.package.id,
+            deckId,
+            modelId,
+            fields: padded,
+            tags: [],
+            order,
+          };
+        }, "Add card");
+        return id;
+      },
+
+      updateField(noteId, fieldIndex, value) {
+        mutate(
+          (draft) => {
+            const note = draft.data.notes[noteId];
+            if (!note) return;
+            if (note.fields[fieldIndex] === value) return;
+            note.fields[fieldIndex] = value;
+          },
+          "Edit card",
+          `field-${noteId}-${fieldIndex}`,
+        );
+      },
+
+      delete(noteId) {
+        mutate((draft) => {
+          if (!draft.data.notes[noteId]) return;
+          const deckId = draft.data.notes[noteId].deckId;
+          Reflect.deleteProperty(draft.data.notes, noteId);
+          repackNoteOrder(draft, deckId);
+        }, "Delete card");
+      },
+
+      deleteMany(noteIds) {
+        if (noteIds.length === 0) return;
+        mutate((draft) => {
+          const affectedDecks = new Set<Id>();
+          for (const id of noteIds) {
+            const n = draft.data.notes[id];
+            if (!n) continue;
+            affectedDecks.add(n.deckId);
+            Reflect.deleteProperty(draft.data.notes, id);
+          }
+          for (const did of affectedDecks) repackNoteOrder(draft, did);
+        }, `Delete ${noteIds.length} cards`);
+      },
+
+      duplicate(noteId) {
+        const newNoteId = newId();
+        mutate((draft) => {
+          const source = draft.data.notes[noteId];
+          if (!source) return;
+          // Insert immediately after source: shift later siblings.
+          for (const n of Object.values(draft.data.notes)) {
+            if (n.deckId === source.deckId && n.order > source.order) n.order += 1;
+          }
+          draft.data.notes[newNoteId] = {
+            id: newNoteId,
+            packageId: source.packageId,
+            deckId: source.deckId,
+            modelId: source.modelId,
+            fields: [...source.fields],
+            tags: [...source.tags],
+            order: source.order + 1,
+          };
+        }, "Duplicate card");
+        return newNoteId;
+      },
+
+      move(source, target, position) {
+        mutate((draft) => {
+          const src = draft.data.notes[source];
+          const tgt = draft.data.notes[target];
+          if (!src || !tgt || source === target) return;
+          if (src.deckId !== tgt.deckId) return; // reorder is intra-deck only
+          const newOrder = position === "before" ? tgt.order : tgt.order + 1;
+          for (const n of Object.values(draft.data.notes)) {
+            if (n.deckId === src.deckId && n.id !== source && n.order >= newOrder) {
+              n.order += 1;
+            }
+          }
+          src.order = newOrder;
+          repackNoteOrder(draft, src.deckId);
+        }, "Reorder card");
+      },
+
+      moveToDeck(noteIds, targetDeckId) {
+        if (noteIds.length === 0) return;
+        mutate((draft) => {
+          if (!draft.data.decks[targetDeckId]) return;
+          const fromDecks = new Set<Id>();
+          let appendOrder = nextNoteOrder(draft, targetDeckId);
+          for (const id of noteIds) {
+            const n = draft.data.notes[id];
+            if (!n || n.deckId === targetDeckId) continue;
+            fromDecks.add(n.deckId);
+            n.deckId = targetDeckId;
+            n.order = appendOrder++;
+          }
+          for (const did of fromDecks) repackNoteOrder(draft, did);
+          repackNoteOrder(draft, targetDeckId);
+        }, `Move ${noteIds.length} cards`);
+      },
+    },
   };
+}
+
+function nextNoteOrder(draft: PackageState, deckId: Id): number {
+  const siblings = Object.values(draft.data.notes).filter((n) => n.deckId === deckId);
+  if (siblings.length === 0) return 0;
+  return Math.max(...siblings.map((n) => n.order)) + 1;
+}
+
+function pickModelForDeck(draft: PackageState, deckId: Id): Id {
+  // Prefer the model already used in this deck so adding cards keeps shape.
+  // Falls back to the first basicAndReversed model in the package, or any model.
+  const existingNote = Object.values(draft.data.notes).find((n) => n.deckId === deckId);
+  if (existingNote) return existingNote.modelId;
+  const reversed = Object.values(draft.data.models).find((m) => m.builtin === "basicAndReversed");
+  if (reversed) return reversed.id;
+  const any = Object.values(draft.data.models)[0];
+  if (any) return any.id;
+  throw new Error("Package has no models. Cannot add a note.");
+}
+
+function repackNoteOrder(draft: PackageState, deckId: Id): void {
+  const list = Object.values(draft.data.notes)
+    .filter((n) => n.deckId === deckId)
+    .sort((a, b) => a.order - b.order);
+  list.forEach((n, i) => {
+    n.order = i;
+  });
 }
 
 // ---- internal helpers -----------------------------------------------------

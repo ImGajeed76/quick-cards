@@ -7,6 +7,7 @@
 
   import EditorTopbar from "$lib/components/builder/EditorTopbar.svelte";
   import Sidebar from "$lib/components/builder/Sidebar.svelte";
+  import CardList from "$lib/components/builder/CardList.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
   import { createAutosave } from "$lib/builder/store/autosave";
@@ -158,14 +159,14 @@
       : null,
   );
 
-  const selectedDeckCount = $derived.by(() => {
-    if (!pkgState || !selectedDeck) return 0;
-    let n = 0;
-    for (const note of Object.values(pkgState.data.notes)) {
-      if (note.deckId === selectedDeck.id) n++;
-    }
-    return n;
+  const selectedDeckNotes = $derived.by(() => {
+    if (!pkgState || !selectedDeck) return [];
+    return Object.values(pkgState.data.notes)
+      .filter((n) => n.deckId === selectedDeck.id)
+      .sort((a, b) => a.order - b.order);
   });
+
+  const selectedDeckCount = $derived(selectedDeckNotes.length);
 
   function canDuplicateAsWriting(deckId: Id): boolean {
     if (!pkgState) return false;
@@ -241,22 +242,29 @@
         onMove={actions.deck.move}
       />
 
-      <main class="flex-1 overflow-y-auto px-8 py-10">
+      <main class="flex-1 overflow-y-auto px-6 py-8">
         {#if selectedDeck}
-          <div class="mx-auto max-w-3xl space-y-3">
-            {#if breadcrumbs.length > 1}
-              <nav class="text-muted-foreground text-xs" aria-label="Deck path">
-                {breadcrumbs.slice(0, -1).join(" / ")} /
-              </nav>
-            {/if}
-            <h2 class="text-2xl font-semibold tracking-tight">{selectedDeck.name}</h2>
-            <p class="text-muted-foreground text-sm">
-              {selectedDeckCount}
-              {selectedDeckCount === 1 ? "card" : "cards"}
-            </p>
-            <p class="text-muted-foreground pt-12 text-center text-sm">
-              The card editor lands in the next iteration.
-            </p>
+          <div class="mx-auto max-w-3xl space-y-6">
+            <header class="space-y-2">
+              {#if breadcrumbs.length > 1}
+                <nav class="text-muted-foreground text-xs" aria-label="Deck path">
+                  {breadcrumbs.slice(0, -1).join(" / ")} /
+                </nav>
+              {/if}
+              <h2 class="text-2xl font-semibold tracking-tight">{selectedDeck.name}</h2>
+              <p class="text-muted-foreground text-sm">
+                {selectedDeckCount}
+                {selectedDeckCount === 1 ? "card" : "cards"}
+              </p>
+            </header>
+
+            <CardList
+              notes={selectedDeckNotes}
+              onAdd={() => actions.note.add(selectedDeck.id)}
+              onUpdateField={actions.note.updateField}
+              onDuplicate={actions.note.duplicate}
+              onDelete={actions.note.delete}
+            />
           </div>
         {:else}
           <p class="text-muted-foreground py-24 text-center text-sm">
