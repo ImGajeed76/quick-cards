@@ -10,6 +10,7 @@
   import CardList from "$lib/components/builder/CardList.svelte";
   import DeadlineBar from "$lib/components/builder/DeadlineBar.svelte";
   import DeadlineModal from "$lib/components/builder/DeadlineModal.svelte";
+  import ModelEditor from "$lib/components/builder/ModelEditor.svelte";
   import type { DeadlineDeck } from "$lib/components/builder/DeadlineModal.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
@@ -171,6 +172,25 @@
 
   const selectedDeckCount = $derived(selectedDeckNotes.length);
 
+  // ---- models -------------------------------------------------------------
+
+  const allModels = $derived(pkgState ? Object.values(pkgState.data.models) : []);
+
+  const modelUsage = $derived.by(() => {
+    const counts: Record<Id, number> = {};
+    if (!pkgState) return counts;
+    for (const note of Object.values(pkgState.data.notes)) {
+      counts[note.modelId] = (counts[note.modelId] ?? 0) + 1;
+    }
+    return counts;
+  });
+
+  const selectedModel = $derived(
+    pkgState && pkgState.selection.kind === "model"
+      ? pkgState.data.models[pkgState.selection.id]
+      : null,
+  );
+
   function canDuplicateAsWriting(deckId: Id): boolean {
     if (!pkgState) return false;
     const deck = pkgState.data.decks[deckId];
@@ -259,10 +279,30 @@
         onDelete={confirmAndDelete}
         onDuplicateWriting={actions.deck.duplicateAsWriting}
         onMove={actions.deck.move}
+        models={allModels}
+        {modelUsage}
+        onSelectModel={actions.model.select}
+        onAddCustomModel={() => {
+          actions.model.addCustom();
+        }}
       />
 
       <main class="flex-1 overflow-y-auto px-6 py-8">
-        {#if selectedDeck}
+        {#if selectedModel}
+          <div class="mx-auto max-w-3xl">
+            <ModelEditor
+              model={selectedModel}
+              usage={modelUsage[selectedModel.id] ?? 0}
+              onRename={actions.model.rename}
+              onDuplicateBuiltin={actions.model.duplicateBuiltin}
+              onDelete={actions.model.delete}
+              onAddField={(id) => actions.model.addField(id, "Field")}
+              onRenameField={actions.model.renameField}
+              onRemoveField={actions.model.removeField}
+              onMoveField={actions.model.moveField}
+            />
+          </div>
+        {:else if selectedDeck}
           <div class="mx-auto max-w-3xl space-y-6">
             <header class="space-y-3">
               {#if breadcrumbs.length > 1}

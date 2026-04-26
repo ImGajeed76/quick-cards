@@ -51,6 +51,26 @@ export interface BuilderActions {
     /** Move notes to a different deck (bulk). */
     moveToDeck(noteIds: Id[], targetDeckId: Id): void;
   };
+  model: {
+    select(id: Id): void;
+    /** Create a blank custom note type. Returns the new id so callers can focus it. */
+    addCustom(): Id;
+    /** Duplicate a built-in into an editable custom model. */
+    duplicateBuiltin(sourceId: Id): Id;
+    /**
+     * Delete a custom model. Refuses to delete built-ins or models still in
+     * use by any note (caller should check usage and prompt first).
+     */
+    delete(id: Id): void;
+    rename(id: Id, name: string): void;
+    /** Append a new field; pads existing notes with an empty string at the end. */
+    addField(modelId: Id, name: string): void;
+    renameField(modelId: Id, fieldIndex: number, name: string): void;
+    /** Remove a field; trims existing notes' values at that index. */
+    removeField(modelId: Id, fieldIndex: number): void;
+    /** Move a field up or down; reorders existing notes' values to match. */
+    moveField(modelId: Id, fieldIndex: number, direction: "up" | "down"): void;
+  };
 }
 
 export function createActions(mutate: Mutate): BuilderActions {
@@ -339,7 +359,165 @@ export function createActions(mutate: Mutate): BuilderActions {
         }, `Move ${noteIds.length} cards`);
       },
     },
+    model: {
+      select(id) {
+        mutate((draft) => {
+          if (!draft.data.models[id]) return;
+          draft.selection = { kind: "model", id };
+        }, "Select note type");
+      },
+
+      addCustom() {
+        const id = newId();
+        mutate((draft) => {
+          draft.data.models[id] = {
+            id,
+            packageId: draft.data.package.id,
+            name: "New note type",
+            type: "normal",
+            css: defaultCardCss(),
+            sortFieldIndex: 0,
+            fields: [
+              { name: "Front", description: "Front of the card" },
+              { name: "Back", description: "Back of the card" },
+            ],
+            templates: [
+              {
+                name: "Card 1",
+                questionFormat: "{{Front}}",
+                answerFormat: '{{FrontSide}}\n\n<hr id="answer">\n\n{{Back}}',
+              },
+            ],
+            builtin: null,
+          };
+          draft.selection = { kind: "model", id };
+        }, "Add note type");
+        return id;
+      },
+
+      duplicateBuiltin(sourceId) {
+        const id = newId();
+        mutate((draft) => {
+          const source = draft.data.models[sourceId];
+          if (!source || source.builtin === null) return;
+          draft.data.models[id] = {
+            ...source,
+            id,
+            name: `${source.name} (copy)`,
+            // Deep-copy collections so future edits don't bleed into the built-in.
+            fields: source.fields.map((f) => ({ ...f })),
+            templates: source.templates.map((t) => ({ ...t })),
+            builtin: null,
+          };
+          draft.selection = { kind: "model", id };
+        }, "Duplicate note type");
+        return id;
+      },
+
+      delete(id) {
+        mutate((draft) => {
+          const model = draft.data.models[id];
+          if (!model) return;
+          if (model.builtin !== null) return; // Built-ins are locked.
+          const inUse = Object.values(draft.data.notes).some((n) => n.modelId === id);
+          if (inUse) return; // Caller should have prompted; defensive guard.
+          Reflect.deleteProperty(draft.data.models, id);
+          if (draft.selection.kind === "model" && draft.selection.id === id) {
+            draft.selection = { kind: "none" };
+          }
+        }, "Delete note type");
+      },
+
+      rename(id, name) {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        mutate(
+          (draft) => {
+            const model = draft.data.models[id];
+            if (!model || model.builtin !== null) return;
+            model.name = trimmed;
+          },
+          "Rename note type",
+          `rename-model-${id}`,
+        );
+      },
+
+      addField(modelId, name) {
+        const trimmed = name.trim() || "Field";
+        mutate((draft) => {
+          const model = draft.data.models[modelId];
+          if (!model || model.builtin !== null) return;
+          model.fields.push({ name: trimmed });
+          for (const note of Object.values(draft.data.notes)) {
+            if (note.modelId === modelId) note.fields.push("");
+          }
+        }, "Add field");
+      },
+
+      renameField(modelId, fieldIndex, name) {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        mutate(
+          (draft) => {
+            const model = draft.data.models[modelId];
+            if (!model || model.builtin !== null) return;
+            const field = model.fields[fieldIndex];
+            if (!field) return;
+            field.name = trimmed;
+          },
+          "Rename field",
+          `field-${modelId}-${fieldIndex}-name`,
+        );
+      },
+
+      removeField(modelId, fieldIndex) {
+        mutate((draft) => {
+          const model = draft.data.models[modelId];
+          if (!model || model.builtin !== null) return;
+          if (model.fields.length <= 1) return; // Always keep at least one field.
+          model.fields.splice(fieldIndex, 1);
+          if (model.sortFieldIndex >= model.fields.length) {
+            model.sortFieldIndex = 0;
+          }
+          for (const note of Object.values(draft.data.notes)) {
+            if (note.modelId === modelId) note.fields.splice(fieldIndex, 1);
+          }
+        }, "Remove field");
+      },
+
+      moveField(modelId, fieldIndex, direction) {
+        mutate((draft) => {
+          const model = draft.data.models[modelId];
+          if (!model || model.builtin !== null) return;
+          const target = direction === "up" ? fieldIndex - 1 : fieldIndex + 1;
+          if (target < 0 || target >= model.fields.length) return;
+          const tmp = model.fields[fieldIndex];
+          model.fields[fieldIndex] = model.fields[target];
+          model.fields[target] = tmp;
+          for (const note of Object.values(draft.data.notes)) {
+            if (note.modelId !== modelId) continue;
+            const tmpVal = note.fields[fieldIndex] ?? "";
+            note.fields[fieldIndex] = note.fields[target] ?? "";
+            note.fields[target] = tmpVal;
+          }
+        }, "Reorder field");
+      },
+    },
   };
+}
+
+// Re-export the same default CSS the builtins use so addCustom matches their
+// look out of the box. Kept inline to avoid a separate import path.
+function defaultCardCss(): string {
+  return [
+    ".card {",
+    "  font-family: arial;",
+    "  font-size: 20px;",
+    "  text-align: center;",
+    "  color: black;",
+    "  background-color: white;",
+    "}",
+  ].join("\n");
 }
 
 function nextNoteOrder(draft: PackageState, deckId: Id): number {

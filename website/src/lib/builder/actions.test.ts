@@ -433,6 +433,129 @@ describe("deck.setDeadline", () => {
   });
 });
 
+// ---- model actions --------------------------------------------------------
+
+describe("model.addCustom + duplicateBuiltin", () => {
+  test("addCustom creates a normal model with Front/Back fields", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.model.addCustom();
+    const m = ctx.state.data.models[id];
+    expect(m.builtin).toBeNull();
+    expect(m.type).toBe("normal");
+    expect(m.fields.map((f) => f.name)).toEqual(["Front", "Back"]);
+    expect(m.templates).toHaveLength(1);
+  });
+
+  test("duplicateBuiltin clones a built-in into a custom copy", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const builtinId = Object.values(ctx.state.data.models)[0].id;
+    const newCustomId = ctx.actions.model.duplicateBuiltin(builtinId);
+    const cloned = ctx.state.data.models[newCustomId];
+    expect(cloned.builtin).toBeNull();
+    expect(cloned.name).toContain("(copy)");
+    expect(cloned.fields).not.toBe(ctx.state.data.models[builtinId].fields);
+  });
+
+  test("duplicateBuiltin refuses to duplicate a custom model", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const customId = ctx.actions.model.addCustom();
+    const before = Object.keys(ctx.state.data.models).length;
+    ctx.actions.model.duplicateBuiltin(customId);
+    expect(Object.keys(ctx.state.data.models).length).toBe(before);
+  });
+});
+
+describe("model field actions", () => {
+  test("addField appends to the model and pads matching notes", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a", "T", "D")] }));
+    const customId = ctx.actions.model.addCustom();
+    // Reassign the existing note to the custom model so padding is observable.
+    const noteId = "n1";
+    ctx.state.data.notes[noteId].modelId = customId;
+
+    ctx.actions.model.addField(customId, "Tags");
+    expect(ctx.state.data.models[customId].fields.map((f) => f.name)).toEqual([
+      "Front",
+      "Back",
+      "Tags",
+    ]);
+    expect(ctx.state.data.notes[noteId].fields).toHaveLength(3);
+    expect(ctx.state.data.notes[noteId].fields[2]).toBe("");
+  });
+
+  test("removeField trims notes' values at that index", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const customId = ctx.actions.model.addCustom();
+    ctx.actions.model.addField(customId, "Tags");
+    const noteId = ctx.actions.note.add("a");
+    ctx.state.data.notes[noteId].modelId = customId;
+    ctx.state.data.notes[noteId].fields = ["a", "b", "c"];
+
+    ctx.actions.model.removeField(customId, 1);
+    expect(ctx.state.data.models[customId].fields.map((f) => f.name)).toEqual(["Front", "Tags"]);
+    expect(ctx.state.data.notes[noteId].fields).toEqual(["a", "c"]);
+  });
+
+  test("removeField refuses when only one field remains", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const customId = ctx.actions.model.addCustom();
+    ctx.actions.model.removeField(customId, 0); // 2 -> 1
+    ctx.actions.model.removeField(customId, 0); // would go to 0, refused
+    expect(ctx.state.data.models[customId].fields).toHaveLength(1);
+  });
+
+  test("moveField swaps and reorders matching notes' values", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const customId = ctx.actions.model.addCustom();
+    const noteId = ctx.actions.note.add("a");
+    ctx.state.data.notes[noteId].modelId = customId;
+    ctx.state.data.notes[noteId].fields = ["front", "back"];
+
+    ctx.actions.model.moveField(customId, 0, "down");
+    expect(ctx.state.data.models[customId].fields.map((f) => f.name)).toEqual(["Back", "Front"]);
+    expect(ctx.state.data.notes[noteId].fields).toEqual(["back", "front"]);
+  });
+
+  test("field actions noop on built-ins", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const builtinId = (
+      Object.values(ctx.state.data.models).find((m) => m.builtin !== null) ?? { id: "" }
+    ).id;
+    const before = ctx.state.data.models[builtinId].fields.length;
+    ctx.actions.model.addField(builtinId, "Hack");
+    ctx.actions.model.removeField(builtinId, 0);
+    ctx.actions.model.renameField(builtinId, 0, "X");
+    expect(ctx.state.data.models[builtinId].fields).toHaveLength(before);
+  });
+});
+
+describe("model.delete", () => {
+  test("removes a custom model with no notes", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.model.addCustom();
+    ctx.actions.model.delete(id);
+    expect(ctx.state.data.models[id]).toBeUndefined();
+  });
+
+  test("refuses to delete a model in use", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const id = ctx.actions.model.addCustom();
+    const noteId = ctx.actions.note.add("a");
+    ctx.state.data.notes[noteId].modelId = id;
+    ctx.actions.model.delete(id);
+    expect(ctx.state.data.models[id]).toBeDefined();
+  });
+
+  test("refuses to delete built-ins", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const builtinId = (
+      Object.values(ctx.state.data.models).find((m) => m.builtin !== null) ?? { id: "" }
+    ).id;
+    ctx.actions.model.delete(builtinId);
+    expect(ctx.state.data.models[builtinId]).toBeDefined();
+  });
+});
+
 describe("note.moveToDeck", () => {
   test("relocates notes to another deck and repacks both", () => {
     const ctx = setup(

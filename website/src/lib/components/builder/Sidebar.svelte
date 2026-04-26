@@ -2,8 +2,9 @@
   import { Button } from "$lib/components/ui/button";
   import { Plus } from "@lucide/svelte";
   import DeckTree from "./DeckTree.svelte";
+  import NoteTypesSection from "./NoteTypesSection.svelte";
   import type { DeckNode, DropPosition } from "$lib/builder/deck-tree";
-  import type { Id, Selection } from "$lib/builder/types";
+  import type { BuilderModel, Id, Selection } from "$lib/builder/types";
 
   interface Props {
     forest: DeckNode[];
@@ -16,6 +17,12 @@
     onDelete: (id: Id) => void;
     onDuplicateWriting: (id: Id, direction: "termDef" | "defTerm" | "both") => void;
     onMove: (sourceId: Id, targetId: Id, position: DropPosition) => void;
+    /** All models in the package (built-ins + custom). */
+    models: BuilderModel[];
+    /** Map from model id to count of decks/notes referencing it. */
+    modelUsage: Record<Id, number>;
+    onSelectModel: (id: Id) => void;
+    onAddCustomModel: () => void;
   }
 
   let {
@@ -29,6 +36,10 @@
     onDelete,
     onDuplicateWriting,
     onMove,
+    models,
+    modelUsage,
+    onSelectModel,
+    onAddCustomModel,
   }: Props = $props();
 </script>
 
@@ -46,17 +57,29 @@
     </Button>
   </div>
 
-  <div class="flex-1 overflow-y-auto px-2 pb-4">
-    <DeckTree
-      {forest}
-      {selection}
-      {canDuplicateAsWriting}
-      {onSelect}
-      {onRename}
-      {onAddSubdeck}
-      {onDelete}
-      {onDuplicateWriting}
-      {onMove}
-    />
+  <div class="flex-1 overflow-y-auto">
+    <div class="px-2 pb-2">
+      <DeckTree
+        {forest}
+        {selection}
+        {canDuplicateAsWriting}
+        {onSelect}
+        {onRename}
+        {onAddSubdeck}
+        {onDelete}
+        {onDuplicateWriting}
+        {onMove}
+      />
+    </div>
+
+    <div class="border-t pt-1">
+      <NoteTypesSection
+        {models}
+        usageByModel={modelUsage}
+        {selection}
+        onSelect={onSelectModel}
+        onAddCustom={onAddCustomModel}
+      />
+    </div>
   </div>
 </aside>
