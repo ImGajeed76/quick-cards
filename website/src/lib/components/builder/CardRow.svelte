@@ -1,25 +1,40 @@
 <script lang="ts">
-  import { Copy, Trash2 } from "@lucide/svelte";
+  import { Check, Copy, Trash2 } from "@lucide/svelte";
   import { autoresize } from "$lib/actions/autoresize";
   import type { BuilderNote } from "$lib/builder/types";
 
   interface Props {
     note: BuilderNote;
-    /** 1-based row number shown in the gutter. */
+    /** 1-based row number shown in the gutter when nothing is selected. */
     index: number;
     /** Last row in the deck list; Tab off the def field appends a new card. */
     isLast: boolean;
+    /** Whether this row is part of the current bulk selection. */
+    isSelected: boolean;
+    /** When true, the gutter shows the checkbox even on unselected rows. */
+    selectionMode: boolean;
     onUpdateField: (fieldIndex: number, value: string) => void;
     onDuplicate: () => void;
     onDelete: () => void;
     /** Called when Tab leaves the def field of the last row. */
     onTabOffEnd: () => void;
+    /** Toggle this row in the bulk selection. `extend` is true on shift-click. */
+    onToggleSelect: (event: { extend: boolean }) => void;
   }
 
-  let { note, index, isLast, onUpdateField, onDuplicate, onDelete, onTabOffEnd }: Props = $props();
+  let {
+    note,
+    index,
+    isLast,
+    isSelected,
+    selectionMode,
+    onUpdateField,
+    onDuplicate,
+    onDelete,
+    onTabOffEnd,
+    onToggleSelect,
+  }: Props = $props();
 
-  // Local mirrors so we can write through `bind:value` without thrashing the
-  // central state. The actions module dedupes no-op updates so this is safe.
   let termValue = $derived(note.fields[0] ?? "");
   let defValue = $derived(note.fields[1] ?? "");
 
@@ -29,18 +44,59 @@
       onTabOffEnd();
     }
   }
+
+  function handleGutterClick(e: MouseEvent) {
+    onToggleSelect({ extend: e.shiftKey });
+  }
+
+  function handleGutterKey(e: KeyboardEvent) {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      onToggleSelect({ extend: e.shiftKey });
+    }
+  }
+
+  // Show checkbox when: row selected, selection mode active, or row hovered.
+  // Hover state is handled via `group-hover` so we can leave the checkbox always
+  // present in the DOM and just toggle opacity.
+  const checkboxAlwaysVisible = $derived(isSelected || selectionMode);
 </script>
 
 <div
-  class="group hover:bg-muted/30 flex items-start gap-3 rounded-md border-b border-transparent
-    py-2 pr-3 pl-3 transition-colors"
+  class="group flex items-start gap-3 rounded-md border-b border-transparent py-2 pr-3 pl-3
+    transition-colors
+    {isSelected ? 'bg-accent/40' : 'hover:bg-muted/30'}"
 >
-  <span
-    class="text-muted-foreground mt-2 w-6 shrink-0 text-right text-xs tabular-nums select-none"
-    aria-hidden="true"
+  <button
+    type="button"
+    onclick={handleGutterClick}
+    onkeydown={handleGutterKey}
+    tabindex={-1}
+    aria-label={isSelected ? "Deselect card" : "Select card"}
+    aria-pressed={isSelected}
+    class="text-muted-foreground hover:text-foreground mt-1 grid h-6 w-6 shrink-0
+      place-items-center rounded text-xs tabular-nums transition-colors"
   >
-    {index}
-  </span>
+    <span
+      class="col-start-1 row-start-1 transition-opacity {checkboxAlwaysVisible
+        ? 'opacity-0'
+        : 'opacity-100 group-hover:opacity-0'}"
+      aria-hidden="true"
+    >
+      {index}
+    </span>
+    <span
+      class="border-input bg-background col-start-1 row-start-1 flex h-4 w-4 items-center
+        justify-center rounded border transition-opacity {checkboxAlwaysVisible
+        ? 'opacity-100'
+        : 'opacity-0 group-hover:opacity-100'}
+        {isSelected ? 'bg-primary border-primary text-primary-foreground' : ''}"
+    >
+      {#if isSelected}
+        <Check class="h-3 w-3" strokeWidth={3} />
+      {/if}
+    </span>
+  </button>
 
   <div class="flex flex-1 items-start gap-3">
     <textarea

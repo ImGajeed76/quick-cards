@@ -264,6 +264,8 @@
               onUpdateField={actions.note.updateField}
               onDuplicate={actions.note.duplicate}
               onDelete={actions.note.delete}
+              onDeleteMany={actions.note.deleteMany}
+              onMove={actions.note.move}
             />
           </div>
         {:else}
