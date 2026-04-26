@@ -14,13 +14,17 @@
   import NoteTypePill from "$lib/components/builder/NoteTypePill.svelte";
   import PresetEditor from "$lib/components/builder/PresetEditor.svelte";
   import PresetPill from "$lib/components/builder/PresetPill.svelte";
+  import InlineTitle from "$lib/components/builder/InlineTitle.svelte";
+  import MediaItemViewer from "$lib/components/builder/MediaItemViewer.svelte";
   import type { DeadlineDeck } from "$lib/components/builder/DeadlineModal.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
-  import { createAutosave } from "$lib/builder/store/autosave";
+  import { createAutosave } from "$lib/builder/store/autosave.svelte";
   import { createHistory } from "$lib/builder/history";
   import { createActions } from "$lib/builder/actions";
   import { buildDeckForest, isSimpleFlashcardDeck } from "$lib/builder/deck-tree";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
+  import { toast } from "svelte-sonner";
   import type { BuilderDeck, Id, PackageData, PackageState, Selection } from "$lib/builder/types";
 
   let pkgState = $state<PackageState | null>(null);
@@ -28,7 +32,17 @@
   let saveStatus = $state<"saved" | "saving" | "error">("saved");
 
   const history = createHistory<PackageState>();
-  const autosave = createAutosave();
+  const autosave = createAutosave({
+    onStart: () => {
+      saveStatus = "saving";
+    },
+    onSuccess: () => {
+      saveStatus = "saved";
+    },
+    onError: () => {
+      saveStatus = "error";
+    },
+  });
 
   let canUndo = $state(false);
   let canRedo = $state(false);
@@ -96,19 +110,12 @@
     return first ? { kind: "deck", id: first.id } : { kind: "none" };
   }
 
-  // Autosave on every pkgState.data change.
+  // Autosave: just schedule. Status updates come from the autosave callbacks
+  // wired above so the debounce window is honored and we don't surface
+  // transient inflight errors as permanent "Save failed" states.
   $effect(() => {
     if (!pkgState) return;
-    saveStatus = "saving";
     autosave.schedule(pkgState.data);
-    autosave
-      .flush()
-      .then(() => {
-        saveStatus = "saved";
-      })
-      .catch(() => {
-        saveStatus = "error";
-      });
   });
 
   // ---- keyboard -----------------------------------------------------------
@@ -135,7 +142,7 @@
 
   // ---- delete with confirm ------------------------------------------------
 
-  function confirmAndDelete(id: Id) {
+  async function confirmAndDelete(id: Id) {
     if (!pkgState) return;
     const deck = pkgState.data.decks[id];
     if (!deck) return;
@@ -145,11 +152,17 @@
     const noteCount = Object.values(pkgState.data.notes).filter((n) => n.deckId === id).length;
     const detail =
       childCount > 0
-        ? `"${deck.name}" has ${childCount} subdeck${childCount === 1 ? "" : "s"}. They will also be deleted.`
+        ? `${childCount} subdeck${childCount === 1 ? "" : "s"} will also be deleted. Use Ctrl+Z to undo.`
         : noteCount > 0
-          ? `"${deck.name}" has ${noteCount} card${noteCount === 1 ? "" : "s"}. They will be deleted.`
-          : `Delete "${deck.name}"?`;
-    if (!confirm(`${detail}\n\nUse Ctrl+Z to undo.`)) return;
+          ? `${noteCount} card${noteCount === 1 ? "" : "s"} will be deleted. Use Ctrl+Z to undo.`
+          : "Use Ctrl+Z to undo.";
+    const ok = await confirmAction({
+      title: `Delete "${deck.name || "Untitled deck"}"?`,
+      description: detail,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     actions.deck.delete(id);
   }
 
@@ -217,7 +230,7 @@
       await actions.media.add(file);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      alert(message);
+      toast.error(message);
     }
   }
 
@@ -236,7 +249,7 @@
       return m.filename;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      alert(message);
+      toast.error(message);
       return null;
     }
   }
@@ -257,6 +270,12 @@
   const selectedConfig = $derived(
     pkgState && pkgState.selection.kind === "config"
       ? pkgState.data.configs[pkgState.selection.id]
+      : null,
+  );
+
+  const selectedMedia = $derived(
+    pkgState && pkgState.selection.kind === "mediaItem"
+      ? pkgState.data.media[pkgState.selection.id]
       : null,
   );
 
@@ -355,22 +374,40 @@
         onAddCustomModel={() => {
           actions.model.addCustom();
         }}
+        onDuplicateBuiltinModel={(id) => {
+          actions.model.duplicateBuiltin(id);
+        }}
+        onRenameModel={actions.model.rename}
+        onDeleteModel={actions.model.delete}
         configs={allConfigs}
         {configUsage}
         onSelectConfig={actions.config.select}
         onAddConfig={() => {
           actions.config.add();
         }}
+        onRenameConfig={actions.config.rename}
+        onDeleteConfig={actions.config.delete}
         media={allMedia}
         {mediaUsage}
+        onSelectMedia={actions.media.select}
         onAddMedia={(file) => {
           void handleAddMedia(file);
         }}
+        onRenameMedia={actions.media.rename}
         onDeleteMedia={actions.media.delete}
       />
 
       <main class="flex-1 overflow-y-auto px-6 py-8">
-        {#if selectedConfig}
+        {#if selectedMedia}
+          <div class="mx-auto max-w-3xl">
+            <MediaItemViewer
+              media={selectedMedia}
+              usage={mediaUsage[selectedMedia.filename] ?? 0}
+              onRename={actions.media.rename}
+              onDelete={actions.media.delete}
+            />
+          </div>
+        {:else if selectedConfig}
           <div class="mx-auto max-w-3xl">
             <PresetEditor
               config={selectedConfig}
@@ -420,7 +457,13 @@
                   {breadcrumbs.slice(0, -1).join(" / ")} /
                 </nav>
               {/if}
-              <h2 class="text-2xl font-semibold tracking-tight">{selectedDeck.name}</h2>
+              <InlineTitle
+                value={selectedDeck.name}
+                onSave={(next) => actions.deck.rename(selectedDeck.id, next)}
+                ariaLabel="Deck name"
+                placeholder="Untitled deck"
+                class="text-2xl font-semibold leading-tight tracking-tight"
+              />
               <div class="flex flex-wrap items-center gap-3">
                 <p class="text-muted-foreground text-sm">
                   {selectedDeckCount}
@@ -447,6 +490,7 @@
             <CardList
               notes={selectedDeckNotes}
               models={pkgState.data.models}
+              media={allMedia}
               onAdd={() => actions.note.add(selectedDeck.id)}
               onUpdateField={actions.note.updateField}
               onDuplicate={actions.note.duplicate}

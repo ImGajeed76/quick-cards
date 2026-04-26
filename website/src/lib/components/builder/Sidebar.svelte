@@ -31,17 +31,24 @@
     modelUsage: Record<Id, number>;
     onSelectModel: (id: Id) => void;
     onAddCustomModel: () => void;
+    onDuplicateBuiltinModel: (id: Id) => void;
+    onRenameModel: (id: Id, name: string) => void;
+    onDeleteModel: (id: Id) => void;
     /** All configs (presets) in the package. */
     configs: BuilderConfig[];
     /** Map from config id to count of decks referencing it. */
     configUsage: Record<Id, number>;
     onSelectConfig: (id: Id) => void;
     onAddConfig: () => void;
+    onRenameConfig: (id: Id, name: string) => void;
+    onDeleteConfig: (id: Id) => void;
     /** All media files in the package. */
     media: BuilderMedia[];
     /** Map from media filename to count of notes referencing it. */
     mediaUsage: Record<string, number>;
+    onSelectMedia: (id: Id) => void;
     onAddMedia: (file: File) => void;
+    onRenameMedia: (id: Id, filename: string) => void;
     onDeleteMedia: (id: Id) => void;
   }
 
@@ -60,13 +67,20 @@
     modelUsage,
     onSelectModel,
     onAddCustomModel,
+    onDuplicateBuiltinModel,
+    onRenameModel,
+    onDeleteModel,
     configs,
     configUsage,
     onSelectConfig,
     onAddConfig,
+    onRenameConfig,
+    onDeleteConfig,
     media,
     mediaUsage,
+    onSelectMedia,
     onAddMedia,
+    onRenameMedia,
     onDeleteMedia,
   }: Props = $props();
 </script>
@@ -107,6 +121,9 @@
         {selection}
         onSelect={onSelectModel}
         onAddCustom={onAddCustomModel}
+        onDuplicateBuiltin={onDuplicateBuiltinModel}
+        onRename={onRenameModel}
+        onDelete={onDeleteModel}
       />
       <PresetsSection
         {configs}
@@ -114,11 +131,16 @@
         {selection}
         onSelect={onSelectConfig}
         onAdd={onAddConfig}
+        onRename={onRenameConfig}
+        onDelete={onDeleteConfig}
       />
       <MediaSection
         {media}
         usageByFilename={mediaUsage}
+        {selection}
+        onSelect={onSelectMedia}
         onAdd={onAddMedia}
+        onRename={onRenameMedia}
         onDelete={onDeleteMedia}
       />
     </div>

@@ -70,8 +70,20 @@
 
   // svelte-ignore state_referenced_locally
   let renameValue = $state(node.deck.name);
+  // Reset only on the false → true edge so re-renders mid-edit don't
+  // overwrite what the user is typing.
+  let prevEditing = $state(false);
   $effect(() => {
-    if (isEditing) renameValue = node.deck.name;
+    if (isEditing && !prevEditing) renameValue = node.deck.name;
+    prevEditing = isEditing;
+  });
+
+  let renameInputEl = $state<HTMLInputElement | null>(null);
+  $effect(() => {
+    if (isEditing && renameInputEl) {
+      renameInputEl.focus();
+      renameInputEl.select();
+    }
   });
 
   function commitRename() {
@@ -79,6 +91,9 @@
   }
 
   function handleRenameKey(e: KeyboardEvent) {
+    // Always stop propagation so the row's keydown (which treats space and
+    // Enter as "select deck") never fires while we're typing in the input.
+    e.stopPropagation();
     if (e.key === "Enter") {
       e.preventDefault();
       commitRename();
@@ -112,8 +127,13 @@
         {isSelected ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/50'}
         {indicatorInside ? 'ring-primary/40 ring-2 ring-inset' : ''}"
       style="padding-left: {node.depth * 12 + 4}px"
-      onclick={() => onSelect(id)}
+      onclick={() => {
+        if (!isEditing) onSelect(id);
+      }}
       onkeydown={(e) => {
+        if (isEditing) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect(id);
@@ -142,13 +162,13 @@
 
       {#if isEditing}
         <Input
+          bind:ref={renameInputEl}
           bind:value={renameValue}
           onblur={commitRename}
           onkeydown={handleRenameKey}
           onclick={(e: MouseEvent) => e.stopPropagation()}
           ondragstart={(e: DragEvent) => e.preventDefault()}
           class="h-6 px-1 py-0 text-sm"
-          autofocus
         />
       {:else}
         <span class="flex-1 truncate text-left">{node.deck.name || "Untitled deck"}</span>

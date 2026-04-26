@@ -2,8 +2,11 @@
   import { ArrowDown, ArrowUp, Copy, Lock, Plus, Trash2 } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
+  import InlineTitle from "./InlineTitle.svelte";
   import ModelTemplatesSection from "./ModelTemplatesSection.svelte";
   import ModelCssSection from "./ModelCssSection.svelte";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
+  import { toast } from "svelte-sonner";
   import type { BuilderModel, Id } from "$lib/builder/types";
 
   interface Props {
@@ -56,37 +59,20 @@
 
   const isLocked = $derived(model.builtin !== null);
 
-  // ---- title editing -----------------------------------------------------
-
-  let titleValue = $derived(model.name);
-
-  function commitTitle() {
-    const next = titleValue.trim();
-    if (next && next !== model.name) onRename(model.id, next);
-    else titleValue = model.name;
-  }
-
-  function handleTitleKey(e: KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      (e.currentTarget as HTMLInputElement).blur();
-    }
-    if (e.key === "Escape") {
-      titleValue = model.name;
-      (e.currentTarget as HTMLInputElement).blur();
-    }
-  }
-
-  // ---- delete ------------------------------------------------------------
-
-  function handleDelete() {
+  async function handleDelete() {
     if (usage > 0) {
-      alert(
+      toast.error(
         `Cannot delete: ${usage} ${usage === 1 ? "card uses" : "cards use"} this note type. Switch them to a different type first.`,
       );
       return;
     }
-    if (!confirm(`Delete "${model.name}"? Use Ctrl+Z to undo.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${model.name}"?`,
+      description: "Use Ctrl+Z to undo.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     onDelete(model.id);
   }
 </script>
@@ -97,7 +83,7 @@
       <p class="text-muted-foreground text-xs tracking-wide uppercase">Note type</p>
       {#if isLocked}
         <div class="flex items-center gap-2">
-          <h2 class="text-2xl font-semibold tracking-tight">{model.name}</h2>
+          <h2 class="text-2xl leading-tight font-semibold tracking-tight">{model.name}</h2>
           <span
             class="text-muted-foreground bg-muted/40 inline-flex items-center gap-1 rounded-full
               border px-2 py-0.5 text-xs"
@@ -107,13 +93,12 @@
           </span>
         </div>
       {:else}
-        <Input
-          bind:value={titleValue}
-          onblur={commitTitle}
-          onkeydown={handleTitleKey}
-          aria-label="Note type name"
-          class="hover:border-input focus-visible:bg-background h-10 max-w-md border-transparent
-            bg-transparent text-2xl font-semibold tracking-tight shadow-none"
+        <InlineTitle
+          value={model.name}
+          onSave={(next) => onRename(model.id, next)}
+          ariaLabel="Note type name"
+          placeholder="Untitled note type"
+          class="text-2xl leading-tight font-semibold tracking-tight"
         />
       {/if}
       <p class="text-muted-foreground text-sm">

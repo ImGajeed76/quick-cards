@@ -4,6 +4,7 @@
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import CodeEditor from "./CodeEditor.svelte";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
   import type { BuilderModel, Id } from "$lib/builder/types";
 
   interface Props {
@@ -30,9 +31,15 @@
 
   const active = $derived(model.templates[activeIndex]);
 
-  function handleRemove(index: number) {
+  async function handleRemove(index: number) {
     if (model.templates.length <= 1) return;
-    if (!confirm(`Delete "${model.templates[index].name}"? Use Ctrl+Z to undo.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${model.templates[index].name}"?`,
+      description: "Use Ctrl+Z to undo.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     onRemoveTemplate(model.id, index);
     if (activeIndex >= model.templates.length - 1) activeIndex = Math.max(0, activeIndex - 1);
   }

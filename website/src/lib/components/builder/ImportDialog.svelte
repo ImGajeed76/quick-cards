@@ -68,7 +68,7 @@
         bind:value
         {placeholder}
         rows={8}
-        class="font-mono text-sm"
+        class="max-h-[50vh] resize-none overflow-y-auto font-mono text-sm"
         disabled={busy}
       />
       {#if error}

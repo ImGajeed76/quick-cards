@@ -71,6 +71,7 @@ export interface BuilderActions {
     removeTag(noteId: Id, tag: string): void;
   };
   media: {
+    select(id: Id): void;
     /**
      * Add a file as media. Returns the new id, or throws an Error with a
      * user-readable message when the per-file or per-package quota is
@@ -470,6 +471,13 @@ export function createActions(mutate: Mutate): BuilderActions {
       },
     },
     media: {
+      select(id) {
+        mutate((draft) => {
+          if (!draft.data.media[id]) return;
+          draft.selection = { kind: "mediaItem", id };
+        }, "Select media");
+      },
+
       async add(file) {
         if (file.size > MEDIA_PER_FILE_LIMIT) {
           throw new Error(

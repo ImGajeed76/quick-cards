@@ -1,19 +1,26 @@
 <script lang="ts">
-  import { Brackets, Check, Copy, Trash2 } from "@lucide/svelte";
-  import { autoresize } from "$lib/actions/autoresize";
+  import { Brackets, Check, Copy, GripVertical, Trash2 } from "@lucide/svelte";
+  import { EditorView } from "@codemirror/view";
   import TagPills from "./TagPills.svelte";
-  import type { BuilderModel, BuilderNote } from "$lib/builder/types";
+  import MediaPickerPopover from "./MediaPickerPopover.svelte";
+  import CardField from "./CardField.svelte";
+  import { MEDIA_DRAG_TYPE } from "$lib/builder/media-drag";
+  import type { BuilderMedia, BuilderModel, BuilderNote } from "$lib/builder/types";
 
   interface Props {
     note: BuilderNote;
     /** The model the note follows; drives layout for cloze and N-field models. */
     model: BuilderModel;
+    /** All media in the package; passed through to per-field popovers. */
+    media: BuilderMedia[];
     /** 1-based row number shown in the gutter when nothing is selected. */
     index: number;
     /** Last row in the deck list; Tab off the final field appends a new card. */
     isLast: boolean;
     isSelected: boolean;
     selectionMode: boolean;
+    /** When false, the drag handle is hidden and reorder is disabled. */
+    canDrag: boolean;
     onUpdateField: (fieldIndex: number, value: string) => void;
     onDuplicate: () => void;
     onDelete: () => void;
@@ -21,21 +28,23 @@
     onToggleSelect: (event: { extend: boolean }) => void;
     onAddTag: (tag: string) => void;
     onRemoveTag: (tag: string) => void;
-    /**
-     * Upload a file and return the Anki reference string to insert at the
-     * cursor (img tag for images, [sound:...] for audio, plain filename
-     * otherwise). Returns null when the upload was rejected.
-     */
+    /** Upload a file and return the Anki reference token. */
     onAttachFile: (file: File) => Promise<string | null>;
+    /** Backspace on the empty front field of an all-empty card. */
+    onBackspaceCollapsePrevious: () => void;
+    onDragHandleStart: (ev: DragEvent) => void;
+    onDragHandleEnd: () => void;
   }
 
   let {
     note,
     model,
+    media,
     index,
     isLast,
     isSelected,
     selectionMode,
+    canDrag,
     onUpdateField,
     onDuplicate,
     onDelete,
@@ -44,35 +53,10 @@
     onAddTag,
     onRemoveTag,
     onAttachFile,
+    onBackspaceCollapsePrevious,
+    onDragHandleStart,
+    onDragHandleEnd,
   }: Props = $props();
-
-  // ---- file drop ---------------------------------------------------------
-
-  function handleDragOver(e: DragEvent) {
-    if (!e.dataTransfer) return;
-    if (!Array.from(e.dataTransfer.types).includes("Files")) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }
-
-  async function handleFieldDrop(e: DragEvent, fieldIndex: number) {
-    if (!e.dataTransfer || e.dataTransfer.files.length === 0) return;
-    e.preventDefault();
-    const textarea = e.currentTarget as HTMLTextAreaElement;
-    for (const file of Array.from(e.dataTransfer.files)) {
-      const ref = await onAttachFile(file);
-      if (!ref) continue;
-      const start = textarea.selectionStart ?? textarea.value.length;
-      const end = textarea.selectionEnd ?? textarea.value.length;
-      const next = textarea.value.slice(0, start) + ref + textarea.value.slice(end);
-      onUpdateField(fieldIndex, next);
-      requestAnimationFrame(() => {
-        const caret = start + ref.length;
-        textarea.focus();
-        textarea.setSelectionRange(caret, caret);
-      });
-    }
-  }
 
   const isCloze = $derived(model.type === "cloze");
   const isSideBySide = $derived(!isCloze && model.fields.length === 2);
@@ -81,28 +65,96 @@
     return note.fields[i] ?? "";
   }
 
-  function handleFieldKeydown(e: KeyboardEvent, fieldIndex: number) {
-    const isLastField = fieldIndex === model.fields.length - 1;
-    if (isLast && isLastField && e.key === "Tab" && !e.shiftKey) {
+  // ---- field navigation --------------------------------------------------
+
+  /** Find the EditorView of one of this row's CardFields. */
+  function viewForField(fieldIndex: number): EditorView | null {
+    const wrapper = document.querySelector<HTMLElement>(
+      `[data-note-id="${note.id}"] [data-field-index="${fieldIndex}"]`,
+    );
+    const content = wrapper?.querySelector<HTMLElement>(".cm-content") ?? null;
+    return content ? (EditorView.findFromDOM(content) ?? null) : null;
+  }
+
+  function focusFieldAtEnd(fieldIndex: number): void {
+    const view = viewForField(fieldIndex);
+    if (!view) return;
+    const len = view.state.doc.length;
+    view.dispatch({ selection: { anchor: len } });
+    view.focus();
+  }
+
+  function handleBackspaceEmpty(fieldIndex: number): void {
+    if (fieldIndex > 0) {
+      focusFieldAtEnd(fieldIndex - 1);
+      return;
+    }
+    const allEmpty = model.fields.every((_, i) => fieldValue(i) === "");
+    if (allEmpty) onBackspaceCollapsePrevious();
+  }
+
+  // ---- file drop ---------------------------------------------------------
+
+  function handleDragOver(e: DragEvent): void {
+    if (!e.dataTransfer) return;
+    const types = Array.from(e.dataTransfer.types);
+    if (!types.includes("Files") && !types.includes(MEDIA_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  async function handleFieldDrop(e: DragEvent, fieldIndex: number): Promise<void> {
+    if (!e.dataTransfer) return;
+    const ref = e.dataTransfer.getData(MEDIA_DRAG_TYPE);
+    if (ref) {
       e.preventDefault();
-      onTabOffEnd();
+      insertRefIntoField(fieldIndex, ref);
+      return;
+    }
+    if (e.dataTransfer.files.length === 0) return;
+    e.preventDefault();
+    for (const file of Array.from(e.dataTransfer.files)) {
+      const fileRef = await onAttachFile(file);
+      if (!fileRef) continue;
+      insertRefIntoField(fieldIndex, fileRef);
     }
   }
 
-  function handleGutterClick(e: MouseEvent) {
-    onToggleSelect({ extend: e.shiftKey });
+  function insertRefIntoField(fieldIndex: number, ref: string): void {
+    const view = viewForField(fieldIndex);
+    if (view) {
+      const sel = view.state.selection.main;
+      view.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: ref },
+        selection: { anchor: sel.from + ref.length },
+      });
+      view.focus();
+    } else {
+      onUpdateField(fieldIndex, (note.fields[fieldIndex] ?? "") + ref);
+    }
   }
 
-  function handleGutterKey(e: KeyboardEvent) {
+  function handleDragHandleStart(ev: DragEvent): void {
+    if (!ev.dataTransfer) return;
+    onDragHandleStart(ev);
+    const row = (ev.currentTarget as HTMLElement).closest<HTMLElement>("[data-note-id]");
+    if (row) ev.dataTransfer.setDragImage(row, 0, 0);
+  }
+
+  // ---- selection gutter --------------------------------------------------
+
+  function handleGutterClick(e: MouseEvent): void {
+    onToggleSelect({ extend: e.shiftKey });
+  }
+  function handleGutterKey(e: KeyboardEvent): void {
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       onToggleSelect({ extend: e.shiftKey });
     }
   }
-
   const checkboxAlwaysVisible = $derived(isSelected || selectionMode);
 
-  // ---- cloze helpers -----------------------------------------------------
+  // ---- cloze toolbar -----------------------------------------------------
 
   const clozeText = $derived(fieldValue(0));
   const clozeCount = $derived.by(() => {
@@ -126,39 +178,44 @@
     return next;
   }
 
-  function addCloze(textarea: HTMLTextAreaElement) {
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const value = textarea.value;
-    if (start == null || end == null) return;
-    const selectedText = value.slice(start, end) || "...";
-    const wrapped = `{{c${nextClozeId(value)}::${selectedText}}}`;
-    const updated = value.slice(0, start) + wrapped + value.slice(end);
-    onUpdateField(0, updated);
-    requestAnimationFrame(() => {
-      const caret = start + wrapped.length;
-      textarea.focus();
-      textarea.setSelectionRange(caret, caret);
-    });
-  }
-
-  let clozeTextareaEl = $state<HTMLTextAreaElement | null>(null);
-
   function handleAddClozeClick() {
-    if (!clozeTextareaEl) return;
-    addCloze(clozeTextareaEl);
+    const view = viewForField(0);
+    if (!view) return;
+    const sel = view.state.selection.main;
+    const value = view.state.doc.toString();
+    const selectedText = value.slice(sel.from, sel.to) || "...";
+    const wrapped = `{{c${nextClozeId(value)}::${selectedText}}}`;
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: wrapped },
+      selection: { anchor: sel.from + wrapped.length },
+    });
+    view.focus();
   }
 
-  // Avoid `{{` literally in the markup since Svelte would parse it as an
-  // expression delimiter; build the example placeholder in JS instead.
   const clozeExample = "{{c1::Paris}}";
+  const lastFieldIndex = $derived(model.fields.length - 1);
 </script>
 
 <div
-  class="group flex items-start gap-3 rounded-md border-b border-transparent py-2 pr-3 pl-3
+  class="group flex items-start gap-2 rounded-md border-b border-transparent py-2 pr-3 pl-1
     transition-colors
     {isSelected ? 'bg-accent/40' : 'hover:bg-muted/30'}"
 >
+  <button
+    type="button"
+    draggable={canDrag}
+    ondragstart={handleDragHandleStart}
+    ondragend={onDragHandleEnd}
+    tabindex={-1}
+    aria-label="Drag to reorder"
+    title="Drag to reorder"
+    class="text-muted-foreground hover:text-foreground mt-1 grid h-6 w-4 shrink-0 cursor-grab
+      place-items-center rounded opacity-0 transition-opacity active:cursor-grabbing
+      {canDrag ? 'group-focus-within:opacity-100 group-hover:opacity-100' : 'pointer-events-none'}"
+  >
+    <GripVertical class="h-4 w-4" aria-hidden="true" />
+  </button>
+
   <button
     type="button"
     onclick={handleGutterClick}
@@ -205,6 +262,11 @@
             <Brackets class="h-3.5 w-3.5" />
             Add cloze
           </button>
+          <MediaPickerPopover
+            {media}
+            onPick={(ref) => insertRefIntoField(0, ref)}
+            onUpload={onAttachFile}
+          />
           {#if clozeCount > 0}
             <span class="text-muted-foreground text-xs">
               {clozeCount}
@@ -217,110 +279,175 @@
           {/if}
         </div>
 
-        <textarea
-          bind:this={clozeTextareaEl}
-          value={fieldValue(0)}
-          oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
-          onkeydown={(e) => handleFieldKeydown(e, 0)}
+        <div
+          role="presentation"
+          data-field-index="0"
           ondragover={handleDragOver}
           ondrop={(e) => {
             void handleFieldDrop(e, 0);
           }}
-          use:autoresize={fieldValue(0)}
-          placeholder={"The capital of France is " + clozeExample + "."}
-          rows="1"
-          data-field-index="0"
-          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 resize-none
-            rounded-sm bg-transparent px-1 py-1 font-mono text-sm leading-snug
-            focus-visible:outline-none"
-          aria-label={model.fields[0]?.name ?? "Text"}
-        ></textarea>
+        >
+          <CardField
+            value={fieldValue(0)}
+            onChange={(v) => onUpdateField(0, v)}
+            {media}
+            placeholder={"The capital of France is " + clozeExample + "."}
+            ariaLabel={model.fields[0]?.name ?? "Text"}
+            isLastFieldOfLastRow={isLast && lastFieldIndex === 0}
+            onTabOffEnd={lastFieldIndex === 0 ? onTabOffEnd : undefined}
+            onBackspaceEmpty={() => handleBackspaceEmpty(0)}
+          />
+        </div>
 
         {#if model.fields.length > 1}
           <div class="space-y-1">
             <p class="text-muted-foreground text-xs">{model.fields[1]?.name ?? "Back extra"}</p>
-            <textarea
-              value={fieldValue(1)}
-              oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
-              onkeydown={(e) => handleFieldKeydown(e, 1)}
-              ondragover={handleDragOver}
-              ondrop={(e) => {
-                void handleFieldDrop(e, 1);
-              }}
-              use:autoresize={fieldValue(1)}
-              placeholder="Optional back-extra"
-              rows="1"
-              data-field-index="1"
-              class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 resize-none
-                rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-                focus-visible:outline-none"
-              aria-label={model.fields[1]?.name ?? "Back extra"}
-            ></textarea>
+            <div class="group/field relative">
+              <div
+                role="presentation"
+                data-field-index="1"
+                ondragover={handleDragOver}
+                ondrop={(e) => {
+                  void handleFieldDrop(e, 1);
+                }}
+                class="pr-7"
+              >
+                <CardField
+                  value={fieldValue(1)}
+                  onChange={(v) => onUpdateField(1, v)}
+                  {media}
+                  placeholder="Optional back-extra"
+                  ariaLabel={model.fields[1]?.name ?? "Back extra"}
+                  isLastFieldOfLastRow={isLast && lastFieldIndex === 1}
+                  onTabOffEnd={lastFieldIndex === 1 ? onTabOffEnd : undefined}
+                  onBackspaceEmpty={() => handleBackspaceEmpty(1)}
+                />
+              </div>
+              <div
+                class="absolute right-1 bottom-1 opacity-0 transition-opacity
+                  group-focus-within/field:opacity-100 group-hover/field:opacity-100"
+              >
+                <MediaPickerPopover
+                  {media}
+                  onPick={(ref) => insertRefIntoField(1, ref)}
+                  onUpload={onAttachFile}
+                  label="Attach media to back extra"
+                />
+              </div>
+            </div>
           </div>
         {/if}
       </div>
     {:else if isSideBySide}
       <div class="flex items-start gap-3">
-        <textarea
-          value={fieldValue(0)}
-          oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
-          onkeydown={(e) => handleFieldKeydown(e, 0)}
-          ondragover={handleDragOver}
-          ondrop={(e) => {
-            void handleFieldDrop(e, 0);
-          }}
-          use:autoresize={fieldValue(0)}
-          placeholder={model.fields[0]?.name ?? "Term"}
-          rows="1"
-          data-field-index="0"
-          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-            rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-            focus-visible:outline-none"
-          aria-label={model.fields[0]?.name ?? "Term"}
-        ></textarea>
+        <div class="group/field relative flex-1">
+          <div
+            role="presentation"
+            data-field-index="0"
+            ondragover={handleDragOver}
+            ondrop={(e) => {
+              void handleFieldDrop(e, 0);
+            }}
+            class="pr-7"
+          >
+            <CardField
+              value={fieldValue(0)}
+              onChange={(v) => onUpdateField(0, v)}
+              {media}
+              placeholder={model.fields[0]?.name ?? "Term"}
+              ariaLabel={model.fields[0]?.name ?? "Term"}
+              isLastFieldOfLastRow={isLast && lastFieldIndex === 0}
+              onTabOffEnd={lastFieldIndex === 0 ? onTabOffEnd : undefined}
+              onBackspaceEmpty={() => handleBackspaceEmpty(0)}
+            />
+          </div>
+          <div
+            class="absolute right-1 bottom-1 opacity-0 transition-opacity
+              group-focus-within/field:opacity-100 group-hover/field:opacity-100"
+          >
+            <MediaPickerPopover
+              {media}
+              onPick={(ref) => insertRefIntoField(0, ref)}
+              onUpload={onAttachFile}
+              label={`Attach media to ${model.fields[0]?.name ?? "Term"}`}
+            />
+          </div>
+        </div>
 
         <div class="bg-border mt-2 w-px self-stretch" aria-hidden="true"></div>
 
-        <textarea
-          value={fieldValue(1)}
-          oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
-          onkeydown={(e) => handleFieldKeydown(e, 1)}
-          ondragover={handleDragOver}
-          ondrop={(e) => {
-            void handleFieldDrop(e, 1);
-          }}
-          use:autoresize={fieldValue(1)}
-          placeholder={model.fields[1]?.name ?? "Definition"}
-          rows="1"
-          data-field-index="1"
-          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-            rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-            focus-visible:outline-none"
-          aria-label={model.fields[1]?.name ?? "Definition"}
-        ></textarea>
+        <div class="group/field relative flex-1">
+          <div
+            role="presentation"
+            data-field-index="1"
+            ondragover={handleDragOver}
+            ondrop={(e) => {
+              void handleFieldDrop(e, 1);
+            }}
+            class="pr-7"
+          >
+            <CardField
+              value={fieldValue(1)}
+              onChange={(v) => onUpdateField(1, v)}
+              {media}
+              placeholder={model.fields[1]?.name ?? "Definition"}
+              ariaLabel={model.fields[1]?.name ?? "Definition"}
+              isLastFieldOfLastRow={isLast && lastFieldIndex === 1}
+              onTabOffEnd={lastFieldIndex === 1 ? onTabOffEnd : undefined}
+              onBackspaceEmpty={() => handleBackspaceEmpty(1)}
+            />
+          </div>
+          <div
+            class="absolute right-1 bottom-1 opacity-0 transition-opacity
+              group-focus-within/field:opacity-100 group-hover/field:opacity-100"
+          >
+            <MediaPickerPopover
+              {media}
+              onPick={(ref) => insertRefIntoField(1, ref)}
+              onUpload={onAttachFile}
+              label={`Attach media to ${model.fields[1]?.name ?? "Definition"}`}
+            />
+          </div>
+        </div>
       </div>
     {:else}
       <div class="flex flex-col gap-2">
         {#each model.fields as field, i (i)}
           <div class="space-y-1">
             <p class="text-muted-foreground text-xs">{field.name}</p>
-            <textarea
-              value={fieldValue(i)}
-              oninput={(e) => onUpdateField(i, (e.currentTarget as HTMLTextAreaElement).value)}
-              onkeydown={(e) => handleFieldKeydown(e, i)}
-              ondragover={handleDragOver}
-              ondrop={(e) => {
-                void handleFieldDrop(e, i);
-              }}
-              use:autoresize={fieldValue(i)}
-              placeholder={field.description ?? field.name}
-              rows="1"
-              data-field-index={i}
-              class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 w-full
-                resize-none rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-                focus-visible:outline-none"
-              aria-label={field.name}
-            ></textarea>
+            <div class="group/field relative">
+              <div
+                role="presentation"
+                data-field-index={i}
+                ondragover={handleDragOver}
+                ondrop={(e) => {
+                  void handleFieldDrop(e, i);
+                }}
+                class="pr-7"
+              >
+                <CardField
+                  value={fieldValue(i)}
+                  onChange={(v) => onUpdateField(i, v)}
+                  {media}
+                  placeholder={field.description ?? field.name}
+                  ariaLabel={field.name}
+                  isLastFieldOfLastRow={isLast && lastFieldIndex === i}
+                  onTabOffEnd={lastFieldIndex === i ? onTabOffEnd : undefined}
+                  onBackspaceEmpty={() => handleBackspaceEmpty(i)}
+                />
+              </div>
+              <div
+                class="absolute right-1 bottom-1 opacity-0 transition-opacity
+                  group-focus-within/field:opacity-100 group-hover/field:opacity-100"
+              >
+                <MediaPickerPopover
+                  {media}
+                  onPick={(ref) => insertRefIntoField(i, ref)}
+                  onUpload={onAttachFile}
+                  label={`Attach media to ${field.name}`}
+                />
+              </div>
+            </div>
           </div>
         {/each}
       </div>
@@ -363,9 +490,3 @@
     </button>
   </div>
 </div>
-
-<style>
-  textarea {
-    overflow: hidden;
-  }
-</style>

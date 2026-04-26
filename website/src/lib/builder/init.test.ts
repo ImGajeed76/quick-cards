@@ -9,7 +9,7 @@ afterEach(async () => {
 });
 
 describe("createBlankPackage", () => {
-  test("writes a package with one deck, one model, one config, no notes", async () => {
+  test("seeds the package with all four built-in note types and a single default deck", async () => {
     const id = await createBlankPackage();
     const data = await loadPackage(id);
 
@@ -19,16 +19,20 @@ describe("createBlankPackage", () => {
     expect(data.package.id).toBe(id);
     expect(Object.keys(data.decks)).toHaveLength(1);
     expect(Object.keys(data.notes)).toHaveLength(0);
-    expect(Object.keys(data.models)).toHaveLength(1);
+    expect(Object.keys(data.models)).toHaveLength(4);
     expect(Object.keys(data.configs)).toHaveLength(1);
 
+    const builtinSet = new Set(Object.values(data.models).map((m) => m.builtin));
+    expect(builtinSet).toEqual(new Set(["basic", "basicAndReversed", "basicTyping", "cloze"]));
+
     const [deck] = Object.values(data.decks);
-    const [model] = Object.values(data.models);
     const [config] = Object.values(data.configs);
 
+    const reversed = Object.values(data.models).find((m) => m.builtin === "basicAndReversed");
+    expect(deck.modelId).toBe(reversed?.id ?? "");
     expect(deck.configId).toBe(config.id);
-    expect(model.builtin).toBe("basicAndReversed");
     expect(config.source).toBe("default");
+    expect(config.name.startsWith("QuickCards")).toBe(true);
   });
 
   test("custom title flows through to package and root deck", async () => {

@@ -5,6 +5,13 @@
  * - `createBlankPackage()` for the "Start blank" button
  * - `createPackageFromFlashcardSet()` for paste / extension handoff / share-link import
  *
+ * Both seed the package with all four built-in note types so the user can
+ * switch a deck to any of them without first having to "Duplicate to
+ * customize." The default scheduler preset is named after the package so it
+ * never collides with the user's existing Anki "Default" preset on import
+ * (ankipack also guarantees its config id is never 1, which is the id Anki
+ * uses for the user's own default).
+ *
  * Both return the new package's id so the caller can route to `/build/[id]`.
  */
 
@@ -24,7 +31,10 @@ import type {
   BuilderNote,
   BuilderPackage,
   Id,
+  ModelBuiltin,
 } from "./types";
+
+const ALL_BUILTINS: ModelBuiltin[] = ["basic", "basicAndReversed", "basicTyping", "cloze"];
 
 interface BlankArgs {
   title?: string;
@@ -39,8 +49,9 @@ export async function createBlankPackage(args: BlankArgs = {}): Promise<Id> {
     createdAt: now,
     updatedAt: now,
   };
-  const model = builtinModel({ packageId: pkg.id, variant: "basicAndReversed" });
-  const config = defaultConfig({ packageId: pkg.id, name: "Default" });
+  const models = ALL_BUILTINS.map((variant) => builtinModel({ packageId: pkg.id, variant }));
+  const defaultModel = models.find((m) => m.builtin === "basicAndReversed") ?? models[0];
+  const config = defaultConfig({ packageId: pkg.id, name: defaultPresetName(pkg.title) });
   const deck: BuilderDeck = {
     id: newId(),
     packageId: pkg.id,
@@ -48,11 +59,11 @@ export async function createBlankPackage(args: BlankArgs = {}): Promise<Id> {
     name: pkg.title,
     description: "",
     configId: config.id,
-    modelId: model.id,
+    modelId: defaultModel.id,
     order: 0,
     deadline: null,
   };
-  await writeAll(pkg, [deck], [], [model], [config]);
+  await writeAll(pkg, [deck], [], models, [config]);
   return pkg.id;
 }
 
@@ -66,8 +77,9 @@ export async function createPackageFromFlashcardSet(set: FlashcardSet): Promise<
     createdAt: now,
     updatedAt: now,
   };
-  const model = builtinModel({ packageId: pkg.id, variant: "basicAndReversed" });
-  const config = defaultConfig({ packageId: pkg.id, name: "Default" });
+  const models = ALL_BUILTINS.map((variant) => builtinModel({ packageId: pkg.id, variant }));
+  const defaultModel = models.find((m) => m.builtin === "basicAndReversed") ?? models[0];
+  const config = defaultConfig({ packageId: pkg.id, name: defaultPresetName(title) });
   const deck: BuilderDeck = {
     id: newId(),
     packageId: pkg.id,
@@ -75,7 +87,7 @@ export async function createPackageFromFlashcardSet(set: FlashcardSet): Promise<
     name: title,
     description: "",
     configId: config.id,
-    modelId: model.id,
+    modelId: defaultModel.id,
     order: 0,
     deadline: null,
   };
@@ -83,14 +95,24 @@ export async function createPackageFromFlashcardSet(set: FlashcardSet): Promise<
     id: newId(),
     packageId: pkg.id,
     deckId: deck.id,
-    modelId: model.id,
+    modelId: defaultModel.id,
     fields: [card.term, card.definition],
     tags: [],
     order: index,
   }));
 
-  await writeAll(pkg, [deck], notes, [model], [config]);
+  await writeAll(pkg, [deck], notes, models, [config]);
   return pkg.id;
+}
+
+/**
+ * Prefix the preset name with "QuickCards" so users can tell it apart from
+ * Anki's own "Default" preset after importing. The package title gives them a
+ * second hint when several QuickCards decks are imported.
+ */
+function defaultPresetName(packageTitle: string): string {
+  const trimmed = packageTitle.trim();
+  return trimmed ? `QuickCards · ${trimmed}` : "QuickCards preset";
 }
 
 async function writeAll(

@@ -7,12 +7,24 @@
  * touched and needs to be written; anything else can be skipped. Removed
  * records are detected by key presence.
  *
+ * Status surfacing happens through the `callbacks` passed at construction so
+ * the caller doesn't have to manage a separate flush-and-await dance per tick
+ * (which would defeat the debounce). Errors are logged and reported, never
+ * thrown to the caller.
+ *
  * Note: cross-tab editing is not synced. If the same package is opened in two
  * tabs, the last writer wins. This is a known V1 limitation.
  */
 
 import { AUTOSAVE_DEBOUNCE_MS, type Id, type PackageData } from "../types";
 import { configs, decks, media, models, notes, packages } from "./repos";
+
+export interface AutosaveCallbacks {
+  /** Fires when an actual write begins (not on every schedule call). */
+  onStart?: () => void;
+  onSuccess?: () => void;
+  onError?: (err: unknown) => void;
+}
 
 export interface AutosaveAPI {
   /** Queue a save. Resets the debounce timer if called repeatedly. */
@@ -23,7 +35,7 @@ export interface AutosaveAPI {
   dispose(): void;
 }
 
-export function createAutosave(): AutosaveAPI {
+export function createAutosave(callbacks: AutosaveCallbacks = {}): AutosaveAPI {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let pending: PackageData | null = null;
   let lastSaved: PackageData | null = null;
@@ -36,7 +48,7 @@ export function createAutosave(): AutosaveAPI {
     };
 
     await Promise.all([
-      packages.put(stamped.package),
+      packages.put($state.snapshot(stamped.package)),
       syncCollection(stamped.decks, lastSaved?.decks, decks),
       syncCollection(stamped.notes, lastSaved?.notes, notes),
       syncCollection(stamped.models, lastSaved?.models, models),
@@ -47,6 +59,17 @@ export function createAutosave(): AutosaveAPI {
     lastSaved = stamped;
   }
 
+  async function runOnce(data: PackageData): Promise<void> {
+    callbacks.onStart?.();
+    try {
+      await persist(data);
+      callbacks.onSuccess?.();
+    } catch (err) {
+      console.error("[autosave] failed", err);
+      callbacks.onError?.(err);
+    }
+  }
+
   function schedule(data: PackageData): void {
     pending = data;
     if (timer) clearTimeout(timer);
@@ -55,9 +78,7 @@ export function createAutosave(): AutosaveAPI {
       const toSave = pending;
       pending = null;
       if (!toSave) return;
-      inflight = persist(toSave).catch((err) => {
-        console.error("[autosave] failed", err);
-      });
+      inflight = runOnce(toSave);
     }, AUTOSAVE_DEBOUNCE_MS);
   }
 
@@ -67,7 +88,7 @@ export function createAutosave(): AutosaveAPI {
       timer = null;
       const toSave = pending;
       pending = null;
-      if (toSave) inflight = persist(toSave);
+      if (toSave) inflight = runOnce(toSave);
     }
     if (inflight) await inflight;
   }
@@ -97,7 +118,9 @@ async function syncCollection<T>(
 
   for (const [id, value] of Object.entries(current)) {
     if (!previous || previous[id] !== value) {
-      writes.push(repo.put(value));
+      // Snapshot strips Svelte's reactive proxy so the structured-clone
+      // algorithm IDB.put runs internally doesn't throw DataCloneError.
+      writes.push(repo.put($state.snapshot(value) as T));
     }
   }
 

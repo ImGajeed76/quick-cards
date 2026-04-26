@@ -2,16 +2,20 @@
   import { tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import { Plus, Search, X } from "@lucide/svelte";
+  import { EditorView } from "@codemirror/view";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import CardRow from "./CardRow.svelte";
   import BulkEditBar from "./BulkEditBar.svelte";
-  import type { BuilderModel, BuilderNote, Id } from "$lib/builder/types";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
+  import type { BuilderMedia, BuilderModel, BuilderNote, Id } from "$lib/builder/types";
 
   interface Props {
     notes: BuilderNote[];
     /** Lookup so each row can render the right shape for its model. */
     models: Record<Id, BuilderModel>;
+    /** All media in the package; passed through to per-field popovers. */
+    media: BuilderMedia[];
     onAdd: () => Id;
     onUpdateField: (noteId: Id, fieldIndex: number, value: string) => void;
     onDuplicate: (noteId: Id) => Id;
@@ -26,6 +30,7 @@
   let {
     notes,
     models,
+    media,
     onAdd,
     onUpdateField,
     onDuplicate,
@@ -93,10 +98,18 @@
     lastClickedIndex = null;
   }
 
-  function deleteSelected() {
+  async function deleteSelected() {
     const ids = [...selected];
     if (ids.length === 0) return;
-    if (ids.length > 5 && !confirm(`Delete ${ids.length} cards? Use Ctrl+Z to undo.`)) return;
+    if (ids.length > 5) {
+      const ok = await confirmAction({
+        title: `Delete ${ids.length} cards?`,
+        description: "Use Ctrl+Z to undo.",
+        confirmLabel: "Delete",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
     onDeleteMany(ids);
     clearSelection();
   }
@@ -157,11 +170,33 @@
 
   // ---- focus helpers -----------------------------------------------------
 
-  async function focusNote(id: Id, fieldIndex = 0): Promise<void> {
+  async function focusNote(id: Id, fieldIndex = 0, atEnd = false): Promise<void> {
     await tick();
-    const sel = `[data-note-id="${id}"] textarea[data-field-index="${fieldIndex}"]`;
-    const target = listEl?.querySelector<HTMLTextAreaElement>(sel);
-    target?.focus();
+    const wrapper = listEl?.querySelector<HTMLElement>(
+      `[data-note-id="${id}"] [data-field-index="${fieldIndex}"]`,
+    );
+    const cmContent = wrapper?.querySelector<HTMLElement>(".cm-content") ?? null;
+    if (!cmContent) return;
+    const view = EditorView.findFromDOM(cmContent);
+    if (!view) {
+      cmContent.focus();
+      return;
+    }
+    view.focus();
+    if (atEnd) {
+      const len = view.state.doc.length;
+      view.dispatch({ selection: { anchor: len } });
+    }
+  }
+
+  async function collapseToPrevious(noteId: Id): Promise<void> {
+    const idx = filtered.findIndex((n) => n.id === noteId);
+    const prev = idx > 0 ? filtered[idx - 1] : null;
+    onDelete(noteId);
+    if (!prev) return;
+    const prevModel = models[prev.modelId];
+    const lastField = prevModel ? Math.max(0, prevModel.fields.length - 1) : 0;
+    await focusNote(prev.id, lastField, true);
   }
 
   async function add(): Promise<void> {
@@ -184,29 +219,31 @@
 </script>
 
 <div bind:this={listEl} class="flex flex-col">
-  <div class="relative px-3 pb-3">
-    <Search
-      class="text-muted-foreground pointer-events-none absolute top-1/2 left-5 h-4 w-4
-        -translate-y-1/2"
-      aria-hidden="true"
-    />
-    <Input
-      bind:value={query}
-      placeholder="Search cards"
-      aria-label="Search cards in this deck"
-      class="h-9 pr-9 pl-9"
-    />
-    {#if filterActive}
-      <button
-        type="button"
-        onclick={() => (query = "")}
-        aria-label="Clear search"
-        class="text-muted-foreground hover:text-foreground absolute top-1/2 right-5 -translate-y-1/2
-          rounded p-1 transition-colors"
-      >
-        <X class="h-4 w-4" />
-      </button>
-    {/if}
+  <div class="px-3 pb-3">
+    <div class="relative">
+      <Search
+        class="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4
+          -translate-y-1/2"
+        aria-hidden="true"
+      />
+      <Input
+        bind:value={query}
+        placeholder="Search cards"
+        aria-label="Search cards in this deck"
+        class="h-9 pr-9 pl-9"
+      />
+      {#if filterActive}
+        <button
+          type="button"
+          onclick={() => (query = "")}
+          aria-label="Clear search"
+          class="text-muted-foreground hover:text-foreground absolute top-1/2 right-2
+            -translate-y-1/2 rounded p-1 transition-colors"
+        >
+          <X class="h-4 w-4" />
+        </button>
+      {/if}
+    </div>
   </div>
 
   {#if filtered.length === 0}
@@ -238,12 +275,9 @@
       <div
         role="listitem"
         data-note-id={note.id}
-        draggable={!filterActive}
-        ondragstart={(e) => handleDragStart(note.id, e)}
         ondragover={(e) => handleDragOver(note.id, e)}
         ondragleave={() => handleDragLeave(note.id)}
         ondrop={(e) => handleDrop(note.id, e)}
-        ondragend={handleDragEnd}
         class="relative {dragSourceId === note.id ? 'opacity-50' : ''}"
       >
         {#if showBeforeIndicator}
@@ -253,10 +287,12 @@
           <CardRow
             {note}
             {model}
+            {media}
             index={i + 1}
             isLast={i === filtered.length - 1}
             isSelected={selected.has(note.id)}
             {selectionMode}
+            canDrag={!filterActive}
             onUpdateField={(fi, v) => onUpdateField(note.id, fi, v)}
             onDuplicate={() => {
               void duplicate(note.id);
@@ -269,6 +305,11 @@
             onAddTag={(tag) => onAddTag(note.id, tag)}
             onRemoveTag={(tag) => onRemoveTag(note.id, tag)}
             {onAttachFile}
+            onBackspaceCollapsePrevious={() => {
+              void collapseToPrevious(note.id);
+            }}
+            onDragHandleStart={(e) => handleDragStart(note.id, e)}
+            onDragHandleEnd={handleDragEnd}
           />
         {/if}
         {#if showAfterIndicator}

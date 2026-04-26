@@ -12,6 +12,8 @@
   import { createBlankPackage, createPackageFromFlashcardSet } from "$lib/builder/init";
   import { decks as deckRepo, notes as noteRepo, packages as packageRepo, deletePackageCascade } from "$lib/builder/store/repos";
   import { decodePayload } from "$lib/share";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
+  import { toast } from "svelte-sonner";
   import type { BuilderPackage } from "$lib/builder/types";
 
   interface Row {
@@ -92,8 +94,15 @@
   async function handleDelete(id: string) {
     const target = rows?.find((r) => r.package.id === id);
     const title = target?.package.title || "this deck";
-    if (!confirm(`Delete "${title}" and all its cards? This cannot be undone.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${title}"?`,
+      description: "All decks, cards, and media in this draft will be removed. This cannot be undone.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     await deletePackageCascade(id);
+    toast.success(`Deleted "${title}"`);
     await refresh();
   }
 </script>

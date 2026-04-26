@@ -4,6 +4,9 @@
   import { Input } from "$lib/components/ui/input";
   import PresetField from "./PresetField.svelte";
   import NumberArrayInput from "./NumberArrayInput.svelte";
+  import InlineTitle from "./InlineTitle.svelte";
+  import { confirmAction } from "$lib/builder/dialogs.svelte";
+  import { toast } from "svelte-sonner";
   import type { BuilderConfig, Id } from "$lib/builder/types";
   import type { ConfigUpdatableKey } from "$lib/builder/actions";
 
@@ -21,30 +24,20 @@
   type Tab = "limits" | "learning" | "fsrs" | "display" | "advanced";
   let active = $state<Tab>("limits");
 
-  let titleValue = $derived(config.name);
-
-  function commitTitle() {
-    const next = titleValue.trim();
-    if (next && next !== config.name) onRename(config.id, next);
-    else titleValue = config.name;
-  }
-
-  function handleTitleKey(e: KeyboardEvent) {
-    if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
-    if (e.key === "Escape") {
-      titleValue = config.name;
-      (e.currentTarget as HTMLInputElement).blur();
-    }
-  }
-
-  function handleDelete() {
+  async function handleDelete() {
     if (usage > 0) {
-      alert(
+      toast.error(
         `Cannot delete: ${usage} ${usage === 1 ? "deck uses" : "decks use"} this preset. Switch them first.`,
       );
       return;
     }
-    if (!confirm(`Delete "${config.name}"? Use Ctrl+Z to undo.`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${config.name}"?`,
+      description: "Use Ctrl+Z to undo.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     onDelete(config.id);
   }
 
@@ -97,13 +90,12 @@
   <header class="flex flex-wrap items-start justify-between gap-3">
     <div class="flex-1 space-y-2">
       <p class="text-muted-foreground text-xs tracking-wide uppercase">Preset</p>
-      <Input
-        bind:value={titleValue}
-        onblur={commitTitle}
-        onkeydown={handleTitleKey}
-        aria-label="Preset name"
-        class="hover:border-input focus-visible:bg-background h-10 max-w-md border-transparent
-          bg-transparent text-2xl font-semibold tracking-tight shadow-none"
+      <InlineTitle
+        value={config.name}
+        onSave={(next) => onRename(config.id, next)}
+        ariaLabel="Preset name"
+        placeholder="Untitled preset"
+        class="text-2xl leading-tight font-semibold tracking-tight"
       />
       <p class="text-muted-foreground text-sm">
         {sourceLabel} · {usage}
