@@ -380,6 +380,7 @@
 
             <CardList
               notes={selectedDeckNotes}
+              models={pkgState.data.models}
               onAdd={() => actions.note.add(selectedDeck.id)}
               onUpdateField={actions.note.updateField}
               onDuplicate={actions.note.duplicate}

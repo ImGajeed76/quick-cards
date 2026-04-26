@@ -1,25 +1,23 @@
 <script lang="ts">
-  import { Check, Copy, Trash2 } from "@lucide/svelte";
+  import { Brackets, Check, Copy, Trash2 } from "@lucide/svelte";
   import { autoresize } from "$lib/actions/autoresize";
   import TagPills from "./TagPills.svelte";
-  import type { BuilderNote } from "$lib/builder/types";
+  import type { BuilderModel, BuilderNote } from "$lib/builder/types";
 
   interface Props {
     note: BuilderNote;
+    /** The model the note follows; drives layout for cloze and N-field models. */
+    model: BuilderModel;
     /** 1-based row number shown in the gutter when nothing is selected. */
     index: number;
-    /** Last row in the deck list; Tab off the def field appends a new card. */
+    /** Last row in the deck list; Tab off the final field appends a new card. */
     isLast: boolean;
-    /** Whether this row is part of the current bulk selection. */
     isSelected: boolean;
-    /** When true, the gutter shows the checkbox even on unselected rows. */
     selectionMode: boolean;
     onUpdateField: (fieldIndex: number, value: string) => void;
     onDuplicate: () => void;
     onDelete: () => void;
-    /** Called when Tab leaves the def field of the last row. */
     onTabOffEnd: () => void;
-    /** Toggle this row in the bulk selection. `extend` is true on shift-click. */
     onToggleSelect: (event: { extend: boolean }) => void;
     onAddTag: (tag: string) => void;
     onRemoveTag: (tag: string) => void;
@@ -27,6 +25,7 @@
 
   let {
     note,
+    model,
     index,
     isLast,
     isSelected,
@@ -40,11 +39,16 @@
     onRemoveTag,
   }: Props = $props();
 
-  let termValue = $derived(note.fields[0] ?? "");
-  let defValue = $derived(note.fields[1] ?? "");
+  const isCloze = $derived(model.type === "cloze");
+  const isSideBySide = $derived(!isCloze && model.fields.length === 2);
 
-  function handleDefKeydown(e: KeyboardEvent) {
-    if (isLast && e.key === "Tab" && !e.shiftKey) {
+  function fieldValue(i: number): string {
+    return note.fields[i] ?? "";
+  }
+
+  function handleFieldKeydown(e: KeyboardEvent, fieldIndex: number) {
+    const isLastField = fieldIndex === model.fields.length - 1;
+    if (isLast && isLastField && e.key === "Tab" && !e.shiftKey) {
       e.preventDefault();
       onTabOffEnd();
     }
@@ -61,10 +65,58 @@
     }
   }
 
-  // Show checkbox when: row selected, selection mode active, or row hovered.
-  // Hover state is handled via `group-hover` so we can leave the checkbox always
-  // present in the DOM and just toggle opacity.
   const checkboxAlwaysVisible = $derived(isSelected || selectionMode);
+
+  // ---- cloze helpers -----------------------------------------------------
+
+  const clozeText = $derived(fieldValue(0));
+  const clozeCount = $derived.by(() => {
+    if (!isCloze) return 0;
+    return uniqueClozeIds(clozeText).length;
+  });
+
+  function uniqueClozeIds(value: string): number[] {
+    const ids: number[] = [];
+    for (const match of value.matchAll(/\{\{c(\d+)::/g)) {
+      const n = Number.parseInt(match[1], 10);
+      if (!ids.includes(n)) ids.push(n);
+    }
+    return ids;
+  }
+
+  function nextClozeId(value: string): number {
+    const ids = uniqueClozeIds(value);
+    let next = 1;
+    while (ids.includes(next)) next += 1;
+    return next;
+  }
+
+  function addCloze(textarea: HTMLTextAreaElement) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    if (start == null || end == null) return;
+    const selectedText = value.slice(start, end) || "...";
+    const wrapped = `{{c${nextClozeId(value)}::${selectedText}}}`;
+    const updated = value.slice(0, start) + wrapped + value.slice(end);
+    onUpdateField(0, updated);
+    requestAnimationFrame(() => {
+      const caret = start + wrapped.length;
+      textarea.focus();
+      textarea.setSelectionRange(caret, caret);
+    });
+  }
+
+  let clozeTextareaEl = $state<HTMLTextAreaElement | null>(null);
+
+  function handleAddClozeClick() {
+    if (!clozeTextareaEl) return;
+    addCloze(clozeTextareaEl);
+  }
+
+  // Avoid `{{` literally in the markup since Svelte would parse it as an
+  // expression delimiter; build the example placeholder in JS instead.
+  const clozeExample = "{{c1::Paris}}";
 </script>
 
 <div
@@ -104,36 +156,120 @@
   </button>
 
   <div class="flex flex-1 flex-col gap-1">
-    <div class="flex items-start gap-3">
-      <textarea
-        value={termValue}
-        oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
-        use:autoresize={termValue}
-        placeholder="Term"
-        rows="1"
-        data-field-index="0"
-        class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-          rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-          focus-visible:outline-none"
-        aria-label="Term"
-      ></textarea>
+    {#if isCloze}
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            onclick={handleAddClozeClick}
+            tabindex={-1}
+            class="bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground inline-flex
+              items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors"
+            aria-label="Wrap selection in a cloze"
+          >
+            <Brackets class="h-3.5 w-3.5" />
+            Add cloze
+          </button>
+          {#if clozeCount > 0}
+            <span class="text-muted-foreground text-xs">
+              {clozeCount}
+              {clozeCount === 1 ? "cloze" : "clozes"}
+            </span>
+          {:else}
+            <span class="text-muted-foreground text-xs">
+              Wrap text in &#123;&#123;c1::...&#125;&#125;
+            </span>
+          {/if}
+        </div>
 
-      <div class="bg-border mt-2 w-px self-stretch" aria-hidden="true"></div>
+        <textarea
+          bind:this={clozeTextareaEl}
+          value={fieldValue(0)}
+          oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
+          onkeydown={(e) => handleFieldKeydown(e, 0)}
+          use:autoresize={fieldValue(0)}
+          placeholder={"The capital of France is " + clozeExample + "."}
+          rows="1"
+          data-field-index="0"
+          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 resize-none
+            rounded-sm bg-transparent px-1 py-1 font-mono text-sm leading-snug
+            focus-visible:outline-none"
+          aria-label={model.fields[0]?.name ?? "Text"}
+        ></textarea>
 
-      <textarea
-        value={defValue}
-        oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
-        onkeydown={handleDefKeydown}
-        use:autoresize={defValue}
-        placeholder="Definition"
-        rows="1"
-        data-field-index="1"
-        class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
-          rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
-          focus-visible:outline-none"
-        aria-label="Definition"
-      ></textarea>
-    </div>
+        {#if model.fields.length > 1}
+          <div class="space-y-1">
+            <p class="text-muted-foreground text-xs">{model.fields[1]?.name ?? "Back extra"}</p>
+            <textarea
+              value={fieldValue(1)}
+              oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
+              onkeydown={(e) => handleFieldKeydown(e, 1)}
+              use:autoresize={fieldValue(1)}
+              placeholder="Optional back-extra"
+              rows="1"
+              data-field-index="1"
+              class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 resize-none
+                rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+                focus-visible:outline-none"
+              aria-label={model.fields[1]?.name ?? "Back extra"}
+            ></textarea>
+          </div>
+        {/if}
+      </div>
+    {:else if isSideBySide}
+      <div class="flex items-start gap-3">
+        <textarea
+          value={fieldValue(0)}
+          oninput={(e) => onUpdateField(0, (e.currentTarget as HTMLTextAreaElement).value)}
+          onkeydown={(e) => handleFieldKeydown(e, 0)}
+          use:autoresize={fieldValue(0)}
+          placeholder={model.fields[0]?.name ?? "Term"}
+          rows="1"
+          data-field-index="0"
+          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
+            rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+            focus-visible:outline-none"
+          aria-label={model.fields[0]?.name ?? "Term"}
+        ></textarea>
+
+        <div class="bg-border mt-2 w-px self-stretch" aria-hidden="true"></div>
+
+        <textarea
+          value={fieldValue(1)}
+          oninput={(e) => onUpdateField(1, (e.currentTarget as HTMLTextAreaElement).value)}
+          onkeydown={(e) => handleFieldKeydown(e, 1)}
+          use:autoresize={fieldValue(1)}
+          placeholder={model.fields[1]?.name ?? "Definition"}
+          rows="1"
+          data-field-index="1"
+          class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 flex-1 resize-none
+            rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+            focus-visible:outline-none"
+          aria-label={model.fields[1]?.name ?? "Definition"}
+        ></textarea>
+      </div>
+    {:else}
+      <div class="flex flex-col gap-2">
+        {#each model.fields as field, i (i)}
+          <div class="space-y-1">
+            <p class="text-muted-foreground text-xs">{field.name}</p>
+            <textarea
+              value={fieldValue(i)}
+              oninput={(e) => onUpdateField(i, (e.currentTarget as HTMLTextAreaElement).value)}
+              onkeydown={(e) => handleFieldKeydown(e, i)}
+              use:autoresize={fieldValue(i)}
+              placeholder={field.description ?? field.name}
+              rows="1"
+              data-field-index={i}
+              class="placeholder:text-muted-foreground/60 focus-visible:bg-background/40 w-full
+                resize-none rounded-sm bg-transparent px-1 py-1 text-sm leading-snug
+                focus-visible:outline-none"
+              aria-label={field.name}
+            ></textarea>
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if note.tags.length > 0}
       <div class="px-1">
@@ -174,8 +310,6 @@
 </div>
 
 <style>
-  /* Stop the textarea from rendering an off-grid scrollbar before autoresize
-     runs on the first paint. */
   textarea {
     overflow: hidden;
   }

@@ -6,10 +6,12 @@
   import { Input } from "$lib/components/ui/input";
   import CardRow from "./CardRow.svelte";
   import BulkEditBar from "./BulkEditBar.svelte";
-  import type { BuilderNote, Id } from "$lib/builder/types";
+  import type { BuilderModel, BuilderNote, Id } from "$lib/builder/types";
 
   interface Props {
     notes: BuilderNote[];
+    /** Lookup so each row can render the right shape for its model. */
+    models: Record<Id, BuilderModel>;
     onAdd: () => Id;
     onUpdateField: (noteId: Id, fieldIndex: number, value: string) => void;
     onDuplicate: (noteId: Id) => Id;
@@ -22,6 +24,7 @@
 
   let {
     notes,
+    models,
     onAdd,
     onUpdateField,
     onDuplicate,
@@ -229,6 +232,7 @@
     {#each filtered as note, i (note.id)}
       {@const showBeforeIndicator = dragOverId === note.id && dragPosition === "before"}
       {@const showAfterIndicator = dragOverId === note.id && dragPosition === "after"}
+      {@const model = models[note.modelId]}
       <div
         role="listitem"
         data-note-id={note.id}
@@ -243,24 +247,27 @@
         {#if showBeforeIndicator}
           <span class="bg-primary pointer-events-none absolute top-0 right-0 left-0 h-0.5"></span>
         {/if}
-        <CardRow
-          {note}
-          index={i + 1}
-          isLast={i === filtered.length - 1}
-          isSelected={selected.has(note.id)}
-          {selectionMode}
-          onUpdateField={(fi, v) => onUpdateField(note.id, fi, v)}
-          onDuplicate={() => {
-            void duplicate(note.id);
-          }}
-          onDelete={() => onDelete(note.id)}
-          onTabOffEnd={() => {
-            void tabOffEnd();
-          }}
-          onToggleSelect={({ extend }) => toggleSelect(note.id, i, extend)}
-          onAddTag={(tag) => onAddTag(note.id, tag)}
-          onRemoveTag={(tag) => onRemoveTag(note.id, tag)}
-        />
+        {#if model}
+          <CardRow
+            {note}
+            {model}
+            index={i + 1}
+            isLast={i === filtered.length - 1}
+            isSelected={selected.has(note.id)}
+            {selectionMode}
+            onUpdateField={(fi, v) => onUpdateField(note.id, fi, v)}
+            onDuplicate={() => {
+              void duplicate(note.id);
+            }}
+            onDelete={() => onDelete(note.id)}
+            onTabOffEnd={() => {
+              void tabOffEnd();
+            }}
+            onToggleSelect={({ extend }) => toggleSelect(note.id, i, extend)}
+            onAddTag={(tag) => onAddTag(note.id, tag)}
+            onRemoveTag={(tag) => onRemoveTag(note.id, tag)}
+          />
+        {/if}
         {#if showAfterIndicator}
           <span class="bg-primary pointer-events-none absolute right-0 bottom-0 left-0 h-0.5"
           ></span>
