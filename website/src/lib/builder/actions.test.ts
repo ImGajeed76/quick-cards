@@ -358,6 +358,81 @@ describe("note.move", () => {
   });
 });
 
+describe("deck.setDeadline", () => {
+  function todayPlus(days: number): string {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  test("creates a deadline-sourced config and replaces the deck's configId", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a")] }));
+    const oldConfigId = ctx.state.data.decks.a.configId;
+
+    ctx.actions.deck.setDeadline(["a"], { date: todayPlus(10) });
+
+    const newConfigId = ctx.state.data.decks.a.configId;
+    expect(newConfigId).not.toBe(oldConfigId);
+
+    const newConfig = ctx.state.data.configs[newConfigId];
+    expect(newConfig.source).toBe("deadline");
+    expect(newConfig.generatedFromDeadline?.date).toBe(todayPlus(10));
+
+    expect(ctx.state.data.decks.a.deadline?.date).toBe(todayPlus(10));
+  });
+
+  test("deletes the previous config when no other deck references it", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [] }));
+    const oldConfigId = ctx.state.data.decks.a.configId;
+
+    ctx.actions.deck.setDeadline(["a"], { date: todayPlus(5) });
+
+    expect(ctx.state.data.configs[oldConfigId]).toBeUndefined();
+  });
+
+  test("keeps the previous config if another deck still references it", () => {
+    const ctx = setup(buildState({ decks: [deck("a"), deck("b", null, 1)], notes: [] }));
+    // 'b' uses the same default config as 'a' from the test fixture.
+    const sharedConfigId = ctx.state.data.decks.a.configId;
+
+    ctx.actions.deck.setDeadline(["a"], { date: todayPlus(7) });
+
+    expect(ctx.state.data.configs[sharedConfigId]).toBeDefined();
+    expect(ctx.state.data.decks.b.configId).toBe(sharedConfigId);
+    expect(ctx.state.data.decks.a.configId).not.toBe(sharedConfigId);
+  });
+
+  test("Apply-to-all generates one config per deck (independent newPerDay)", () => {
+    const ctx = setup(
+      buildState({
+        decks: [deck("a"), deck("b", null, 1)],
+        notes: [note("n1", "a"), note("n2", "a"), note("n3", "a"), note("n4", "b")],
+      }),
+    );
+
+    ctx.actions.deck.setDeadline(["a", "b"], { date: todayPlus(10) });
+
+    const aCfg = ctx.state.data.configs[ctx.state.data.decks.a.configId];
+    const bCfg = ctx.state.data.configs[ctx.state.data.decks.b.configId];
+    expect(aCfg.newPerDay).toBe(3);
+    expect(bCfg.newPerDay).toBe(1);
+    expect(aCfg.id).not.toBe(bCfg.id);
+  });
+
+  test("undo reverts deck.configId, deck.deadline, and the config record", () => {
+    const ctx = setup(buildState({ decks: [deck("a")], notes: [note("n1", "a")] }));
+    const oldConfigId = ctx.state.data.decks.a.configId;
+
+    ctx.actions.deck.setDeadline(["a"], { date: todayPlus(10) });
+    ctx.undo();
+
+    expect(ctx.state.data.decks.a.configId).toBe(oldConfigId);
+    expect(ctx.state.data.decks.a.deadline).toBeNull();
+    expect(ctx.state.data.configs[oldConfigId]).toBeDefined();
+  });
+});
+
 describe("note.moveToDeck", () => {
   test("relocates notes to another deck and repacks both", () => {
     const ctx = setup(

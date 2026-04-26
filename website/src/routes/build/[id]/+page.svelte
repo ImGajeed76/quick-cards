@@ -8,6 +8,9 @@
   import EditorTopbar from "$lib/components/builder/EditorTopbar.svelte";
   import Sidebar from "$lib/components/builder/Sidebar.svelte";
   import CardList from "$lib/components/builder/CardList.svelte";
+  import DeadlineBar from "$lib/components/builder/DeadlineBar.svelte";
+  import DeadlineModal from "$lib/components/builder/DeadlineModal.svelte";
+  import type { DeadlineDeck } from "$lib/components/builder/DeadlineModal.svelte";
 
   import { loadPackage } from "$lib/builder/store/load";
   import { createAutosave } from "$lib/builder/store/autosave";
@@ -182,6 +185,22 @@
     );
   }
 
+  // ---- deadline modal ----------------------------------------------------
+
+  let deadlineModalOpen = $state(false);
+
+  const allDecksForDeadline = $derived.by<DeadlineDeck[]>(() => {
+    if (!pkgState) return [];
+    const data = pkgState.data;
+    return Object.values(data.decks)
+      .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
+      .map((d) => ({
+        id: d.id,
+        name: d.name || "Untitled deck",
+        isCustomized: data.configs[d.configId]?.source === "custom",
+      }));
+  });
+
   // Breadcrumbs from root to selected deck.
   const breadcrumbs = $derived.by<string[]>(() => {
     if (!pkgState || !selectedDeck) return [];
@@ -245,17 +264,23 @@
       <main class="flex-1 overflow-y-auto px-6 py-8">
         {#if selectedDeck}
           <div class="mx-auto max-w-3xl space-y-6">
-            <header class="space-y-2">
+            <header class="space-y-3">
               {#if breadcrumbs.length > 1}
                 <nav class="text-muted-foreground text-xs" aria-label="Deck path">
                   {breadcrumbs.slice(0, -1).join(" / ")} /
                 </nav>
               {/if}
               <h2 class="text-2xl font-semibold tracking-tight">{selectedDeck.name}</h2>
-              <p class="text-muted-foreground text-sm">
-                {selectedDeckCount}
-                {selectedDeckCount === 1 ? "card" : "cards"}
-              </p>
+              <div class="flex flex-wrap items-center gap-3">
+                <p class="text-muted-foreground text-sm">
+                  {selectedDeckCount}
+                  {selectedDeckCount === 1 ? "card" : "cards"}
+                </p>
+                <DeadlineBar
+                  deadline={selectedDeck.deadline}
+                  onOpen={() => (deadlineModalOpen = true)}
+                />
+              </div>
             </header>
 
             <CardList
@@ -275,5 +300,16 @@
         {/if}
       </main>
     </div>
+
+    {#if selectedDeck}
+      <DeadlineModal
+        bind:open={deadlineModalOpen}
+        allDecks={allDecksForDeadline}
+        currentDeckId={selectedDeck.id}
+        initialDeadline={selectedDeck.deadline}
+        onSave={({ deckIds, deadline }) => actions.deck.setDeadline(deckIds, deadline)}
+        onClose={() => (deadlineModalOpen = false)}
+      />
+    {/if}
   {/if}
 </div>

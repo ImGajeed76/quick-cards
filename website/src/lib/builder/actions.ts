@@ -7,8 +7,8 @@
  * stack handles every change.
  */
 
-import type { Id, PackageState } from "./types";
-import { newId, builtinModel } from "./defaults";
+import type { DeadlineSpec, Id, PackageState } from "./types";
+import { newId, builtinModel, deadlineTunedConfig } from "./defaults";
 import {
   collectSubtreeIds,
   isSimpleFlashcardDeck,
@@ -32,6 +32,12 @@ export interface BuilderActions {
     delete(id: Id): void;
     move(source: Id, target: Id, position: DropPosition): void;
     duplicateAsWriting(sourceId: Id, direction: "termDef" | "defTerm" | "both"): void;
+    /**
+     * Apply a deadline to one or more decks. Each affected deck gets its own
+     * deadline-tuned config (sized by its own note count) and its previous
+     * config is cleaned up if no other deck still references it.
+     */
+    setDeadline(deckIds: Id[], deadline: DeadlineSpec): void;
   };
   note: {
     /** Append a new empty note to the deck. Returns the new id so callers can focus it. */
@@ -113,6 +119,41 @@ export function createActions(mutate: Mutate): BuilderActions {
         mutate((draft) => {
           moveDeckInPlace({ decks: draft.data.decks, source, target, position });
         }, "Move deck");
+      },
+
+      setDeadline(deckIds, deadline) {
+        if (deckIds.length === 0) return;
+        mutate(
+          (draft) => {
+            for (const deckId of deckIds) {
+              const deck = draft.data.decks[deckId];
+              if (!deck) continue;
+              const totalCards = Object.values(draft.data.notes).filter(
+                (n) => n.deckId === deckId,
+              ).length;
+
+              const newConfig = deadlineTunedConfig({
+                packageId: draft.data.package.id,
+                name: `${deck.name || "Deck"} (deadline)`,
+                deadline,
+                totalCards,
+              });
+
+              const oldConfigId = deck.configId;
+              draft.data.configs[newConfig.id] = newConfig;
+              deck.configId = newConfig.id;
+              deck.deadline = deadline;
+
+              const stillReferenced = Object.values(draft.data.decks).some(
+                (d) => d.configId === oldConfigId,
+              );
+              if (!stillReferenced && draft.data.configs[oldConfigId]) {
+                Reflect.deleteProperty(draft.data.configs, oldConfigId);
+              }
+            }
+          },
+          deckIds.length === 1 ? "Set deadline" : `Set deadline for ${deckIds.length} decks`,
+        );
       },
 
       duplicateAsWriting(sourceId, direction): void {
