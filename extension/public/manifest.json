@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "QuickCards",
   "version": "1.0.0",
-  "description": "Export Quizlet flashcards: copy, TXT, CSV, JSON, PDF, Anki — or import straight to Knowt.",
+  "description": "Export Quizlet flashcards to PDF, Anki, TXT, CSV, JSON, or one-click import into Knowt.",
   "permissions": ["activeTab", "tabs", "storage", "clipboardWrite", "downloads", "cookies"],
   "host_permissions": [
     "*://*.quizlet.com/*",
