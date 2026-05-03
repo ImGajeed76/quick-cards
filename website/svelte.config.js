@@ -14,6 +14,14 @@ const config = {
       precompress: false,
       strict: true,
     }),
+    prerender: {
+      // Routes under /dev/ are local-only authoring tools (e.g. promo-tile preview)
+      // and intentionally throw 404 in production. Ignore those, fail loudly on anything else.
+      handleHttpError: ({ status, path }) => {
+        if (status === 404 && path.startsWith("/dev/")) return;
+        throw new Error(`${status} ${path}`);
+      },
+    },
   },
 };
 
