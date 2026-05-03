@@ -6,6 +6,7 @@ const pages = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
   { path: "/install", changefreq: "monthly", priority: "0.8" },
   { path: "/knowt-alternative", changefreq: "monthly", priority: "0.7" },
+  { path: "/privacy", changefreq: "yearly", priority: "0.3" },
 ];
 
 export function GET(): Response {

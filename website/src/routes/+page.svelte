@@ -641,10 +641,11 @@
         </a>
         · MIT licensed.
       </div>
-      <div class="flex items-center gap-5">
+      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
         <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
           Coming from Knowt?
         </a>
+        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
         <a
           href="https://github.com/ImGajeed76/quick-cards"
           class="hover:text-foreground transition-colors"
