@@ -44,22 +44,18 @@ Required only for the optional "Import to Knowt" feature. The extension calls ch
 
 ## Host permissions
 
-### `*://*.quizlet.com/*`
+The Chrome Web Store dashboard collects all host-permission justifications in
+a single 1,000-character field. Paste the block below verbatim.
 
 ```
-Where the user's flashcard sets live. The extension fetches set data from quizlet.com via the public web API (https://quizlet.com/webapi/3.4/studiable-item-documents) and injects a small floating widget on Quizlet set pages so users can copy or export with one click. The widget only renders on URLs matching /{numeric-id}/{slug} (i.e. Quizlet set main pages), not on Quizlet's homepage, study modes, or other pages.
-```
+- *://*.quizlet.com/*
+Fetches set data from quizlet.com via its public web API and injects a small floating widget on Quizlet set pages for one-click copy/export. The widget only renders on /{numeric-id}/{slug} URLs (set main pages).
 
-### `https://knowt.com/*`
+- https://knowt.com/*
+Required for the chrome.cookies API to read Knowt's session cookie when the user clicks "Import to Knowt", so they don't re-enter credentials. No content scripts are injected into knowt.com.
 
-```
-Required by the chrome.cookies API to read Knowt's own session cookie when the user clicks "Import to Knowt". Used to authenticate the request to Knowt's API on the user's behalf, so they don't have to re-enter their credentials. The extension does not inject content scripts into knowt.com.
-```
-
-### `https://3gso5evnnzbr7l4ubazdtfa4wq.appsync-api.us-east-1.amazonaws.com/*`
-
-```
-This is Knowt's GraphQL API endpoint on AWS AppSync, the same endpoint Knowt's own web app calls. The extension calls two mutations only: createFlashcardSetV2 to create the empty set, and batchUpdateFlashcard to populate the cards. The endpoint is hardcoded so we do not need broad host access. Source: https://github.com/ImGajeed76/quick-cards/blob/main/extension/src/lib/knowt-api.ts
+- https://3gso5evnnzbr7l4ubazdtfa4wq.appsync-api.us-east-1.amazonaws.com/*
+Knowt's GraphQL API endpoint on AWS AppSync (same as Knowt's own web app). Calls only createFlashcardSetV2 and batchUpdateFlashcard. Hardcoded to avoid broad host access.
 ```
 
 ---
