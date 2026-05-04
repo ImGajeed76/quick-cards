@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { ArrowLeft, Check, Puzzle, X } from "@lucide/svelte";
-  import { SITE_NAME, SITE_URL } from "$lib/site";
+  import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
   import { track } from "$lib/analytics";
   import { reveal } from "$lib/actions/reveal";
 
@@ -114,7 +114,7 @@
   <meta property="og:description" content={description} />
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
-  <!-- eslint-disable svelte/no-at-html-tags — content is our own JSON.stringify output, no user input -->
+  <!-- eslint-disable svelte/no-at-html-tags -->
   {@html faqJsonLdHtml}
   {@html breadcrumbJsonLdHtml}
   {@html appJsonLdHtml}
@@ -242,7 +242,7 @@
   <!-- Closing -->
   <section use:reveal class="mt-20">
     <p class="text-muted-foreground text-[15px] leading-7">
-      Install takes about a minute. Source is on
+      One click from the Chrome Web Store. Source is on
       <a
         href="https://github.com/ImGajeed76/quick-cards"
         class="text-foreground hover:text-primary underline-offset-4 hover:underline"
@@ -250,7 +250,7 @@
         GitHub
       </a>.
     </p>
-    <Button href="/install" onclick={trackInstallClick} class="mt-5">
+    <Button href={CWS_URL} onclick={trackInstallClick} class="mt-5">
       <Puzzle />
       Install {SITE_NAME}
     </Button>

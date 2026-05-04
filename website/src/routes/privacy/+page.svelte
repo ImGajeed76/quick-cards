@@ -6,7 +6,7 @@
   const title = `Privacy Policy | ${SITE_NAME}`;
   const description = `What data ${SITE_NAME} touches and what we do (and don't do) with it.`;
 
-  const LAST_UPDATED = "2026-04-28";
+  const LAST_UPDATED = "2026-05-03";
 
   // Verify these stay current. Knowt has moved its policy URL before.
   const QUIZLET_PRIVACY = "https://quizlet.com/privacy";
@@ -39,8 +39,8 @@
 
   <p class="text-muted-foreground mt-8 text-[15px] leading-7">
     {SITE_NAME} is a Chrome extension and a companion website that export Quizlet flashcards or vocab
-    lists to formats like PDF, Anki, TXT, CSV, JSON, or directly into Knowt. This page explains what
-    data {SITE_NAME} touches and what we do (and don't do) with it.
+    lists to formats like PDF, Anki, TXT, CSV, JSON, or directly into Knowt. This page explains what data
+    {SITE_NAME} touches and what we do (and don't do) with it.
   </p>
 
   <div class="border-border bg-card/50 mt-6 rounded-lg border p-5">
@@ -115,8 +115,8 @@
 
   <h3 class="text-foreground mt-8 text-lg font-medium">Other exports</h3>
   <p class="text-muted-foreground mt-2 text-[15px] leading-7">
-    PDF, Anki <code
-      class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]">.apkg</code
+    PDF, Anki <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
+      >.apkg</code
     >, TXT, CSV, and JSON exports are generated locally and saved straight to your downloads folder.
     They never touch a server we control.
   </p>
@@ -246,14 +246,9 @@
 
   <h2 class="mt-16 text-2xl font-semibold tracking-tight">GitHub</h2>
   <p class="text-muted-foreground mt-3 text-[15px] leading-7">
-    The source code, releases, and bug tracker live on GitHub. The
-    <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
-      >/install</code
-    >
-    page on this site asks GitHub's public API for the latest release, so opening that page (or clicking
-    through to download it) results in a direct request from your browser to GitHub. The same is true
-    for visiting the repo or filing an issue. GitHub may log your IP for their own security purposes.
-    See
+    The source code, releases, and bug tracker live on GitHub. Visiting the repository, filing an
+    issue, or downloading a release zip from there results in a direct request from your browser to
+    GitHub. GitHub may log your IP for their own security purposes. See
     <a
       href={GITHUB_PRIVACY}
       class="text-primary inline-flex items-center gap-1 hover:underline"

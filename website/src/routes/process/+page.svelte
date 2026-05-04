@@ -39,6 +39,7 @@
     saveFile,
   } from "$lib/export/formatting";
   import type { FlashcardSet } from "$lib/export/types";
+  import { CWS_URL } from "$lib/site";
 
   // ────────── State ──────────
 
@@ -251,7 +252,7 @@
   let shareCopied = $state(false);
   let shareFailed = $state(false);
 
-  /** Computes the current `/process` URL — name, description, cards are all in the
+  /** Computes the current `/process` URL. Name, description, cards are all in the
    *  compressed `?d=` payload (no separate query params). */
   function buildShareUrl(): { url: string; tooLong: boolean } {
     if (!payload) return { url: "/process", tooLong: false };
@@ -263,7 +264,7 @@
     return { url: `/process?d=${encoded}`, tooLong: false };
   }
 
-  /** Sync the address bar with the current payload — no navigation. */
+  /** Sync the address bar with the current payload. No navigation. */
   function syncUrl() {
     if (!payload) return;
     const { url } = buildShareUrl();
@@ -287,7 +288,7 @@
 </script>
 
 <svelte:head>
-  <title>Export — QuickCards</title>
+  <title>Export · QuickCards</title>
   <meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
@@ -306,15 +307,15 @@
 
     <h1 class="mt-12 text-3xl font-semibold tracking-tight">Quizlet links need the extension</h1>
     <p class="text-muted-foreground mt-3 text-[15px] leading-7">
-      We can't fetch Quizlet sets from the web directly — Cloudflare blocks cross-origin requests.
+      We can't fetch Quizlet sets from the web directly. Cloudflare blocks cross-origin requests.
       The extension runs inside your own browser session, so it works around this without any
       workarounds of ours.
     </p>
 
     <div class="mt-8 flex flex-wrap gap-3">
-      <Button href="/install">
+      <Button href={CWS_URL}>
         <Puzzle />
-        Install the extension
+        Add to Chrome
       </Button>
       <Button variant="outline" href="/">
         <ArrowLeft />
@@ -542,7 +543,7 @@
           Generating PDF…
         {:else}
           <Download />
-          PDF — Vocab list
+          PDF · Vocab list
         {/if}
       </Button>
       <Button
@@ -556,7 +557,7 @@
           Generating PDF…
         {:else}
           <Download />
-          PDF — Flashcards
+          PDF · Flashcards
         {/if}
       </Button>
       <Button
@@ -570,7 +571,7 @@
           Generating .apkg…
         {:else}
           <Download />
-          Anki — .apkg
+          Anki · .apkg
         {/if}
       </Button>
     </div>

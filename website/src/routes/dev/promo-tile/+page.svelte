@@ -24,13 +24,7 @@
     <div class="tile" data-promo-tile>
       <div class="content">
         <div class="lockup">
-          <img
-            src="/favicon-128-transparent.png"
-            alt=""
-            class="logo"
-            width="80"
-            height="80"
-          />
+          <img src="/favicon-128-transparent.png" alt="" class="logo" width="80" height="80" />
           <span class="wordmark">{SITE_NAME}</span>
         </div>
         <div class="sub">for Quizlet</div>

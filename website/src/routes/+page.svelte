@@ -32,11 +32,15 @@
   import { reveal } from "$lib/actions/reveal";
   import { nextExample, FORMAT_LABELS, type Example } from "$lib/demo";
   import { formatCards, toCsv } from "$lib/export/formatting";
-  import { SITE_NAME, SITE_URL, SITE_TAGLINE } from "$lib/site";
+  import { SITE_NAME, SITE_URL, SITE_TAGLINE, CWS_URL } from "$lib/site";
 
   const title = `${SITE_NAME} · ${SITE_TAGLINE}`;
   const description =
-    "Paste a Quizlet URL or a vocab list. Export to Anki (.apkg), PDF flashcards, PDF vocab list, CSV, JSON, or plain text. Runs in your browser. No account, no install.";
+    "Paste a Quizlet URL or a vocab list. Export to PDF flashcards, PDF vocab list, Anki (.apkg), TXT, CSV, or JSON. Runs in your browser. No account, no install.";
+
+  function trackInstallClick(source: string): void {
+    track("Install CTA click", { source });
+  }
 
   const appJsonLd = {
     "@context": "https://schema.org",
@@ -75,7 +79,7 @@
 
   const canContinue = $derived(value.trim().length > 0);
 
-  // Stars count-up — only animate when the number is large enough that
+  // Stars count-up. Only animate when the number is large enough that
   // counting is actually visible. Otherwise just show the final value.
   onMount(() => {
     const initial = data.stars;
@@ -151,7 +155,7 @@
 
   // Linear-style bordered hover: update per-card CSS vars on every mouse move
   // in the grid so each card's ::after gradient tracks the cursor. The border
-  // glow is shown for every card while the cursor is anywhere in the grid —
+  // glow is shown for every card while the cursor is anywhere in the grid,
   // no flicker when moving through the gap between cards.
   function handleCardMove(event: MouseEvent) {
     const container = event.currentTarget as HTMLElement;
@@ -171,7 +175,7 @@
     null,
   );
 
-  // Tokens for the word-by-word blur animation — splits on whitespace,
+  // Tokens for the word-by-word blur animation, splits on whitespace,
   // keeping the whitespace as separators so layout (spaces, newlines) is
   // preserved. Only the non-whitespace tokens animate.
   const tokenized = $derived(
@@ -291,7 +295,13 @@
           <span class="tabular-nums">{formatStars(displayStars)}</span>
         {/if}
       </Button>
-      <Button variant="outline" size="sm" href="/install" class="rounded-full">
+      <Button
+        variant="outline"
+        size="sm"
+        href={CWS_URL}
+        onclick={() => trackInstallClick("header")}
+        class="rounded-full"
+      >
         Get the extension
       </Button>
     </header>
@@ -355,7 +365,7 @@
         </h2>
         <p class="text-muted-foreground mx-auto mt-3 max-w-xl text-[15px] leading-6">
           QuickCards figures out what you pasted.<br />
-          Export to Anki, PDF, CSV, JSON, or plain text.
+          Export to PDF, Anki, TXT, CSV, or JSON.
         </p>
       </div>
 
@@ -411,14 +421,14 @@
                   class="demo-export-btn"
                   onclick={() => openPreview("pdf-list")}
                 >
-                  <Download class="size-3.5" /> PDF — Vocab list
+                  <Download class="size-3.5" /> PDF · Vocab list
                 </button>
                 <button
                   type="button"
                   class="demo-export-btn"
                   onclick={() => openPreview("pdf-cards")}
                 >
-                  <Download class="size-3.5" /> PDF — Flashcards
+                  <Download class="size-3.5" /> PDF · Flashcards
                 </button>
                 <button type="button" class="demo-export-btn" onclick={() => openPreview("anki")}>
                   <Download class="size-3.5" /> Anki .apkg
@@ -443,13 +453,13 @@
           {#if previewFormat === "txt"}TXT preview{/if}
           {#if previewFormat === "csv"}CSV preview{/if}
           {#if previewFormat === "json"}JSON preview{/if}
-          {#if previewFormat === "pdf-list"}PDF — Vocab list{/if}
-          {#if previewFormat === "pdf-cards"}PDF — Flashcards{/if}
+          {#if previewFormat === "pdf-list"}PDF · Vocab list{/if}
+          {#if previewFormat === "pdf-cards"}PDF · Flashcards{/if}
           {#if previewFormat === "anki"}Anki .apkg export{/if}
         </Dialog.Title>
         <Dialog.Description>
           {#if previewFormat === "txt" || previewFormat === "csv" || previewFormat === "json"}
-            Exactly what would land in your file — your separators, your cards, nothing else.
+            Exactly what would land in your file. Your separators, your cards, nothing else.
           {:else if previewFormat === "pdf-list"}
             Violet-themed table with auto-wrapping and page breaks. Prints beautifully.
           {:else if previewFormat === "pdf-cards"}
@@ -499,9 +509,9 @@
                 <span class="preview-anki-label">Three decks:</span>
               </div>
               <ul class="preview-anki-list">
-                <li>Flashcards (both directions) — {currentExample.pairs.length} cards</li>
-                <li>Type term → definition — {currentExample.pairs.length} cards</li>
-                <li>Type definition → term — {currentExample.pairs.length} cards</li>
+                <li>Flashcards (both directions), {currentExample.pairs.length} cards</li>
+                <li>Type term → definition, {currentExample.pairs.length} cards</li>
+                <li>Type definition → term, {currentExample.pairs.length} cards</li>
               </ul>
               <div class="preview-anki-meta">
                 FSRS retention and learning steps auto-tuned to <strong class="text-foreground"
@@ -606,15 +616,15 @@
               between tabs.
             </p>
             <div class="mt-6 flex flex-wrap gap-3">
-              <Button href="/install">
+              <Button href={CWS_URL} onclick={() => trackInstallClick("body")}>
                 <Puzzle />
-                Install the extension
+                Add to Chrome
               </Button>
               <Button
                 variant="outline"
-                href="https://github.com/ImGajeed76/quick-cards/releases/latest"
+                href="https://github.com/ImGajeed76/quick-cards/tree/main/extension#sideload-manual-install"
               >
-                Latest release
+                Sideload (manual)
               </Button>
             </div>
           </div>
