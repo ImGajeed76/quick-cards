@@ -2,6 +2,13 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/install",
+      "destination": "https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/_app/immutable/(.*)",
