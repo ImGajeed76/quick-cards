@@ -1,7 +1,9 @@
 // Background service worker for QuickCards
 // Handles all file downloads and PDF generation.
-// Downloads MUST happen here — blob URLs created in the popup crash the browser
-// because the popup's lifecycle is too short / unstable for chrome.downloads.
+// Downloads MUST happen here. Blob URLs created in the popup crash the browser
+// because the popup's lifecycle is too short / unstable for chrome.downloads;
+// data: URLs (the previous workaround) are blocked by Firefox's downloads API.
+// Blob URLs created here in the background page work in both Chrome and Firefox.
 
 import { generateFlashcardsPDF } from "../lib/pdf-flashcards";
 import { generateListPDF } from "../lib/pdf-list";
@@ -129,16 +131,7 @@ async function handleFileDownload(
   filename: string,
   mimeType: string,
 ): Promise<void> {
-  // Encode content as a data URL — avoids blob URLs entirely.
-  // Base64 is used because content may contain newlines, commas, unicode, etc.
-  const base64 = btoa(unescape(encodeURIComponent(content)));
-  const dataUrl = `data:${mimeType};base64,${base64}`;
-
-  await chrome.downloads.download({
-    url: dataUrl,
-    filename: sanitizeFilename(filename),
-    saveAs: true,
-  });
+  await downloadBlob(new Blob([content], { type: mimeType }), filename);
 }
 
 // ── PDF generation + download ───────────────────────────
@@ -155,14 +148,7 @@ async function handlePDFGeneration(type: "list" | "cards", set: FlashcardSet): P
     filename = `${set.title || "flashcards"}-cards.pdf`;
   }
 
-  // Get PDF as a data URI (base64) — no blob URLs needed
-  const dataUri = doc.output("datauristring");
-
-  await chrome.downloads.download({
-    url: dataUri,
-    filename: sanitizeFilename(filename),
-    saveAs: true,
-  });
+  await downloadBlob(doc.output("blob"), filename);
 }
 
 // ── Anki export ─────────────────────────────────────────
@@ -197,18 +183,61 @@ async function handleAnkiGeneration(
     },
   });
 
-  const dataUrl = bytesToDataUrl(bytes, "application/octet-stream");
   const title = set.title || "flashcards";
+  const blob = new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" });
+  await downloadBlob(blob, `${title}.apkg`);
+}
 
-  await chrome.downloads.download({
-    url: dataUrl,
-    filename: sanitizeFilename(`${title}.apkg`),
-    saveAs: true,
-  });
+// ── Helpers ─────────────────────────────────────────────
+
+// Chrome MV3 service workers don't expose URL.createObjectURL but accept data:
+// URLs in chrome.downloads. Firefox event pages have createObjectURL but block
+// data: URLs. Branch per environment to keep both happy.
+const SUPPORTS_BLOB_URL = typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
+
+async function downloadBlob(blob: Blob, filename: string): Promise<void> {
+  const safeName = sanitizeFilename(filename);
+
+  if (!SUPPORTS_BLOB_URL) {
+    const buf = await blob.arrayBuffer();
+    const dataUrl = bytesToDataUrl(new Uint8Array(buf), blob.type || "application/octet-stream");
+    await chrome.downloads.download({ url: dataUrl, filename: safeName, saveAs: true });
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  let downloadId: number | undefined;
+  try {
+    downloadId = await chrome.downloads.download({ url, filename: safeName, saveAs: true });
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+
+  // Revoke the blob URL once the download is no longer reading from it. We
+  // listen for completion/failure and fall back to a 5-minute timeout so a
+  // missed event cannot leak the underlying bytes indefinitely.
+  const onChanged = (delta: chrome.downloads.DownloadDelta): void => {
+    if (delta.id !== downloadId) return;
+    const next = delta.state?.current;
+    if (next === "complete" || next === "interrupted") {
+      URL.revokeObjectURL(url);
+      chrome.downloads.onChanged.removeListener(onChanged);
+    }
+  };
+  chrome.downloads.onChanged.addListener(onChanged);
+  setTimeout(
+    () => {
+      URL.revokeObjectURL(url);
+      chrome.downloads.onChanged.removeListener(onChanged);
+    },
+    5 * 60 * 1000,
+  );
 }
 
 function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
-  // Chunked base64 — spreading a large Uint8Array into fromCharCode overflows the arg limit.
+  // Chunked base64. Spreading a large Uint8Array into fromCharCode overflows
+  // the argument limit.
   let binary = "";
   const chunkSize = 0x8000;
   for (let i = 0; i < bytes.length; i += chunkSize) {
@@ -217,8 +246,6 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
   }
   return `data:${mimeType};base64,${btoa(binary)}`;
 }
-
-// ── Helpers ─────────────────────────────────────────────
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-z0-9\-_.]/gi, "_").slice(0, 200);

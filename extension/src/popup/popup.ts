@@ -439,11 +439,17 @@ Alpine.data("popup", () => ({
       });
     }
 
-    exportSet = {
-      title: titles.join(" + "),
-      description: `Merged from ${titles.length} sets`,
-      cards,
-    };
+    // Cards come from Alpine-reactive state, so they are wrapped in Proxies.
+    // Firefox's runtime.sendMessage refuses to clone Proxies; strip them with a
+    // JSON round-trip before any export path can pass this set across the
+    // popup ↔ background boundary.
+    exportSet = JSON.parse(
+      JSON.stringify({
+        title: titles.join(" + "),
+        description: `Merged from ${titles.length} sets`,
+        cards,
+      }),
+    ) as FlashcardSet;
     this.exportCount = exportSet.cards.length;
     this.exportSource = "merge";
     this.screen = "export";
