@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { ArrowLeft, Check, Puzzle, X } from "@lucide/svelte";
+  import { resolve } from "$app/paths";
   import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
   import { track } from "$lib/analytics";
   import { reveal } from "$lib/actions/reveal";
@@ -13,23 +14,23 @@
   const faqs: { q: string; a: string }[] = [
     {
       q: "Why does Knowt only import 100 Quizlet cards?",
-      a: "It's a limitation of Knowt's current Quizlet importer, not of your set. The full card data is still in Quizlet. QuickCards gets it a different way, which is why there's no cap.",
+      a: "Technically it does not, but the default behavior caps at 100 unless you remember to scroll to the bottom of the Quizlet set and click 'See more' before triggering the import. Knowt's own help center confirms this. Most users do not know about that step, which is why the perception is widespread that the limit is fixed at 100. QuickCards uses a different fetch path that does not depend on the page being scrolled, so it gets the whole set without the See-more dance.",
     },
     {
       q: "How can I import more than 100 cards from Quizlet to Knowt?",
-      a: "Install the QuickCards extension, open the Quizlet set, and use the widget that appears on the page to send it to Knowt. The full set lands in your Knowt account, any size.",
+      a: "Two paths. Either scroll all the way down on the Quizlet set, click 'See more', and only then run Knowt's importer. Or install the QuickCards extension, open the Quizlet set, and use the widget that appears on the page to send the whole thing into Knowt. The QuickCards path skips the manual scroll step entirely.",
     },
     {
       q: "Can I merge multiple Quizlet sets into one Knowt set?",
-      a: "Yes. Open each set in its own tab and QuickCards will offer to merge them into a single deck before export. Useful when a teacher splits a semester's vocab across weekly sets.",
+      a: "Yes, with QuickCards. Open each set in its own tab and QuickCards offers to merge them into a single deck before export, with optional deduplication. Useful when a teacher splits a semester's vocab across weekly sets. Knowt's own importer is one-set-at-a-time.",
     },
     {
       q: "Is QuickCards free?",
-      a: "Free. Open-source (MIT licensed) on GitHub. No account needed.",
+      a: "Free. Open source (MIT licensed) on GitHub. No account needed.",
     },
     {
       q: "Does QuickCards work with Anki too?",
-      a: "Yes. QuickCards exports Anki deck files (.apkg). There's an optional deadline mode that presets deck options for tight timelines (anecdotal, not science-backed). It also exports CSV, JSON, TXT, a print-ready flashcards PDF, and a vocab-list PDF.",
+      a: "Yes. QuickCards exports Anki deck files (.apkg). There's an optional deadline mode that presets deck options for tight timelines (anecdotal, useful under two weeks, not science-backed). It also exports CSV, JSON, TXT, a print-ready flashcards PDF, and a vocab-list PDF.",
     },
     {
       q: "Do I need a Quizlet login?",
@@ -37,11 +38,11 @@
     },
     {
       q: "Is Knowt still worth using?",
-      a: "Yes. QuickCards is a better import path, not a replacement. Install it, get your full Quizlet sets into Knowt, then study inside Knowt as usual.",
+      a: "Yes, depending on how you study. Knowt is a strong choice if you want a free Quizlet-shaped study experience without paying for Quizlet Plus. The trade-offs versus Quizlet are real (ads, more aggressive than some users like) but for a lot of students it is the right answer. QuickCards is for the moment when you specifically need your data out, in a different format, or imported into Knowt without the scroll-then-click ritual.",
     },
     {
-      q: "What's the catch?",
-      a: "None. QuickCards runs in your browser, so your cards never touch a server we control. Source is on GitHub if you want to inspect it or fork it.",
+      q: "What's the catch with QuickCards?",
+      a: "None we can think of. QuickCards runs in your browser, so your cards never touch a server we control. No account, no upload, no ads. Source is on GitHub if you want to inspect it or fork it.",
     },
   ];
 
@@ -133,13 +134,14 @@
       <span class="text-primary">Here's why, and what to do about it.</span>
     </h1>
     <p class="text-muted-foreground mt-6 text-[17px] leading-7">
-      Knowt's Quizlet importer caps at 100 cards per set. If your set is larger, the rest don't come
-      across. {SITE_NAME} has no such cap. Install it, open your Quizlet set, and send the whole thing
-      into Knowt, or into Anki, PDF, CSV, or a plain file.
+      Knowt's Quizlet importer stops at 100 cards by default. There is a workaround inside Knowt
+      (scroll all the way down, click 'See more', then import), and most people miss it.
+      {SITE_NAME} skips the ritual: open your Quizlet set, click the QuickCards banner, send the whole
+      thing into Knowt. Same Knowt account, no scroll-then-click, any size.
     </p>
   </header>
 
-  <!-- What the limit looks like, from the user's side -->
+  <!-- The honest version of the cap, from the user's side -->
   <section use:reveal class="mt-20">
     <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Does this sound familiar?</h2>
     <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
@@ -149,8 +151,15 @@
         shows up in review.
       </p>
       <p>
-        {SITE_NAME} doesn't have that cap. It's a browser extension that runs in your own Quizlet tab,
-        so it has access the same way Quizlet's own app does. Full set, regardless of size.
+        Technically the cap is not fixed at 100. Knowt's help center documents the workaround:
+        before triggering the import, you have to open the Quizlet set, scroll all the way to the
+        bottom, click "See more", and only then run the importer. Most people miss that step, so the
+        practical effect is the same as a hard cap.
+      </p>
+      <p>
+        {SITE_NAME} reads the set a different way that does not depend on what the page has rendered,
+        so the scroll-then-click step is unnecessary. Full set, regardless of size, into Knowt or into
+        Anki, PDF, CSV, JSON, TXT.
       </p>
     </div>
     <figure class="mt-8">
@@ -167,6 +176,27 @@
         The {SITE_NAME} widget appears on any Quizlet set.
       </figcaption>
     </figure>
+  </section>
+
+  <!-- Be fair: what Knowt is good at -->
+  <section use:reveal class="mt-20">
+    <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">When Knowt is the right call</h2>
+    <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
+      <p>
+        QuickCards and Knowt are not the same shape and not really competing. Knowt is a free
+        Quizlet-style study app with its own learn/test/match modes; QuickCards is a converter that
+        gets your data out (or into Knowt) without changing where you study.
+      </p>
+      <p>
+        If you want to keep studying in a Quizlet-shaped product without paying for Quizlet Plus,
+        Knowt is a strong answer. The trade-offs are real (ads, an account is required) but for a
+        lot of students it is the right pick. We use it ourselves for some sets.
+      </p>
+      <p>
+        If you want your cards in Anki, on a printable PDF, in a CSV for a spreadsheet, or in Knowt
+        without the scroll-then-click step, that is where {SITE_NAME} fits.
+      </p>
+    </div>
   </section>
 
   <!-- Comparison table -->
@@ -191,13 +221,18 @@
         <tbody class="[&_tr]:border-border/60 [&_td]:py-3 [&_td]:pr-4 [&_tr]:border-b">
           <tr>
             <td class="text-muted-foreground">Cards per Quizlet set</td>
-            <td class="font-medium">No limit</td>
-            <td class="text-muted-foreground">Up to 100</td>
+            <td class="font-medium">No limit, no extra steps</td>
+            <td class="text-muted-foreground">100 by default; "See more" first to get the rest</td>
           </tr>
           <tr>
             <td class="text-muted-foreground">Merge multiple Quizlet sets</td>
             <td><Check class="text-primary size-4" aria-label="Yes" /></td>
             <td><X class="text-muted-foreground size-4" aria-label="No" /></td>
+          </tr>
+          <tr>
+            <td class="text-muted-foreground">Account required</td>
+            <td><X class="text-muted-foreground size-4" aria-label="No" /></td>
+            <td>Knowt account (free)</td>
           </tr>
           <tr>
             <td class="text-muted-foreground">Export targets</td>
@@ -254,6 +289,38 @@
       <Puzzle />
       Install {SITE_NAME}
     </Button>
+  </section>
+
+  <!-- Related reading -->
+  <section use:reveal class="mt-20">
+    <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">More on what you can do</h2>
+    <ul class="text-muted-foreground mt-5 space-y-3 text-[15px] leading-7">
+      <li>
+        <a
+          href={resolve("/extension")}
+          class="text-foreground hover:text-primary underline-offset-4 hover:underline"
+        >
+          Browser extension
+        </a>: what the extension actually does on Quizlet pages, beyond the Knowt import.
+      </li>
+      <li>
+        <a
+          href={resolve("/tool")}
+          class="text-foreground hover:text-primary underline-offset-4 hover:underline"
+        >
+          Web tool
+        </a>: paste any flashcard data (CSV, ChatGPT output, vocab list) and convert without
+        installing anything.
+      </li>
+      <li>
+        <a
+          href={resolve("/quizlet-to-anki")}
+          class="text-foreground hover:text-primary underline-offset-4 hover:underline"
+        >
+          Quizlet to Anki guide
+        </a>: when Anki, not Knowt, is where you actually want to study.
+      </li>
+    </ul>
   </section>
 
   <p class="text-muted-foreground mt-16 text-xs">

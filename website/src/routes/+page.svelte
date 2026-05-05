@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { Button } from "$lib/components/ui/button";
-  import { Textarea } from "$lib/components/ui/textarea";
   import { Input } from "$lib/components/ui/input";
   import { Label } from "$lib/components/ui/label";
   import { Calendar } from "$lib/components/ui/calendar";
@@ -24,10 +22,9 @@
     Link2,
     Puzzle,
     ShieldCheck,
+    ClipboardPaste,
   } from "@lucide/svelte";
   import Github from "$lib/components/icons/Github.svelte";
-  import { parseInput } from "$lib/parse";
-  import { encodePayload, type SharePayload } from "$lib/share";
   import { track } from "$lib/analytics";
   import { reveal } from "$lib/actions/reveal";
   import { nextExample, FORMAT_LABELS, type Example } from "$lib/demo";
@@ -36,7 +33,7 @@
 
   const title = `${SITE_NAME} · ${SITE_TAGLINE}`;
   const description =
-    "Paste a Quizlet URL or a vocab list. Export to PDF flashcards, PDF vocab list, Anki (.apkg), TXT, CSV, or JSON. Runs in your browser. No account, no install.";
+    "Two free, open-source tools for getting your flashcards anywhere they need to go. Browser extension for Quizlet, web tool for any pasted data. Export to Anki (.apkg), PDF, CSV, JSON, or import straight into Knowt.";
 
   function trackInstallClick(source: string): void {
     track("Install CTA click", { source });
@@ -72,12 +69,8 @@
 
   let { data } = $props();
 
-  let value = $state("");
-  let error = $state<string | null>(null);
   // svelte-ignore state_referenced_locally
   let displayStars = $state<number | null>(data.stars);
-
-  const canContinue = $derived(value.trim().length > 0);
 
   // Stars count-up. Only animate when the number is large enough that
   // counting is actually visible. Otherwise just show the final value.
@@ -104,49 +97,6 @@
     if (n < 1000) return n.toString();
     const k = n / 1000;
     return (Math.round(k * 10) / 10).toString().replace(/\.0$/, "") + "k";
-  }
-
-  function onKeydown(e: KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canContinue) {
-      e.preventDefault();
-      handleContinue();
-    }
-  }
-
-  const SHARE_URL_MAX = 8000;
-
-  async function handleContinue() {
-    if (!canContinue) return;
-    error = null;
-    const result = parseInput(value);
-
-    track("Continue", { kind: result.kind });
-
-    let payload: SharePayload;
-    if (result.kind === "vocab") {
-      payload = {
-        kind: "vocab",
-        set: { title: "", description: "", cards: result.pairs },
-      };
-    } else if (result.kind === "quizlet") {
-      payload = { kind: "quizlet", sets: result.sets };
-    } else if (result.kind === "unknown") {
-      error = result.reason;
-      return;
-    } else {
-      error = "Paste something first.";
-      return;
-    }
-
-    const encoded = encodePayload(payload);
-    if (encoded.length > SHARE_URL_MAX) {
-      sessionStorage.setItem("quickcards:payload", JSON.stringify(payload));
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() doesn't accept query strings; base is resolved, `?d=...` is appended
-      await goto(resolve("/process") + "?d=local");
-    } else {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve -- resolve() doesn't accept query strings; base is resolved, `?d=...` is appended
-      await goto(resolve("/process") + `?d=${encoded}`);
-    }
   }
 
   function scrollToAbout() {
@@ -306,38 +256,50 @@
       </Button>
     </header>
 
-    <!-- Main hero -->
+    <!-- Main hero. Brand-first hub. The two distinct surfaces are surfaced
+         as parallel CTAs so a visitor can pick the path that fits their
+         situation without scrolling. -->
     <main class="flex flex-1 flex-col items-center justify-center px-4 pb-24">
-      <div class="w-full max-w-2xl">
-        <h1 class="mb-10 text-center text-5xl font-bold tracking-tight sm:text-6xl">
+      <div class="w-full max-w-3xl text-center">
+        <span
+          class="text-muted-foreground/90 mb-5 inline-block font-mono text-xs tracking-wider uppercase"
+        >
+          Two surfaces, one job
+        </span>
+        <h1 class="text-5xl font-bold tracking-tight sm:text-6xl">
           Export Cards, <span class="text-primary">quick.</span>
         </h1>
+        <p class="text-muted-foreground mx-auto mt-6 max-w-xl text-lg leading-relaxed">
+          A browser extension that exports any Quizlet set, and a web tool for any flashcard data
+          you have. Anki, PDF, CSV, JSON. Free, in your browser, open source.
+        </p>
 
-        <div
-          class="border-input bg-card focus-within:border-ring focus-within:ring-ring/50 flex items-start gap-2 rounded-lg border p-2 shadow-lg shadow-black/20 transition-[color,box-shadow] focus-within:ring-3"
-        >
-          <Textarea
-            bind:value
-            onkeydown={onKeydown}
-            rows={1}
-            placeholder="Paste a Quizlet URL or a vocab list…"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            data-gramm="false"
-            data-gramm_editor="false"
-            data-enable-grammarly="false"
-            class="max-h-[40vh] min-h-9 flex-1 resize-none rounded-none border-0 bg-transparent px-2 py-1.5 text-base leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0 md:text-base"
-          />
-          <Button onclick={handleContinue} disabled={!canContinue}>
-            Continue
-            <ChevronRight />
+        <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <Button
+            href={CWS_URL}
+            onclick={() => trackInstallClick("home-hero")}
+            size="lg"
+            class="group h-12 gap-2 px-6 text-base"
+          >
+            <Puzzle class="size-4" />
+            Add to Chrome
+            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
+          </Button>
+          <Button
+            href={resolve("/tool")}
+            variant="outline"
+            size="lg"
+            class="group h-12 gap-2 px-6 text-base"
+          >
+            <ClipboardPaste class="size-4" />
+            Open the web tool
+            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
         </div>
 
-        {#if error}
-          <p class="text-muted-foreground mt-4 text-center text-sm">{error}</p>
-        {/if}
+        <p class="text-muted-foreground/80 mt-8 font-mono text-xs tracking-wide">
+          Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; No upload &nbsp;·&nbsp; Open source
+        </p>
       </div>
     </main>
 
@@ -606,23 +568,26 @@
       <div use:reveal class="border-border bg-card/40 rounded-lg border p-8 sm:p-12">
         <div class="grid items-center gap-10 sm:grid-cols-[1fr_auto]">
           <div>
-            <h2 class="text-3xl font-semibold tracking-tight">Quizlet in, Knowt out</h2>
+            <span
+              class="text-muted-foreground mb-3 inline-block font-mono text-xs tracking-wider uppercase"
+            >
+              Browser extension
+            </span>
+            <h2 class="text-3xl font-semibold tracking-tight">On Quizlet? Skip the paste step.</h2>
             <p class="text-muted-foreground mt-4 text-[15px] leading-7">
-              The browser extension runs inside your own sessions, so it does two things web apps
-              can't: fetch any Quizlet set page directly (Cloudflare blocks cross-origin fetches),
-              and send your cards straight into your Knowt account with one click. No copy-paste
-              between tabs.
+              The extension runs on quizlet.com pages and exports the open set with one click. Anki
+              deck file (.apkg) with images and audio bundled, printable PDF, CSV, JSON, or direct
+              import into Knowt using your existing session. Optionally merges multiple open Quizlet
+              tabs into one deck, with deduplication.
             </p>
             <div class="mt-6 flex flex-wrap gap-3">
-              <Button href={CWS_URL} onclick={() => trackInstallClick("body")}>
+              <Button href={CWS_URL} onclick={() => trackInstallClick("home-body")}>
                 <Puzzle />
                 Add to Chrome
               </Button>
-              <Button
-                variant="outline"
-                href="https://github.com/ImGajeed76/quick-cards/tree/main/extension#sideload-manual-install"
-              >
-                Sideload (manual)
+              <Button variant="outline" href={resolve("/extension")}>
+                Read more
+                <ArrowRight class="size-4" />
               </Button>
             </div>
           </div>
@@ -634,6 +599,97 @@
           />
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ Section 4 — Guides ══════════════
+     Editorial link cluster pointing at the topical landing pages. Distinct
+     from the feature grid above visually (compact link tiles, no icons or
+     hover glow), so the eye doesn't read this as a third repetition of the
+     same card pattern. Internal links from body copy carry SEO weight; the
+     footer doesn't. -->
+  <section class="px-6 py-24 sm:py-32">
+    <div class="mx-auto max-w-4xl">
+      <div use:reveal class="mb-12 max-w-xl">
+        <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+          Guides
+        </span>
+        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Coming from somewhere specific?
+        </h2>
+        <p class="text-muted-foreground mt-4 leading-relaxed">
+          Each guide is a focused walkthrough for a particular starting point: what the workflow
+          looks like, what to watch for, and how QuickCards fits.
+        </p>
+      </div>
+      <div use:reveal={{ delay: 80 }} class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <a
+          href={resolve("/quizlet-to-anki")}
+          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
+        >
+          <div>
+            <div class="text-foreground font-medium">Quizlet to Anki</div>
+            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              Three methods, fairly compared. Extension recommended for media support.
+            </div>
+          </div>
+          <ChevronRight
+            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+          />
+        </a>
+        <a
+          href={resolve("/csv-to-anki")}
+          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
+        >
+          <div>
+            <div class="text-foreground font-medium">CSV to Anki</div>
+            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              Spreadsheets, Google Sheets, Excel. No add-on, no field mapping, no encoding issues.
+            </div>
+          </div>
+          <ChevronRight
+            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+          />
+        </a>
+        <a
+          href={resolve("/chatgpt-flashcards-to-anki")}
+          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
+        >
+          <div>
+            <div class="text-foreground font-medium">ChatGPT flashcards to Anki</div>
+            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              Markdown tables, numbered lists, JSON arrays. Paste straight in, no cleanup.
+            </div>
+          </div>
+          <ChevronRight
+            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+          />
+        </a>
+        <a
+          href={resolve("/print-flashcards-from-quizlet")}
+          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
+        >
+          <div>
+            <div class="text-foreground font-medium">Print flashcards from Quizlet</div>
+            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              2x4 double-sided PDF with syllable-aware hyphenation. For teachers, parents, and
+              offline study.
+            </div>
+          </div>
+          <ChevronRight
+            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+          />
+        </a>
+      </div>
+      <p class="text-muted-foreground/70 mt-8 text-sm">
+        Coming from Knowt?
+        <a
+          href={resolve("/knowt-alternative")}
+          class="text-foreground hover:text-primary ml-1 underline-offset-4 hover:underline"
+        >
+          Read the Knowt comparison
+        </a>.
+      </p>
     </div>
   </section>
 
@@ -650,6 +706,9 @@
         · MIT licensed.
       </div>
       <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
+        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
+        >
+        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
         <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
           Coming from Knowt?
         </a>
