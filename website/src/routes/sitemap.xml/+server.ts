@@ -5,6 +5,11 @@ export const prerender = true;
 const pages = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
   { path: "/extension", changefreq: "monthly", priority: "0.9" },
+  { path: "/tool", changefreq: "monthly", priority: "0.9" },
+  { path: "/quizlet-to-anki", changefreq: "monthly", priority: "0.8" },
+  { path: "/csv-to-anki", changefreq: "monthly", priority: "0.7" },
+  { path: "/chatgpt-flashcards-to-anki", changefreq: "monthly", priority: "0.7" },
+  { path: "/print-flashcards-from-quizlet", changefreq: "monthly", priority: "0.7" },
   { path: "/knowt-alternative", changefreq: "monthly", priority: "0.7" },
   { path: "/privacy", changefreq: "yearly", priority: "0.3" },
 ];
