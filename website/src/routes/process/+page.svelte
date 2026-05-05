@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { slide } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
@@ -52,6 +53,10 @@
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:termSep") : null;
   const savedCard =
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:cardSep") : null;
+  // Same persistence for the Anki pacing toggle. When false, the apkg ships
+  // no FSRS preset and Anki uses the user's existing default scheduling.
+  const savedAnkiPace =
+    typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:ankiPace") : null;
 
   let payload = $state<SharePayload | null>(null);
   // True when the page was opened via `?d=local` (sessionStorage handoff from
@@ -66,11 +71,13 @@
 
   let termSepValue = $state(savedTerm || "Tab");
   let cardSepValue = $state(savedCard || "Newline");
+  let ankiPace = $state(savedAnkiPace !== "0");
 
   $effect(() => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("quickcards:termSep", termSepValue);
       localStorage.setItem("quickcards:cardSep", cardSepValue);
+      localStorage.setItem("quickcards:ankiPace", ankiPace ? "1" : "0");
     }
   });
 
@@ -230,11 +237,9 @@
     );
   }
 
-  let ankiBusyVariant = $state<"with" | "without" | null>(null);
-
-  function exportAnki(withPreset: boolean) {
+  function exportAnki() {
     if (anyBusy || !set) return;
-    ankiBusyVariant = withPreset ? "with" : "without";
+    const withPreset = ankiPace;
     runDownload("anki", async () => {
       const outcome = await saveFile(
         async () => {
@@ -255,11 +260,9 @@
       );
       if (outcome === "ok") {
         ankiOpen = false;
-        track("Anki days", { range: bucketDays(ankiDays) });
+        if (withPreset) track("Anki days", { range: bucketDays(ankiDays) });
       }
       return outcome;
-    }).finally(() => {
-      ankiBusyVariant = null;
     });
   }
 
@@ -599,52 +602,70 @@
       <Dialog.Content class="sm:max-w-md">
         <Dialog.Header>
           <Dialog.Title>Anki export</Dialog.Title>
-          <Dialog.Description>
-            When do you need to know this set by? FSRS settings are tuned to your deadline.
-          </Dialog.Description>
         </Dialog.Header>
 
         <div class="space-y-5">
-          <div class="space-y-1.5">
-            <Label class="text-muted-foreground text-xs" for="anki-days">Days</Label>
-            <Input
-              id="anki-days"
-              type="number"
-              min="1"
-              value={ankiDays}
-              oninput={(e) => setDaysFromInput(Number((e.target as HTMLInputElement).value))}
-              class="tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-          </div>
+          <!-- Pace toggle, full card style. Off = ship the deck with no FSRS
+               preset; the user's existing Anki default scheduling takes over.
+               On = expand the day picker below and bundle a deadline-tuned
+               preset. -->
+          <button
+            type="button"
+            role="switch"
+            aria-checked={ankiPace}
+            onclick={() => (ankiPace = !ankiPace)}
+            class="border-border hover:bg-muted/30 focus-visible:ring-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <span class="flex min-w-0 flex-col gap-0.5">
+              <span class="text-foreground text-sm font-medium">Pace to deadline</span>
+              <span class="text-muted-foreground text-xs"
+                >Creates a custom FSRS preset matched to your timeline</span
+              >
+            </span>
+            <span
+              class="relative mt-0.5 inline-flex h-5 w-8 shrink-0 items-center rounded-full transition-colors duration-200"
+              class:bg-primary={ankiPace}
+              class:bg-muted={!ankiPace}
+            >
+              <span
+                class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200"
+                class:translate-x-3.5={ankiPace}
+                class:translate-x-0.5={!ankiPace}
+              ></span>
+            </span>
+          </button>
 
-          <div class="border-border flex justify-center rounded-md border">
-            <Calendar
-              type="single"
-              bind:value={ankiSelected as CalendarDate}
-              minValue={todayDate.add({ days: 1 })}
-              class="bg-transparent"
-            />
-          </div>
+          {#if ankiPace}
+            <div class="space-y-5" transition:slide={{ duration: 180 }}>
+              <div class="space-y-1.5">
+                <Label class="text-muted-foreground text-xs" for="anki-days">Days</Label>
+                <Input
+                  id="anki-days"
+                  type="number"
+                  min="1"
+                  value={ankiDays}
+                  oninput={(e) => setDaysFromInput(Number((e.target as HTMLInputElement).value))}
+                  class="tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
 
-          <p class="text-muted-foreground text-center text-xs">{recommendedPace}</p>
+              <div class="border-border flex justify-center rounded-md border">
+                <Calendar
+                  type="single"
+                  bind:value={ankiSelected as CalendarDate}
+                  minValue={todayDate.add({ days: 1 })}
+                  class="bg-transparent"
+                />
+              </div>
+
+              <p class="text-muted-foreground text-center text-xs">{recommendedPace}</p>
+            </div>
+          {/if}
         </div>
 
-        <Dialog.Footer class="flex gap-2">
-          <Button
-            onclick={() => exportAnki(false)}
-            disabled={anyBusy}
-            variant="outline"
-            class="flex-1"
-          >
-            {#if busy === "anki" && ankiBusyVariant === "without"}
-              <LoaderCircle class="animate-spin" />
-              Generating…
-            {:else}
-              Without preset
-            {/if}
-          </Button>
-          <Button onclick={() => exportAnki(true)} disabled={anyBusy} class="flex-1">
-            {#if busy === "anki" && ankiBusyVariant === "with"}
+        <Dialog.Footer>
+          <Button onclick={exportAnki} disabled={anyBusy} class="w-full">
+            {#if busy === "anki"}
               <LoaderCircle class="animate-spin" />
               Generating…
             {:else}
