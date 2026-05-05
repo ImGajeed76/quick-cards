@@ -1,0 +1,18 @@
+{{#AddReverse}} {{FrontSide}}
+<hr id="answer" />
+<div class="qc-card qc-back">
+  {{#TermImage}}
+  <div class="qc-media qc-image">{{TermImage}}</div>
+  {{/TermImage}}
+  <div class="qc-text" lang="{{TermLang}}">{{Term}}</div>
+  {{#TermAudio}}
+  <div class="qc-media qc-audio qc-audio-human">
+    <span class="qc-audio-label">Audio</span> {{TermAudio}}
+  </div>
+  {{/TermAudio}} {{#TermTTS}}
+  <div class="qc-media qc-audio qc-audio-tts">
+    <span class="qc-audio-label">TTS</span> {{TermTTS}}
+  </div>
+  {{/TermTTS}}
+</div>
+{{/AddReverse}}
