@@ -54,6 +54,10 @@
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:cardSep") : null;
 
   let payload = $state<SharePayload | null>(null);
+  // True when the page was opened via `?d=local` (sessionStorage handoff from
+  // the homepage). Local payloads aren't reachable by anyone but the current
+  // tab, so the "Share link" affordance is meaningless and gets hidden.
+  let isLocal = $state(false);
   let copied = $state(false);
   let previewOpen = $state(false);
   let busy = $state<DownloadKind | null>(null);
@@ -98,6 +102,7 @@
       return;
     }
     if (d === "local") {
+      isLocal = true;
       const raw = sessionStorage.getItem("quickcards:payload");
       if (!raw) {
         goto(resolve("/"), { replaceState: true });
@@ -225,7 +230,11 @@
     );
   }
 
-  function exportAnki() {
+  let ankiBusyVariant = $state<"with" | "without" | null>(null);
+
+  function exportAnki(withPreset: boolean) {
+    if (anyBusy || !set) return;
+    ankiBusyVariant = withPreset ? "with" : "without";
     runDownload("anki", async () => {
       const outcome = await saveFile(
         async () => {
@@ -234,7 +243,12 @@
             import("$lib/export/sql"),
           ]);
           const SQL = await getSQL();
-          return buildAnkiPackage({ set: set as FlashcardSet, days: ankiDays, SQL });
+          return buildAnkiPackage({
+            set: set as FlashcardSet,
+            days: ankiDays,
+            SQL,
+            withPreset,
+          });
         },
         `${baseName}.apkg`,
         "application/octet-stream",
@@ -244,6 +258,8 @@
         track("Anki days", { range: bucketDays(ankiDays) });
       }
       return outcome;
+    }).finally(() => {
+      ankiBusyVariant = null;
     });
   }
 
@@ -354,18 +370,20 @@
         <ArrowLeft />
         Back
       </Button>
-      <Button variant="ghost" size="sm" onclick={copyShareUrl}>
-        {#if shareCopied}
-          <Check />
-          Link copied
-        {:else if shareFailed}
-          <Copy />
-          Too large to share
-        {:else}
-          <Copy />
-          Share link
-        {/if}
-      </Button>
+      {#if !isLocal}
+        <Button variant="ghost" size="sm" onclick={copyShareUrl}>
+          {#if shareCopied}
+            <Check />
+            Link copied
+          {:else if shareFailed}
+            <Copy />
+            Too large to share
+          {:else}
+            <Copy />
+            Share link
+          {/if}
+        </Button>
+      {/if}
     </div>
 
     <div class="mt-10 flex items-baseline justify-between gap-4">
@@ -611,14 +629,27 @@
           <p class="text-muted-foreground text-center text-xs">{recommendedPace}</p>
         </div>
 
-        <Dialog.Footer>
-          <Button onclick={exportAnki} disabled={anyBusy} class="w-full">
-            {#if busy === "anki"}
+        <Dialog.Footer class="flex gap-2">
+          <Button
+            onclick={() => exportAnki(false)}
+            disabled={anyBusy}
+            variant="outline"
+            class="flex-1"
+          >
+            {#if busy === "anki" && ankiBusyVariant === "without"}
+              <LoaderCircle class="animate-spin" />
+              Generating…
+            {:else}
+              Without preset
+            {/if}
+          </Button>
+          <Button onclick={() => exportAnki(true)} disabled={anyBusy} class="flex-1">
+            {#if busy === "anki" && ankiBusyVariant === "with"}
               <LoaderCircle class="animate-spin" />
               Generating…
             {:else}
               <Download />
-              Download .apkg
+              Download
             {/if}
           </Button>
         </Dialog.Footer>
