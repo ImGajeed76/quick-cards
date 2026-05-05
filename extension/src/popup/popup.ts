@@ -124,6 +124,7 @@ Alpine.data("popup", () => ({
   ankiViewYear: 0,
   ankiViewMonth: 0,
   ankiGenerating: false,
+  ankiBusyVariant: "" as "" | "with" | "without",
   ankiProgressPhase: "" as "" | "download" | "build",
   ankiProgressDone: 0,
   ankiProgressTotal: 0,
@@ -655,6 +656,7 @@ Alpine.data("popup", () => ({
   async downloadAnki(withPreset = true) {
     if (!exportSet || this.ankiGenerating) return;
     this.ankiGenerating = true;
+    this.ankiBusyVariant = withPreset ? "with" : "without";
     this.ankiProgressPhase = "";
     this.ankiProgressDone = 0;
     this.ankiProgressTotal = 0;
@@ -675,6 +677,7 @@ Alpine.data("popup", () => ({
       console.error("[QuickCards] Anki generation error:", err);
     } finally {
       this.ankiGenerating = false;
+      this.ankiBusyVariant = "";
       this.ankiProgressPhase = "";
       this.ankiProgressDone = 0;
       this.ankiProgressTotal = 0;

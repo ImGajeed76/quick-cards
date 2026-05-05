@@ -648,7 +648,24 @@
             x-bind:disabled="ankiGenerating"
             class="ring-offset-background focus-visible:ring-ring border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md border text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-80"
           >
-            <span>Without preset</span>
+            <svg
+              x-show="ankiBusyVariant === 'without'"
+              x-cloak
+              class="h-4 w-4 animate-spin"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            <span
+              x-text="ankiBusyVariant === 'without' ? ankiProgressLabel : 'Without preset'"
+            ></span>
           </button>
           <!-- Primary: download with the deadline-tuned FSRS preset -->
           <button
@@ -657,7 +674,7 @@
             class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-80"
           >
             <svg
-              x-show="!ankiGenerating"
+              x-show="ankiBusyVariant !== 'with'"
               class="h-4 w-4"
               aria-hidden="true"
               xmlns="http://www.w3.org/2000/svg"
@@ -673,7 +690,7 @@
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
             <svg
-              x-show="ankiGenerating"
+              x-show="ankiBusyVariant === 'with'"
               x-cloak
               class="h-4 w-4 animate-spin"
               aria-hidden="true"
@@ -687,7 +704,7 @@
             >
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            <span x-text="ankiGenerating ? ankiProgressLabel : 'Download'"></span>
+            <span x-text="ankiBusyVariant === 'with' ? ankiProgressLabel : 'Download'"></span>
           </button>
         </div>
       </div>
