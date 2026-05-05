@@ -537,94 +537,114 @@
           >
         </div>
 
-        <!-- Subtitle -->
-        <p class="text-muted-foreground text-xs">When do you need to know this set by?</p>
-
-        <!-- Days input -->
-        <div class="space-y-1">
-          <label class="text-muted-foreground text-xs" for="anki-days">Days</label>
+        <!-- Pace toggle. Same plain text style as a subtitle, no box; the
+             switch sits on the right. Off = ship the deck with no FSRS preset
+             and Anki uses its default scheduling. On = expand the day picker
+             below and bundle a deadline-tuned preset. -->
+        <label class="flex cursor-pointer items-center justify-between gap-3">
+          <span class="text-muted-foreground text-xs">Pace deck (creates FSRS preset)</span>
           <div
-            class="border-input bg-background ring-offset-background focus-within:ring-ring flex h-9 w-full items-center rounded-md border text-sm focus-within:ring-2 focus-within:ring-offset-2"
+            class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200"
+            :class="pace ? 'bg-primary' : 'bg-muted'"
+            @click.prevent="pace = !pace"
           >
-            <input
-              id="anki-days"
-              type="number"
-              min="1"
-              x-model.number="days"
-              @input="syncFromDays"
-              @blur="ensureValidDays"
-              class="h-full w-full bg-transparent px-3 py-2 text-sm tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
+            <span
+              class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200"
+              :class="pace ? 'translate-x-3.5' : 'translate-x-0.5'"
+            ></span>
           </div>
-        </div>
+        </label>
 
-        <!-- Calendar -->
-        <div class="border-border space-y-2 rounded-md border p-3">
-          <!-- Header -->
-          <div class="flex items-center justify-between">
-            <button
-              @click="prevMonth"
-              :disabled="!canGoPrev"
-              class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
-              aria-label="Previous month"
-            >
-              <i data-lucide="chevron-left" class="h-4 w-4"></i>
-            </button>
-            <span class="text-foreground text-sm font-medium" x-text="monthLabel"></span>
-            <button
-              @click="nextMonth"
-              class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              aria-label="Next month"
-            >
-              <i data-lucide="chevron-right" class="h-4 w-4"></i>
-            </button>
-          </div>
-
-          <!-- Weekday row -->
-          <div class="grid grid-cols-7">
-            <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d">
+        <!-- Pacing controls (only when toggle is on) -->
+        <div x-show="pace" x-collapse>
+          <div class="space-y-4">
+            <!-- Days input -->
+            <div class="space-y-1">
+              <label class="text-muted-foreground text-xs" for="anki-days">Days</label>
               <div
-                class="text-muted-foreground py-1 text-center text-xs font-normal"
-                x-text="d"
-              ></div>
-            </template>
-          </div>
-
-          <!-- Days grid -->
-          <div class="grid grid-cols-7">
-            <template x-for="(cell, i) in calendarCells" :key="i">
-              <button
-                type="button"
-                @click="pickDate(cell.date)"
-                :disabled="cell.disabled"
-                class="group focus-visible:ring-ring relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
-                :class="{
-                'bg-primary text-primary-foreground font-medium': cell.selected,
-                'hover:bg-muted text-foreground': !cell.selected && !cell.disabled && !cell.outside,
-                'text-muted-foreground/40 hover:bg-muted/50': cell.outside && !cell.selected && !cell.disabled,
-                'text-muted-foreground/30 line-through pointer-events-none': cell.disabled && !cell.selected
-              }"
+                class="border-input bg-background ring-offset-background focus-within:ring-ring flex h-9 w-full items-center rounded-md border text-sm focus-within:ring-2 focus-within:ring-offset-2"
               >
-                <span x-text="cell.day"></span>
-                <span
-                  x-show="cell.today && !cell.selected"
-                  class="bg-primary absolute top-1 left-1/2 size-1 -translate-x-1/2 rounded-full"
-                ></span>
-              </button>
-            </template>
+                <input
+                  id="anki-days"
+                  type="number"
+                  min="1"
+                  x-model.number="days"
+                  @input="syncFromDays"
+                  @blur="ensureValidDays"
+                  class="h-full w-full bg-transparent px-3 py-2 text-sm tabular-nums outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+            </div>
+
+            <!-- Calendar -->
+            <div class="border-border space-y-2 rounded-md border p-3">
+              <!-- Header -->
+              <div class="flex items-center justify-between">
+                <button
+                  @click="prevMonth"
+                  :disabled="!canGoPrev"
+                  class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-30"
+                  aria-label="Previous month"
+                >
+                  <i data-lucide="chevron-left" class="h-4 w-4"></i>
+                </button>
+                <span class="text-foreground text-sm font-medium" x-text="monthLabel"></span>
+                <button
+                  @click="nextMonth"
+                  class="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  aria-label="Next month"
+                >
+                  <i data-lucide="chevron-right" class="h-4 w-4"></i>
+                </button>
+              </div>
+
+              <!-- Weekday row -->
+              <div class="grid grid-cols-7">
+                <template x-for="d in ['Mo','Tu','We','Th','Fr','Sa','Su']" :key="d">
+                  <div
+                    class="text-muted-foreground py-1 text-center text-xs font-normal"
+                    x-text="d"
+                  ></div>
+                </template>
+              </div>
+
+              <!-- Days grid -->
+              <div class="grid grid-cols-7">
+                <template x-for="(cell, i) in calendarCells" :key="i">
+                  <button
+                    type="button"
+                    @click="pickDate(cell.date)"
+                    :disabled="cell.disabled"
+                    class="group focus-visible:ring-ring relative aspect-square rounded-md text-sm font-normal transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+                    :class="{
+                    'bg-primary text-primary-foreground font-medium': cell.selected,
+                    'hover:bg-muted text-foreground': !cell.selected && !cell.disabled && !cell.outside,
+                    'text-muted-foreground/40 hover:bg-muted/50': cell.outside && !cell.selected && !cell.disabled,
+                    'text-muted-foreground/30 line-through pointer-events-none': cell.disabled && !cell.selected
+                  }"
+                  >
+                    <span x-text="cell.day"></span>
+                    <span
+                      x-show="cell.today && !cell.selected"
+                      class="bg-primary absolute top-1 left-1/2 size-1 -translate-x-1/2 rounded-full"
+                    ></span>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- Recommended pace -->
+            <p class="text-muted-foreground text-center text-xs" x-text="recommendedPace"></p>
           </div>
         </div>
 
-        <!-- Recommended pace + download -->
-        <div class="space-y-2">
-          <p class="text-muted-foreground text-center text-xs" x-text="recommendedPace"></p>
-          <button
-            class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-          >
-            <i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i>
-            Download .apkg
-          </button>
-        </div>
+        <!-- Download button (always visible; preset is implied by the toggle) -->
+        <button
+          class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <i data-lucide="download" class="h-4 w-4" aria-hidden="true"></i>
+          Download .apkg
+        </button>
       </div>
     </div>
 
@@ -972,6 +992,9 @@
         selected: new Date(),
         viewYear: 0,
         viewMonth: 0,
+        // When false, the deck ships without a deadline-tuned FSRS preset and
+        // Anki uses whatever default scheduling the user already has.
+        pace: true,
 
         init() {
           const now = new Date();

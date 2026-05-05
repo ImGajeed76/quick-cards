@@ -33,6 +33,9 @@ let originalSet: FlashcardSet | null = null; // the current tab's set (never mut
 let exportSet: FlashcardSet | null = null; // the set used for export (may be merged)
 let termSepValue = "Tab";
 let cardSepValue = "Newline";
+// Bridges chrome.storage.sync into Alpine: loaded before Alpine.start(), then
+// read in the Anki picker's init().
+let ankiPaceValue = true;
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -124,7 +127,10 @@ Alpine.data("popup", () => ({
   ankiViewYear: 0,
   ankiViewMonth: 0,
   ankiGenerating: false,
-  ankiBusyVariant: "" as "" | "with" | "without",
+  // Whether to bundle a deadline-tuned FSRS preset with the deck. Off lets
+  // Anki use its existing default scheduling. Persisted to chrome.storage.sync
+  // and loaded back at popup boot, so the user's preference sticks.
+  ankiPace: true,
   ankiProgressPhase: "" as "" | "download" | "build",
   ankiProgressDone: 0,
   ankiProgressTotal: 0,
@@ -272,6 +278,8 @@ Alpine.data("popup", () => ({
     this.ankiSelected = sel;
     this.ankiViewYear = sel.getFullYear();
     this.ankiViewMonth = sel.getMonth();
+    // Apply persisted preference for the deadline-pacing toggle.
+    this.ankiPace = ankiPaceValue;
 
     // Subscribe to per-step progress updates broadcast from the background
     // worker during Anki generation. The worker fires these in addition to
@@ -653,10 +661,10 @@ Alpine.data("popup", () => ({
     return `Recommended pace: ~${count} cards/day`;
   },
 
-  async downloadAnki(withPreset = true) {
+  async downloadAnki() {
     if (!exportSet || this.ankiGenerating) return;
+    const withPreset = this.ankiPace;
     this.ankiGenerating = true;
-    this.ankiBusyVariant = withPreset ? "with" : "without";
     this.ankiProgressPhase = "";
     this.ankiProgressDone = 0;
     this.ankiProgressTotal = 0;
@@ -669,7 +677,7 @@ Alpine.data("popup", () => ({
       });
       if (res?.ok) {
         track("Export", { format: withPreset ? "anki" : "anki-no-preset" });
-        track("Anki days", { range: bucketDays(this.ankiDays) });
+        if (withPreset) track("Anki days", { range: bucketDays(this.ankiDays) });
       } else {
         console.error("[QuickCards] Anki generation failed:", res?.error);
       }
@@ -677,10 +685,18 @@ Alpine.data("popup", () => ({
       console.error("[QuickCards] Anki generation error:", err);
     } finally {
       this.ankiGenerating = false;
-      this.ankiBusyVariant = "";
       this.ankiProgressPhase = "";
       this.ankiProgressDone = 0;
       this.ankiProgressTotal = 0;
+    }
+  },
+
+  toggleAnkiPace() {
+    this.ankiPace = !this.ankiPace;
+    try {
+      chrome.storage.sync.set({ ankiPace: this.ankiPace });
+    } catch {
+      // Not in extension context (dev preview), fine to ignore.
     }
   },
 
@@ -870,9 +886,11 @@ window.Alpine = Alpine;
     const settings = await chrome.storage.sync.get({
       termSeparator: "Tab",
       cardSeparator: "Newline",
+      ankiPace: true,
     });
     termSepValue = settings.termSeparator as string;
     cardSepValue = settings.cardSeparator as string;
+    ankiPaceValue = settings.ankiPace as boolean;
   } catch {
     // Not in extension context (dev), use defaults
   }
