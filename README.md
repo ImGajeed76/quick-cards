@@ -15,6 +15,8 @@ Export Quizlet flashcards and vocab lists to PDF, Anki, TXT, CSV, JSON, or impor
 **Chrome extension** ([install from the Chrome Web Store](https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc))
 Works directly on Quizlet set pages: floating banner, one-click copy, merge multiple open tabs, and one-click import into Knowt. Fetches cards from Quizlet's web API; the Knowt import uses your existing Knowt session, no extra login.
 
+> Also works in Firefox (sideload from the [release ZIP](https://github.com/ImGajeed76/quick-cards/releases) for now). A Firefox Add-ons listing is planned for the next major release.
+
 **Web** ([quickcards.oseifert.ch](https://quickcards.oseifert.ch))
 Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Nothing to install. Share the URL and the export reproduces on the other side.
 
@@ -56,7 +58,7 @@ Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Not
 
 ## Tech stack
 
-**Extension.** TypeScript, Bun, Alpine.js (CSP build), Tailwind v4, jsPDF + hyphen, ankipack + sql.js, Chrome Extension Manifest V3
+**Extension.** TypeScript, Bun, Alpine.js (CSP build), Tailwind v4, jsPDF + hyphen, ankipack + sql.js, Manifest V3 (Chrome and Firefox)
 
 **Web.** SvelteKit 2, Svelte 5 (runes), Tailwind v4, shadcn-svelte, Lucide, lz-string, jsPDF, ankipack, sql.js
 
@@ -66,7 +68,7 @@ Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Not
 # Extension
 cd extension
 bun install
-bun run build      # → extension/dist/
+bun run build      # → extension/dist/chrome/ and extension/dist/firefox/
 bun run dev        # Vite preview of popup HTML
 
 # Web

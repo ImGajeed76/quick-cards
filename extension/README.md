@@ -1,6 +1,6 @@
 # QuickCards
 
-Chrome extension to export Quizlet flashcards quickly.
+Browser extension (Chrome and Firefox) to export Quizlet flashcards quickly.
 
 Copy to clipboard, download as PDF, Anki, TXT, CSV, or JSON, or import directly into your Knowt account, all from a clean dark-themed popup.
 
@@ -80,16 +80,18 @@ The extension lives in the Chrome Web Store. One click and you're done:
 
 [<img src="store/cws-badge.png" alt="Available in the Chrome Web Store" height="58">](https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc)
 
+> **Firefox:** not yet on the Firefox Add-ons store. A listing is planned for the next major release. For now, sideload via the release ZIP (see below).
+
 ### Sideload (manual install)
 
 For developers or users who want to run a local build:
 
 **From a release ZIP**
 
-1. Download the latest `quick-cards-v*.zip` from [Releases](https://github.com/ImGajeed76/quick-cards/releases)
-2. Unzip the archive
-3. Open `chrome://extensions`, enable **Developer mode**, and click **Load unpacked**
-4. Select the unzipped folder
+1. Download the latest ZIP from [Releases](https://github.com/ImGajeed76/quick-cards/releases): `quick-cards-chrome-v*.zip` for Chromium browsers, `quick-cards-firefox-v*.zip` for Firefox.
+2. Unzip the archive.
+3. Chrome: open `chrome://extensions`, enable **Developer mode**, click **Load unpacked**, pick the unzipped folder.
+   Firefox: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on...**, pick any file in the unzipped folder.
 
 **From source**
 
@@ -110,12 +112,16 @@ For developers or users who want to run a local build:
 3. Load in Chrome:
    - Open `chrome://extensions`
    - Enable **Developer mode**
-   - Click **Load unpacked** and select the `dist/` folder
+   - Click **Load unpacked** and select the `dist/chrome/` folder
+
+   Or in Firefox:
+   - Open `about:debugging#/runtime/this-firefox`
+   - Click **Load Temporary Add-on...** and pick any file inside `dist/firefox/`
 
 ## Development
 
 ```bash
-# Build extension (output: dist/)
+# Build extension (outputs: dist/chrome/, dist/firefox/)
 bun run build
 
 # Dev preview (Vite, opens localhost:3000)
@@ -127,7 +133,7 @@ bun run test:pdf
 
 ## Releasing
 
-Pushing a version tag triggers a GitHub Actions workflow that builds the extension, zips it, and creates a GitHub Release with auto-generated notes.
+Pushing a version tag triggers a GitHub Actions workflow that builds the extension for Chrome and Firefox, zips both, and creates a GitHub Release with auto-generated notes (`quick-cards-chrome-vX.Y.Z.zip` and `quick-cards-firefox-vX.Y.Z.zip`).
 
 ```bash
 git tag v1.5.0
@@ -152,7 +158,7 @@ QuickCards fetches flashcard data directly from Quizlet's web API (`/webapi/3.4/
 - [hyphen](https://github.com/ytiurin/hyphen) for syllable-based word breaking in PDFs
 - [ankipack](https://github.com/ImGajeed76/ankipack) for `.apkg` generation
 - [sql.js](https://github.com/sql-js/sql.js), SQLite in WebAssembly (used by ankipack)
-- Chrome Extension Manifest V3
+- Manifest V3 (Chrome and Firefox)
 
 ## License
 
