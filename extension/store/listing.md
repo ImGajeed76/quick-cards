@@ -28,7 +28,7 @@ WHAT IT DOES
 
 • Print-ready PDF flashcards (2x4 double-sided grid, terms front, definitions back, with cut guides)
 • Formatted PDF vocab list with numbering and alternating row tints
-• Anki .apkg paced to a deadline you pick (three decks: main flashcards plus two optional typing decks)
+• Anki .apkg with media (images, recorded audio, TTS) bundled in, two decks (flashcards + typing), optional FSRS preset paced to a deadline you pick or skip the preset to use Anki's default
 • One-click Knowt import using the Knowt session you already have, no API keys, no 100-card cap
 • Floating widget on Quizlet set pages: card count and instant clipboard copy, no need to open the popup
 • Merge multiple Quizlet sets you have open into a single export, with optional duplicate removal

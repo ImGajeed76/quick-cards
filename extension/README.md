@@ -15,9 +15,9 @@ Copy to clipboard, download as PDF, Anki, TXT, CSV, or JSON, or import directly 
 - **No login required.** Fetches cards directly via Quizlet's web API, no account needed.
 - **Merge sets.** Combine cards from multiple open Quizlet tabs into a single export, with automatic duplicate removal.
 - **Instant copy.** One click from the floating banner or popup.
-- **Export formats.** PDF vocab list, PDF printable flashcards, Anki `.apkg`, TXT, CSV, JSON.
+- **Export formats.** PDF vocab list, PDF printable flashcards, Anki `.apkg` (with images and audio bundled), TXT, CSV, JSON.
 - **Import to Knowt.** Create a new flashcard set on your Knowt account with one click. Reuses your existing Knowt session; no separate login, no API key.
-- **Anki export with deadline pacing.** Pick a target date and get a ready-to-import `.apkg` paced to your deadline. Generates three decks: flashcards (both directions) plus two typing decks.
+- **Anki export with media + optional pacing.** Cards land in two decks (flip + typing) on a media-aware notetype: images, user audio, and Quizlet TTS bundled into the `.apkg`. Optional toggle ships an FSRS preset tuned to your deadline; off uses Anki's default scheduling.
 - **Customizable separators.** Pick a preset or type your own for term-definition and card separators.
 - **Floating banner.** Auto-appears on Quizlet set pages with card count and quick copy.
 - **PDF vocab list.** Formatted table with title, numbering, and alternating row tints.
@@ -48,9 +48,11 @@ Combine cards from multiple open Quizlet tabs into one export.
 
 ### Anki export
 
-Pick a target date and get an `.apkg` paced to the deadline. Shorter deadlines use higher desired retention and more aggressive learning steps. Each export contains three decks: the main flashcards deck (both directions) and two optional typing decks.
+Two decks: the main flashcards deck (both directions) and a typing deck (both directions, skipped on cards with no typeable answer). The notetype is media-aware: images, user-recorded audio, and Quizlet TTS are downloaded in parallel and bundled into the `.apkg` so cards work offline. Toggle "Pace to deadline" on to bundle an FSRS preset tuned to the date you pick (shorter deadlines = higher desired retention + more aggressive learning steps); off ships no preset and Anki uses its default scheduling.
 
-![Anki export screen](../assets/anki_screen.png)
+|                  Paced                   |                      No preset                       |
+| :--------------------------------------: | :--------------------------------------------------: |
+| ![Anki paced](../assets/anki_screen.png) | ![Anki no preset](../assets/anki_screen_no_pace.png) |
 
 ### Import to Knowt
 

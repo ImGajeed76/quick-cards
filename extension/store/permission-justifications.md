@@ -49,7 +49,7 @@ a single 1,000-character field. Paste the block below verbatim.
 
 ```
 - *://*.quizlet.com/*
-Fetches set data from quizlet.com via its public web API and injects a small floating widget on Quizlet set pages for one-click copy/export. The widget only renders on /{numeric-id}/{slug} URLs (set main pages).
+Fetches set data from quizlet.com via its public web API and injects a small floating widget on Quizlet set pages for one-click copy/export. The widget only renders on /{numeric-id}/{slug} URLs (set main pages). When the user clicks the Anki export, the extension also downloads the image and audio media (Quizlet TTS plus any voice recordings the set creator added) referenced by the set's cards, so the resulting .apkg plays offline. Media URLs come straight from the Quizlet API response for the set being exported; no other URLs are discovered or fetched.
 
 - https://knowt.com/*
 Required for the chrome.cookies API to read Knowt's session cookie when the user clicks "Import to Knowt", so they don't re-enter credentials. No content scripts are injected into knowt.com.

@@ -23,24 +23,24 @@ Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Not
 - **Paste anything.** Single or multiple Quizlet URLs, vocab lists with 15+ separator styles, JSON (common shapes: `{term,definition}`, `{front,back}`, tuples, flat key→value), JSON Lines, quoted CSV, TSV, Markdown tables, TOML.
 - **Six export formats.** PDF vocab list, printable PDF flashcards (2×4 grid, double-sided, syllable hyphenation), Anki `.apkg`, TXT, CSV, JSON.
 - **Import to Knowt** (extension). One-click creates a new flashcard set on your existing Knowt account. Runs in your browser session; no separate login, no copy-paste.
-- **Anki with deadline pacing.** Pick a target date, get a deck paced to the time you have.
+- **Anki with media.** Images, audio recordings, and Quizlet TTS get bundled into the .apkg so cards work offline. Optional FSRS preset paced to a deadline you pick, or use Anki's defaults.
 - **Merge multiple sets** (extension). Combine cards from all open Quizlet tabs, with duplicate-removal toggle.
 - **Shareable URLs** (web). The full card set is compressed into the URL; anyone with the link sees the same export.
 - **Client-side only.** No server, no account, no data leaves your browser.
 
 ## Screenshots
 
-| Popup | Export | Anki picker |
+| Popup | Export | Anki (paced) |
 |:-:|:-:|:-:|
-| ![Popup main](assets/popup_main.png) | ![Export screen](assets/pupup_export.png) | ![Anki screen](assets/anki_screen.png) |
+| ![Popup main](assets/popup_main.png) | ![Export screen](assets/pupup_export.png) | ![Anki paced](assets/anki_screen.png) |
 
-| PDF vocab list | PDF flashcards | Merge sets |
+| Anki (no preset) | PDF vocab list | PDF flashcards |
 |:-:|:-:|:-:|
-| ![PDF list](assets/pdf_list.png) | ![PDF cards](assets/pdf_cards.png) | ![Merge screen](assets/merge_screen.png) |
+| ![Anki no preset](assets/anki_screen_no_pace.png) | ![PDF list](assets/pdf_list.png) | ![PDF cards](assets/pdf_cards.png) |
 
-| Knowt import (form) | Knowt import (importing) |
-|:-:|:-:|
-| ![Knowt form](assets/knowt_import_settings.png) | ![Knowt importing](assets/knowt_importing_screen.png) |
+| Merge sets | Knowt import (form) | Knowt import (importing) |
+|:-:|:-:|:-:|
+| ![Merge screen](assets/merge_screen.png) | ![Knowt form](assets/knowt_import_settings.png) | ![Knowt importing](assets/knowt_importing_screen.png) |
 
 ## Repository layout
 

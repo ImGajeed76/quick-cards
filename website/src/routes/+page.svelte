@@ -465,7 +465,8 @@
           {:else if previewFormat === "pdf-cards"}
             2×4 A4 grid, double-sided with mirrored backs. Print, fold, study.
           {:else if previewFormat === "anki"}
-            Pick your deadline, get three decks with FSRS settings tuned to it.
+            Two decks (flashcards + typing). Optional FSRS preset tuned to your deadline, or use
+            Anki's defaults.
           {/if}
         </Dialog.Description>
       </Dialog.Header>
@@ -506,12 +507,11 @@
             </div>
             <div class="preview-anki-info">
               <div class="preview-anki-stat">
-                <span class="preview-anki-label">Three decks:</span>
+                <span class="preview-anki-label">Two decks:</span>
               </div>
               <ul class="preview-anki-list">
-                <li>Flashcards (both directions), {currentExample.pairs.length} cards</li>
-                <li>Type term → definition, {currentExample.pairs.length} cards</li>
-                <li>Type definition → term, {currentExample.pairs.length} cards</li>
+                <li>Flashcards (both directions), {currentExample.pairs.length * 2} cards</li>
+                <li>Typing (both directions), up to {currentExample.pairs.length * 2} cards</li>
               </ul>
               <div class="preview-anki-meta">
                 FSRS retention and learning steps auto-tuned to <strong class="text-foreground"
