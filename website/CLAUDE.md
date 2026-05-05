@@ -25,6 +25,89 @@ QuickCards is a Chrome extension (in `extension/`) with a companion SvelteKit we
 
 ---
 
+## 0.1 How we work on this project
+
+The user's bar is "done right, not sprinted." Take time. Reason. Do not take shortcuts. The points below are non-negotiable for any non-trivial work on this codebase.
+
+### Think out loud, always
+
+Never use hidden thinking / extended-thinking blocks for reasoning. Write all reasoning directly into the chat as visible prose. The user wants to see how conclusions are reached, not just the conclusion. It is fine, even encouraged, to correct yourself or change direction mid-thought. Live reasoning beats polished post-thought conclusions.
+
+This applies to every verb that implies thinking: "reason", "weigh", "analyze", "brainstorm", "explore", "consider", "design", "decide", "roleplay", "list possibilities". All of those are prose, not hidden blocks.
+
+### Brainstorm 5 options before committing to a page or surface
+
+Before writing any non-trivial page, route, layout, or significant component, **think through at least 5 different ways** to do it (or each major section of it) and weigh them. Show the alternatives in chat so the user can redirect before code is written. Do not commit to "the first thing that came to mind."
+
+For each option weigh the tradeoffs, then pick deliberately. Generic, forgettable layouts come from skipping this step.
+
+### Design checklist for every page
+
+Before designing or coding a page, walk through:
+
+- **Content framing.** What does this page say. What is the one thing the user walks away with. Which audience is this. What search intent brought them here.
+- **Reading order and eye flow.** What does the user see first, second, third. Where does the eye land. Does the page pull them down or dead-end. Are sections in the order a reader would actually want, or in the order they were easy to write.
+- **Spacing and rhythm.** Internal vs external spacing per the spacing system below. White space as a feature.
+- **Colors and primary palette.** The primary brand color is sparing on purpose. Where does it draw the eye. Where do we deliberately stay quiet.
+- **Shapes and visual elements.** Cards, dividers, asymmetric layouts, image framings. Anything that breaks block-of-text monotony.
+- **Graphics, screenshots, mockups.** What goes where. Is this proof or filler. Is it captioned, aligned, doing real work.
+- **Repetition test.** Does the page feel repetitive when scanned. Sections that all look the same need visual variety.
+- **Element necessity.** Every element earns its place. If removing it does not hurt, remove it.
+- **SEO for this page.** Target query cluster, exact phrasing in H1, semantic HTML for hierarchy, JSON-LD where it helps (FAQPage, HowTo, SoftwareApplication), internal links to related content pages.
+
+### Inspiration
+
+`~/Coding/pdfy` has well-considered layouts. When stuck, look there. Some sections can be lifted as patterns directly. This is not a license to clone visually, only to reuse layout ideas.
+
+### Vocabulary discipline
+
+User research established the words our audience actually uses. Match them in copy, do not impose your own:
+
+- **"Quizlet set"** (never "Quizlet deck"). **"Anki deck"** (never "Anki set").
+- Primary verb is **"convert"** (not "migrate" or "transfer"). Secondary: "export", "import".
+- Always say **".apkg"** with a parenthetical first usage: "Anki deck file (.apkg)".
+- The phrase **"free, no account, in your browser, open source"** belongs above the fold on every landing page. Every word of it is what users have been searching for.
+- H1s are literal: "Convert Quizlet to Anki", not "Bring your flashcards to life."
+
+### Honest framing for the deadline-mode feature
+
+The deadline picker preconfigures DeckConfig values (`desiredRetention`, `learnSteps`, `maximumReviewInterval`) based on the user's exam date. It does NOT modify FSRS parameters/weights. It is most useful for tight deadlines (under ~14 days). Past 14 days the values land at Anki defaults anyway.
+
+The feature CAN and SHOULD be promoted. We just cannot overclaim what it does. The owner researched it, used it personally, and has anecdotal evidence it helps in cram-style situations. There is no research paper. The honest version is: "we noticed it helps, your mileage may vary."
+
+**Never write:**
+- "Optimizes FSRS", "FSRS optimization", "tunes FSRS", "FSRS-tuned"
+- "Science-backed", "research-backed", "proven"
+- "Guarantees you'll learn it by [date]"
+- "Magic", "AI-powered scheduling", or anything implying special algorithmic insight
+
+**Fine and encouraged:**
+- "Optional deadline mode"
+- "Adjusts deck options for tight deadlines"
+- "Useful for exam prep under two weeks"
+- "Anecdotal, not science-backed"
+- "We noticed it helps"
+- "In our experience" / "your mileage may vary"
+- "Experimental"
+- "Not magic, just sensible presets"
+
+State what it does literally (sets DR, max interval, learn steps), state when it helps (tight deadlines), state the evidence level (anecdotal). Users respect this; the Anki community especially respects this.
+
+Do not lead with the deadline feature as a homepage hero. It belongs as an optional toggle on the Anki export step. A focused content page about cram/short-deadline study is fair game and can talk frankly about the feature's limits.
+
+Past Anki community pushback (Discord, late Apr / early May 2026) was specifically about the OVERCLAIM, not the feature existing. Honest hedged promotion is the lane.
+
+### Anti-patterns on every landing page
+
+- No signup wall before the user sees output.
+- No "free trial" anything. We are free, full stop, no qualifications. Do not write "free for students" or "free for educational use."
+- No silent truncation. Always show card counts before convert runs.
+- No exit-intent popups, no "wait don't leave" popups.
+- No comparison tables that make the competitor look unfair. Show real strengths of the competitor too.
+- Open-source link visible on every page.
+
+---
+
 ## Table of Contents
 
 1. [Philosophy](#1-philosophy)
