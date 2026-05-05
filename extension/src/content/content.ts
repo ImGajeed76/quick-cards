@@ -1,14 +1,7 @@
 import type { Flashcard } from "../lib/types";
+import { extractCardFromItem, type StudiableItem } from "../lib/quizlet-parse";
 
 // ── Types ───────────────────────────────────────────────
-
-interface StudiableItem {
-  cardSides: Array<{
-    media: Array<{
-      plainText: string;
-    }>;
-  }>;
-}
 
 interface ScrapedData {
   title: string;
@@ -67,11 +60,8 @@ async function fetchCardsFromApi(setId: string): Promise<Flashcard[]> {
     const items: StudiableItem[] = resp?.models?.studiableItem ?? [];
 
     for (const item of items) {
-      const term = item.cardSides?.[0]?.media?.[0]?.plainText ?? "";
-      const definition = item.cardSides?.[1]?.media?.[0]?.plainText ?? "";
-      if (term || definition) {
-        allCards.push({ term, definition });
-      }
+      const card = extractCardFromItem(item);
+      if (card) allCards.push(card);
     }
 
     const paging = resp?.paging;
@@ -148,11 +138,8 @@ function scrapeQuizletData(): ScrapedData | null {
 
     const cards: Flashcard[] = [];
     for (const item of items) {
-      const term = item.cardSides?.[0]?.media?.[0]?.plainText ?? "";
-      const definition = item.cardSides?.[1]?.media?.[0]?.plainText ?? "";
-      if (term || definition) {
-        cards.push({ term, definition });
-      }
+      const card = extractCardFromItem(item);
+      if (card) cards.push(card);
     }
 
     if (cards.length === 0) return null;

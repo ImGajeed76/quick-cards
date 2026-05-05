@@ -8,18 +8,13 @@ import { generateListPDF } from "../lib/pdf-list";
 import { buildAnkiPackage } from "../lib/anki-export";
 import { importToKnowt } from "../lib/knowt-api";
 import type { Flashcard, FlashcardSet } from "../lib/types";
+import { extractCardFromItem, type StudiableItem } from "../lib/quizlet-parse";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 // ── Quizlet API helpers ─────────────────────────────────
 
 const API_BASE = "https://quizlet.com/webapi/3.4";
 const PER_PAGE = 200;
-
-interface StudiableItem {
-  cardSides: Array<{
-    media: Array<{ plainText: string }>;
-  }>;
-}
 
 /** Fetch all flashcards for a set via Quizlet's API, handling pagination. */
 async function fetchCardsFromApi(setId: string): Promise<Flashcard[]> {
@@ -44,11 +39,8 @@ async function fetchCardsFromApi(setId: string): Promise<Flashcard[]> {
     const items: StudiableItem[] = resp?.models?.studiableItem ?? [];
 
     for (const item of items) {
-      const term = item.cardSides?.[0]?.media?.[0]?.plainText ?? "";
-      const definition = item.cardSides?.[1]?.media?.[0]?.plainText ?? "";
-      if (term || definition) {
-        allCards.push({ term, definition });
-      }
+      const card = extractCardFromItem(item);
+      if (card) allCards.push(card);
     }
 
     const paging = resp?.paging;
