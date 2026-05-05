@@ -605,10 +605,10 @@
         </Dialog.Header>
 
         <div class="space-y-5">
-          <!-- Pace toggle, full card style. Off = ship the deck with no FSRS
-               preset; the user's existing Anki default scheduling takes over.
-               On = expand the day picker below and bundle a deadline-tuned
-               preset. -->
+          <!-- Pace toggle, full card style. Off = ship the deck with no preset;
+               the user's existing Anki default scheduling takes over. On =
+               expand the day picker below and bundle a preset with deck options
+               adjusted for the deadline (anecdotal, useful under ~2 weeks). -->
           <button
             type="button"
             role="switch"
@@ -617,9 +617,9 @@
             class="border-border hover:bg-muted/30 focus-visible:ring-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
           >
             <span class="flex min-w-0 flex-col gap-0.5">
-              <span class="text-foreground text-sm font-medium">Pace to deadline</span>
+              <span class="text-foreground text-sm font-medium">Deadline mode (optional)</span>
               <span class="text-muted-foreground text-xs"
-                >Creates a custom FSRS preset matched to your timeline</span
+                >Adjusts deck options for tight timelines. Anecdotal, not science-backed.</span
               >
             </span>
             <span

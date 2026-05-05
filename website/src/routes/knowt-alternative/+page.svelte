@@ -29,7 +29,7 @@
     },
     {
       q: "Does QuickCards work with Anki too?",
-      a: "Yes. QuickCards exports .apkg files with FSRS retention and learning steps tuned to a deadline you pick. It also exports CSV, JSON, TXT, a print-ready flashcards PDF, and a vocab-list PDF.",
+      a: "Yes. QuickCards exports Anki deck files (.apkg). There's an optional deadline mode that presets deck options for tight timelines (anecdotal, not science-backed). It also exports CSV, JSON, TXT, a print-ready flashcards PDF, and a vocab-list PDF.",
     },
     {
       q: "Do I need a Quizlet login?",

@@ -465,8 +465,7 @@
           {:else if previewFormat === "pdf-cards"}
             2×4 A4 grid, double-sided with mirrored backs. Print, fold, study.
           {:else if previewFormat === "anki"}
-            Two decks (flashcards + typing). Optional FSRS preset tuned to your deadline, or use
-            Anki's defaults.
+            Two decks (flashcards + typing). Optional deadline-mode preset, or use Anki's defaults.
           {/if}
         </Dialog.Description>
       </Dialog.Header>
@@ -514,10 +513,9 @@
                 <li>Typing (both directions), up to {currentExample.pairs.length * 2} cards</li>
               </ul>
               <div class="preview-anki-meta">
-                FSRS retention and learning steps auto-tuned to <strong class="text-foreground"
-                  >{ankiPreviewDays}</strong
-                >
-                {ankiPreviewDays === 1 ? "day" : "days"}.
+                Deck options preset for a <strong class="text-foreground">{ankiPreviewDays}</strong>
+                {ankiPreviewDays === 1 ? "day" : "day"} timeline. Useful under two weeks, anecdotal, not
+                science-backed.
               </div>
             </div>
           </div>
@@ -573,10 +571,10 @@
           <div class="feature-card-inner">
             <CalendarClock class="text-primary size-5 shrink-0" />
             <div>
-              <h3 class="text-base font-semibold">Anki with a deadline</h3>
+              <h3 class="text-base font-semibold">Optional deadline mode</h3>
               <p class="text-muted-foreground mt-1.5 text-[15px] leading-7">
-                Pick when you need to know the set by. QuickCards tunes FSRS retention and learning
-                steps to your timeline. Three decks per export.
+                Pick a date and we'll preset deck options (retention, learn steps, max interval).
+                Useful for cramming under two weeks. Anecdotal, not science-backed.
               </p>
             </div>
           </div>

@@ -161,8 +161,8 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     ],
   });
 
-  // 5. Build the decks. With a preset, each deck gets a deadline-tuned
-  //    DeckConfig. Without (config: null), ankipack ships no per-deck
+  // 5. Build the decks. With a preset, each deck gets a deadline-aware
+  //    DeckConfig. Without (config undefined), ankipack ships no per-deck
   //    deck_config row and points the deck's config_id at Anki's built-in
   //    default preset (id=1), so nothing new appears in the user's preset
   //    list.
@@ -170,13 +170,13 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     name: title,
     config: withPreset
       ? buildConfig(days, totalCards, false, `QuickCards · ${title} (${days}d)`)
-      : null,
+      : undefined,
   });
   const typingDeck = new Deck({
     name: `${title} (Typing)`,
     config: withPreset
       ? buildConfig(days, totalCards, true, `QuickCards · ${title} (${days}d, typing)`)
-      : null,
+      : undefined,
   });
 
   // 6. Add notes. Same field values to both decks; the differing notetype
