@@ -43,10 +43,10 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Create zip
+      - name: Create zips
         run: |
-          cd dist
-          zip -r "../quick-cards-${GITHUB_REF_NAME}.zip" .
+          (cd dist/chrome && zip -r "../../quick-cards-chrome-${GITHUB_REF_NAME}.zip" .)
+          (cd dist/firefox && zip -r "../../quick-cards-firefox-${GITHUB_REF_NAME}.zip" .)
 
       - name: Detect pre-release
         id: prerelease
@@ -62,7 +62,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            "quick-cards-${GITHUB_REF_NAME}.zip" \
+            "quick-cards-chrome-${GITHUB_REF_NAME}.zip" \
+            "quick-cards-firefox-${GITHUB_REF_NAME}.zip" \
             --title "QuickCards $GITHUB_REF_NAME" \
             --generate-notes \
             ${{ steps.prerelease.outputs.flag }}
