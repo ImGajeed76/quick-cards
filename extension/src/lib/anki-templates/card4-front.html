@@ -1,0 +1,18 @@
+{{#AddReverse}}{{#Term}}
+<div class="qc-card qc-front qc-typing">
+  {{#DefinitionImage}}
+  <div class="qc-media qc-image">{{DefinitionImage}}</div>
+  {{/DefinitionImage}}
+  <div class="qc-text" lang="{{DefinitionLang}}">{{Definition}}</div>
+  {{#DefinitionAudio}}
+  <div class="qc-media qc-audio qc-audio-human">
+    <span class="qc-audio-label">Audio</span> {{DefinitionAudio}}
+  </div>
+  {{/DefinitionAudio}} {{#DefinitionTTS}}
+  <div class="qc-media qc-audio qc-audio-tts">
+    <span class="qc-audio-label">TTS</span> {{DefinitionTTS}}
+  </div>
+  {{/DefinitionTTS}}
+  <div class="qc-typing-input">{{type:Term}}</div>
+</div>
+{{/Term}}{{/AddReverse}}

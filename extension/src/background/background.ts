@@ -96,7 +96,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.action === "generateAnki") {
-    handleAnkiGeneration(message.set, message.days)
+    handleAnkiGeneration(message.set, message.days, message.withPreset !== false)
       .then(() => sendResponse({ ok: true }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
@@ -178,9 +178,24 @@ function getSQL(): Promise<SqlJsStatic> {
   return sqlPromise;
 }
 
-async function handleAnkiGeneration(set: FlashcardSet, days: number): Promise<void> {
+async function handleAnkiGeneration(
+  set: FlashcardSet,
+  days: number,
+  withPreset: boolean,
+): Promise<void> {
   const SQL = await getSQL();
-  const bytes = await buildAnkiPackage({ set, days, SQL });
+  const bytes = await buildAnkiPackage({
+    set,
+    days,
+    SQL,
+    withPreset,
+    onProgress: (progress) => {
+      // Best-effort broadcast to whichever popup window is open. Fails
+      // silently when the popup is closed (no listener) — the caller still
+      // gets the eventual ok/error via sendResponse.
+      chrome.runtime.sendMessage({ action: "ankiProgress", progress }).catch(() => {});
+    },
+  });
 
   const dataUrl = bytesToDataUrl(bytes, "application/octet-stream");
   const title = set.title || "flashcards";

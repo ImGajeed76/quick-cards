@@ -124,6 +124,9 @@ Alpine.data("popup", () => ({
   ankiViewYear: 0,
   ankiViewMonth: 0,
   ankiGenerating: false,
+  ankiProgressPhase: "" as "" | "download" | "build",
+  ankiProgressDone: 0,
+  ankiProgressTotal: 0,
 
   // Knowt import state
   knowtStep: "form" as "form" | "needsAuth" | "importing" | "success" | "error",
@@ -268,6 +271,17 @@ Alpine.data("popup", () => ({
     this.ankiSelected = sel;
     this.ankiViewYear = sel.getFullYear();
     this.ankiViewMonth = sel.getMonth();
+
+    // Subscribe to per-step progress updates broadcast from the background
+    // worker during Anki generation. The worker fires these in addition to
+    // the final ok/error response, so we patch UI state in place.
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg?.action === "ankiProgress" && msg.progress) {
+        this.ankiProgressPhase = msg.progress.phase;
+        this.ankiProgressDone = msg.progress.done;
+        this.ankiProgressTotal = msg.progress.total;
+      }
+    });
 
     // Settings are already loaded before Alpine.start() — see bottom of file.
     // Get current tab
@@ -638,17 +652,21 @@ Alpine.data("popup", () => ({
     return `Recommended pace: ~${count} cards/day`;
   },
 
-  async downloadAnki() {
+  async downloadAnki(withPreset = true) {
     if (!exportSet || this.ankiGenerating) return;
     this.ankiGenerating = true;
+    this.ankiProgressPhase = "";
+    this.ankiProgressDone = 0;
+    this.ankiProgressTotal = 0;
     try {
       const res = await chrome.runtime.sendMessage({
         action: "generateAnki",
         set: exportSet,
         days: this.ankiDays,
+        withPreset,
       });
       if (res?.ok) {
-        track("Export", { format: "anki" });
+        track("Export", { format: withPreset ? "anki" : "anki-no-preset" });
         track("Anki days", { range: bucketDays(this.ankiDays) });
       } else {
         console.error("[QuickCards] Anki generation failed:", res?.error);
@@ -657,7 +675,17 @@ Alpine.data("popup", () => ({
       console.error("[QuickCards] Anki generation error:", err);
     } finally {
       this.ankiGenerating = false;
+      this.ankiProgressPhase = "";
+      this.ankiProgressDone = 0;
+      this.ankiProgressTotal = 0;
     }
+  },
+
+  get ankiProgressLabel(): string {
+    if (this.ankiProgressPhase === "download" && this.ankiProgressTotal > 0) {
+      return `${this.ankiProgressDone} / ${this.ankiProgressTotal}`;
+    }
+    return "Generating…";
   },
 
   // ── Knowt import ─────────────────────────────────────────

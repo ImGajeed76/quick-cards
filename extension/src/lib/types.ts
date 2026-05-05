@@ -16,6 +16,8 @@ export interface Flashcard {
   definition: string;
   termMedia?: CardSideMedia;
   definitionMedia?: CardSideMedia;
+  /** Stable Quizlet card ID, when available. Used for re-import dedup in Anki. */
+  quizletId?: string;
 }
 
 export interface FlashcardSet {
