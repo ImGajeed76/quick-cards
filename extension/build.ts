@@ -36,6 +36,33 @@ async function build(): Promise<void> {
     console.log(`   -> dist/${config.out} (${sizeStr})`);
   }
 
+  // jsPDF bakes a https://cdnjs.cloudflare.com/.../pdfobject.min.js URL into
+  // its `output("pdfobjectnewwindow")` helper, which we never invoke. Chrome
+  // MV3 review still flags any reference to externally hosted code, even on
+  // dead paths (CWS rejected v1.6.0 over exactly this string). Strip the URL
+  // and matching subresource integrity attribute so the dead code becomes
+  // benign even by static scan.
+  console.log("\n   Stripping external code references...");
+  const REMOTE_CODE_PATTERNS: Array<[RegExp, string]> = [
+    [/https:\/\/cdnjs\.cloudflare\.com\/[^"']*/g, ""],
+    [/\sintegrity="sha\d+-[^"]*"/g, ""],
+  ];
+  for (const config of buildConfigs) {
+    const path = `dist/${config.out}`;
+    let content = await Bun.file(path).text();
+    let edits = 0;
+    for (const [pattern, replacement] of REMOTE_CODE_PATTERNS) {
+      content = content.replace(pattern, () => {
+        edits++;
+        return replacement;
+      });
+    }
+    if (edits > 0) {
+      await Bun.write(path, content);
+      console.log(`   -> ${path}: stripped ${edits} reference(s)`);
+    }
+  }
+
   // Build CSS with Tailwind
   console.log("\n2. Building CSS...");
   execSync("bunx @tailwindcss/cli -i src/styles/tailwind.css -o dist/styles.css --minify", {
