@@ -524,9 +524,15 @@
       </Button>
     </div>
 
-    <div class="mt-8 grid gap-10 lg:grid-cols-[1fr_320px] lg:gap-12">
-      <!-- Cards column (primary content) -->
-      <div class="min-w-0">
+    <!-- Three-block layout. Mobile (single column, source order):
+         title-block → aside → cards-block. Desktop (two columns):
+         title-block at top of left col, cards-block below it, aside
+         spans both rows on the right with sticky positioning. -->
+    <div
+      class="mt-8 grid gap-10 lg:grid-cols-[1fr_320px] lg:grid-rows-[auto_auto] lg:gap-x-12 lg:gap-y-6"
+    >
+      <!-- Title + description block -->
+      <div class="min-w-0 lg:col-start-1 lg:row-start-1">
         <div class="flex items-baseline justify-between gap-4">
           <input
             type="text"
@@ -554,10 +560,15 @@
           rows="1"
           class="placeholder:text-muted-foreground/40 text-muted-foreground mt-2 field-sizing-content w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
         ></textarea>
+      </div>
 
+      <!-- Cards block. On mobile sits below the aside (order-3); on
+           desktop sits directly under the title block in the left
+           column (explicit grid placement wins over order). -->
+      <div class="order-3 min-w-0 lg:col-start-1 lg:row-start-2">
         <!-- Editable cards list. Each row has inline-editable term and
              definition, plus a delete button that appears on hover. -->
-        <ul class="border-border divide-border/60 mt-6 divide-y rounded-lg border">
+        <ul class="border-border divide-border/60 divide-y rounded-lg border">
           {#each currentSet.cards as card, i (i)}
             <li
               class="hover:bg-muted/30 group grid grid-cols-[2.25rem_1fr_1fr_2rem] gap-2 px-3 py-2 transition-colors"
@@ -610,8 +621,12 @@
         </button>
       </div>
 
-      <!-- Export sidebar -->
-      <aside class="lg:sticky lg:top-6 lg:self-start">
+      <!-- Export sidebar. On mobile sits between title and cards
+           (order-2). On desktop spans both rows on the right and
+           stays sticky. -->
+      <aside
+        class="order-2 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start"
+      >
         <!-- Separators -->
         <div class="space-y-3">
           <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
