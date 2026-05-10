@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { resolve } from "$app/paths";
   import {
@@ -118,8 +119,22 @@ Cytoplasm,Gel filling a cell.`;
       },
     ],
   };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: SITE_NAME, item: `${SITE_URL}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "ChatGPT flashcards to Anki",
+        item: `${SITE_URL}/chatgpt-flashcards-to-anki`,
+      },
+    ],
+  };
   /* eslint-disable no-useless-escape */
   const faqJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`;
+  const breadcrumbJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(breadcrumbJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
 </script>
 
@@ -133,6 +148,7 @@ Cytoplasm,Gel filling a cell.`;
   <link rel="canonical" href={`${SITE_URL}/chatgpt-flashcards-to-anki`} />
   <!-- eslint-disable svelte/no-at-html-tags -->
   {@html faqJsonLdHtml}
+  {@html breadcrumbJsonLdHtml}
 </svelte:head>
 
 <div class="bg-background text-foreground flex min-h-screen flex-col">
@@ -381,35 +397,5 @@ Cytoplasm,Gel filling a cell.`;
     </section>
   </main>
 
-  <footer class="border-foreground/10 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          Oliver Seifert
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
-        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
-        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
-        >
-        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors">GitHub</a
-        >
-      </div>
-    </div>
-  </footer>
-
-  <p
-    class="text-muted-foreground/70 mx-auto max-w-xl px-6 pb-10 text-center text-xs leading-relaxed text-pretty"
-  >
-    QuickCards is an independent open-source project, not affiliated with Quizlet, Anki, Knowt, or
-    any other product mentioned. All trademarks belong to their respective owners.
-  </p>
+  <SiteFooter />
 </div>

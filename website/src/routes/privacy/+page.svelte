@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import { ArrowRight, ArrowUpRight } from "@lucide/svelte";
   import { resolve } from "$app/paths";
   import { track } from "$lib/analytics";
@@ -329,27 +330,5 @@
     </p>
   </main>
 
-  <footer class="border-foreground/10 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          {SITE_AUTHOR}
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
-        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
-        >
-        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors">GitHub</a
-        >
-      </div>
-    </div>
-  </footer>
+  <SiteFooter />
 </div>

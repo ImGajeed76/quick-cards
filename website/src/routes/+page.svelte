@@ -13,6 +13,7 @@
     FileText,
   } from "@lucide/svelte";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import PdfFlashcardsPreview from "$lib/components/mockups/PdfFlashcardsPreview.svelte";
   import PdfListPreview from "$lib/components/mockups/PdfListPreview.svelte";
   import AnkiCardsPreview from "$lib/components/mockups/AnkiCardsPreview.svelte";
@@ -509,10 +510,10 @@
           </span>
         </div>
         <div class="flex flex-col gap-1">
-          <span class="text-primary text-[10px] tracking-wider uppercase">stored in</span>
-          <span class="text-foreground/90">the URL</span>
+          <span class="text-primary text-[10px] tracking-wider uppercase">shared via</span>
+          <span class="text-foreground/90">private links</span>
           <span class="text-muted-foreground/70 font-sans text-[11px] leading-snug">
-            lz-string compresses the whole set into the address bar. Share the link.
+            Compressed into the URL fragment. Never reaches our server.
           </span>
         </div>
         <div class="flex flex-col gap-1">
@@ -570,8 +571,11 @@
           <img
             src="/screenshots/floating_banner.png"
             alt="QuickCards floating banner on a Quizlet set page"
+            width="619"
+            height="277"
             class="border-border mx-auto w-full max-w-sm rounded-md border shadow-xl shadow-black/30"
             loading="lazy"
+            decoding="async"
           />
         </div>
       </div>
@@ -667,48 +671,7 @@
     </div>
   </section>
 
-  <!-- ══════════════ Footer ══════════════ -->
-  <footer class="border-border/50 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          Oliver Seifert
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
-        >
-        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
-        <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
-          Coming from Knowt?
-        </a>
-        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors"
-        >
-          GitHub
-        </a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards/issues"
-          class="hover:text-foreground transition-colors"
-        >
-          Report a bug
-        </a>
-      </div>
-    </div>
-  </footer>
-
-  <p
-    class="text-muted-foreground/70 mx-auto max-w-xl px-6 pb-10 text-center text-xs leading-relaxed text-pretty"
-  >
-    QuickCards is an independent open-source project, not affiliated with Quizlet, Anki, Knowt, or
-    any other product mentioned. All trademarks belong to their respective owners.
-  </p>
+  <SiteFooter />
 </div>
 
 <style>

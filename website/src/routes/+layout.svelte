@@ -28,7 +28,7 @@
   <meta property="og:image" content={ogImage} />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="QuickCards — Export Cards, quick." />
+  <meta property="og:image:alt" content="QuickCards. Export Cards, quick." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content={ogImage} />
 </svelte:head>

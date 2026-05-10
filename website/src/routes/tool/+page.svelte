@@ -3,6 +3,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Textarea } from "$lib/components/ui/textarea";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { track } from "$lib/analytics";
   import { goto } from "$app/navigation";
@@ -139,8 +140,53 @@ Or click an example below.`;
       "Free and open source under MIT",
     ],
   };
+  const howtoJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "Convert pasted flashcard data to Anki, PDF, CSV, or JSON",
+    description:
+      "Paste vocab list, CSV, JSON, or Markdown table data into the QuickCards web tool, review the parsed cards, then export to Anki .apkg, PDF, CSV, JSON, or TXT.",
+    totalTime: "PT1M",
+    step: [
+      {
+        "@type": "HowToStep",
+        name: "Paste your flashcard data",
+        text: "Paste a vocab list, CSV, TSV, JSON, JSON Lines, Markdown table, TOML, or anything that looks like term/definition pairs.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Review the parsed cards",
+        text: "QuickCards auto-detects the format. Edit cards inline if anything needs adjusting.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Pick an output format",
+        text: "Choose Anki .apkg, printable PDF flashcards, vocab list PDF, CSV, JSON, or TXT from the export sidebar.",
+      },
+      {
+        "@type": "HowToStep",
+        name: "Download",
+        text: "The file is generated entirely in your browser and saved to your downloads folder.",
+      },
+    ],
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: SITE_NAME, item: `${SITE_URL}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Web tool",
+        item: `${SITE_URL}/tool`,
+      },
+    ],
+  };
   /* eslint-disable no-useless-escape */
   const appJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(appJsonLd)}<\/script>`;
+  const howtoJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(howtoJsonLd)}<\/script>`;
+  const breadcrumbJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(breadcrumbJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
 
   // Mockup body for the JSON output tile, kept as a string + @html so
@@ -220,6 +266,8 @@ Osmosis<span class="text-primary/70">,</span><span class="text-muted-foreground"
   <link rel="canonical" href={`${SITE_URL}/tool`} />
   <!-- eslint-disable svelte/no-at-html-tags -->
   {@html appJsonLdHtml}
+  {@html howtoJsonLdHtml}
+  {@html breadcrumbJsonLdHtml}
 </svelte:head>
 
 <div class="bg-background text-foreground flex min-h-screen flex-col">
@@ -566,32 +614,7 @@ Osmosis<span class="text-primary/70">,</span><span class="text-muted-foreground"
     </section>
   </main>
 
-  <footer class="border-foreground/10 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          Oliver Seifert
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
-        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
-        >
-        <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
-          Coming from Knowt?
-        </a>
-        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors">GitHub</a
-        >
-      </div>
-    </div>
-  </footer>
+  <SiteFooter />
 </div>
 
 <style>

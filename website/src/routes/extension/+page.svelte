@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { Button } from "$lib/components/ui/button";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { track } from "$lib/analytics";
   import { resolve } from "$app/paths";
@@ -50,11 +51,73 @@
     operatingSystem: "Chrome, Edge, Brave, Opera, Firefox (sideload)",
     url: `${SITE_URL}/extension`,
     description,
+    installUrl: CWS_URL,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     sameAs: [SITE_REPO, CWS_URL],
   };
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "Does the extension work without a Quizlet account?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes for public sets. The extension reads what your browser has already rendered. For private sets, sign in to Quizlet first and the extension reads them too.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Does the .apkg include images and audio?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. Images, user-recorded audio, and Quizlet's TTS bundle into the .apkg. CSV imports drop these by design; QuickCards keeps them.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Will the .apkg work on mobile and AnkiWeb?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. The .apkg imports the same on Anki desktop, AnkiMobile (iOS), AnkiDroid, and AnkiWeb.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is QuickCards available for Firefox?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes via sideload from the GitHub releases. Chrome, Edge, Brave, and Opera install directly from the Chrome Web Store.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Is QuickCards open source?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. MIT licensed, source on GitHub. Runs entirely in your browser, no account, no upload.",
+        },
+      },
+    ],
+  };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: SITE_NAME, item: `${SITE_URL}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Extension",
+        item: `${SITE_URL}/extension`,
+      },
+    ],
+  };
   /* eslint-disable no-useless-escape */
   const appJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(appJsonLd)}<\/script>`;
+  const faqJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`;
+  const breadcrumbJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(breadcrumbJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
 
   const tileTints = [
@@ -78,6 +141,8 @@
   <link rel="preconnect" href="https://api.github.com" crossorigin="anonymous" />
   <!-- eslint-disable svelte/no-at-html-tags -->
   {@html appJsonLdHtml}
+  {@html faqJsonLdHtml}
+  {@html breadcrumbJsonLdHtml}
 </svelte:head>
 
 <div class="bg-background text-foreground flex min-h-screen flex-col">
@@ -454,36 +519,5 @@
     </section>
   </main>
 
-  <footer class="border-foreground/10 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          Oliver Seifert
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
-        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
-        <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
-          Coming from Knowt?
-        </a>
-        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors">GitHub</a
-        >
-      </div>
-    </div>
-  </footer>
-
-  <p
-    class="text-muted-foreground/70 mx-auto max-w-xl px-6 pb-10 text-center text-xs leading-relaxed text-pretty"
-  >
-    QuickCards is an independent open-source project, not affiliated with Quizlet, Anki, Knowt, or
-    any other product mentioned. All trademarks belong to their respective owners.
-  </p>
+  <SiteFooter />
 </div>

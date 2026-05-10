@@ -2,6 +2,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Accordion from "$lib/components/ui/accordion";
   import Github from "$lib/components/icons/Github.svelte";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
   import { ArrowRight, Puzzle } from "@lucide/svelte";
   import { resolve } from "$app/paths";
   import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
@@ -205,59 +206,64 @@
   </header>
 
   <main class="flex-grow">
-    <!-- ════════ Hero ════════
+    <!-- The page is one long-form article (Knowt comparison + FAQ).
+         Wrapped in <article> so the structured-data crawlers and a11y
+         tree see the body as a single content unit, not just a
+         collection of sections. -->
+    <article>
+      <!-- ════════ Hero ════════
        Long-form content page (SEO landing). Narrow reading column for
        prose, but the hero gets the standard headline + accent + a tight
        data-loss visualization that makes "you lose two-thirds of your
        set" land in a glance. -->
-    <section class="relative overflow-hidden px-6 pt-12 pb-16 sm:pt-16 sm:pb-20">
-      <div
-        aria-hidden="true"
-        class="bg-primary pointer-events-none absolute -top-32 left-1/2 -z-10 h-[440px] w-[680px] -translate-x-1/2 rounded-full opacity-15 blur-[140px]"
-      ></div>
+      <section class="relative overflow-hidden px-6 pt-12 pb-16 sm:pt-16 sm:pb-20">
+        <div
+          aria-hidden="true"
+          class="bg-primary pointer-events-none absolute -top-32 left-1/2 -z-10 h-[440px] w-[680px] -translate-x-1/2 rounded-full opacity-15 blur-[140px]"
+        ></div>
 
-      <div
-        class="relative z-10 mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-[1.4fr_1fr] lg:gap-14"
-      >
-        <div>
-          <h1
-            class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
-          >
-            Knowt only imports 100 Quizlet cards.
-            <span class="text-primary">Here's the fix.</span>
-          </h1>
-          <p class="text-muted-foreground mt-6 max-w-xl text-base leading-relaxed sm:text-lg">
-            The fix inside Knowt is to scroll the Quizlet set to the bottom, click "See more", then
-            run the importer. {SITE_NAME} skips the ritual: open the set, click the QuickCards banner,
-            send the whole thing into Knowt. Any size.
-          </p>
+        <div
+          class="relative z-10 mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-[1.4fr_1fr] lg:gap-14"
+        >
+          <div>
+            <h1
+              class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
+            >
+              Knowt only imports 100 Quizlet cards.
+              <span class="text-primary">Here's the fix.</span>
+            </h1>
+            <p class="text-muted-foreground mt-6 max-w-xl text-base leading-relaxed sm:text-lg">
+              The fix inside Knowt is to scroll the Quizlet set to the bottom, click "See more",
+              then run the importer. {SITE_NAME} skips the ritual: open the set, click the QuickCards
+              banner, send the whole thing into Knowt. Any size.
+            </p>
 
-          <div class="mt-8 flex flex-wrap items-center gap-3">
-            <Button
-              href={CWS_URL}
-              onclick={() => trackInstallClick("knowt-hero")}
-              size="lg"
-              class="group h-12 gap-2 px-6 text-base"
-            >
-              <Puzzle class="size-4" />
-              Add to Chrome
-              <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Button>
-            <Button
-              href={resolve("/quizlet-to-anki")}
-              variant="outline"
-              size="lg"
-              class="h-12 px-5"
-            >
-              Quizlet to Anki guide
-            </Button>
+            <div class="mt-8 flex flex-wrap items-center gap-3">
+              <Button
+                href={CWS_URL}
+                onclick={() => trackInstallClick("knowt-hero")}
+                size="lg"
+                class="group h-12 gap-2 px-6 text-base"
+              >
+                <Puzzle class="size-4" />
+                Add to Chrome
+                <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Button>
+              <Button
+                href={resolve("/quizlet-to-anki")}
+                variant="outline"
+                size="lg"
+                class="h-12 px-5"
+              >
+                Quizlet to Anki guide
+              </Button>
+            </div>
+            <p class="text-muted-foreground/80 mt-6 font-mono text-xs tracking-wide">
+              Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Open source
+            </p>
           </div>
-          <p class="text-muted-foreground/80 mt-6 font-mono text-xs tracking-wide">
-            Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Open source
-          </p>
-        </div>
 
-        <!-- Data-loss visualization. Two physical-feeling stacks of
+          <!-- Data-loss visualization. Two physical-feeling stacks of
              flashcards sharing a baseline. Each silhouette card is an
              outline rectangle (3:2 aspect); the topmost card on each
              stack is a specimen with term + divider + def. The two
@@ -271,377 +277,350 @@
              falloff displacement, like skimming a pile with a thumb.
              Each stack tracks its cursor independently so they ripple
              on their own. -->
-        <div class="grid grid-cols-2 items-end gap-8 perspective-[900px] sm:gap-12">
-          <!-- Knowt stack: 6 basic terms (the ones that survive the cap). -->
-          <div class="flex flex-col items-center gap-5">
-            <div
-              class="relative h-48 w-[120px]"
-              style="transform: rotateX(-14deg); transform-style: preserve-3d;"
-              onmousemove={(e) => onStackMove(e, "knowt")}
-              onmouseleave={() => onStackLeave("knowt")}
-              role="presentation"
-            >
-              {#each knowtCards as card, i (card.term)}
-                {@const baseY = -i * 6}
-                {@const ripple = rippleOffset(baseY, knowtCursorY, 192)}
-                <div
-                  class="border-border bg-card absolute inset-x-0 bottom-0 flex aspect-[3/2] flex-col items-center justify-center rounded-md border p-2 shadow-md shadow-black/30 transition-transform duration-200 ease-out"
-                  style={`transform: translateY(${(baseY + ripple).toFixed(2)}px) translateX(${(Math.sin(i * 1.7) * 4).toFixed(2)}px) rotate(${(Math.sin(i * 2.3) * 2.5).toFixed(2)}deg);`}
-                >
-                  <div class="text-foreground text-[10px] leading-tight font-semibold">
-                    {card.term}
-                  </div>
-                  <div class="bg-border/60 my-1 h-px w-3/4"></div>
-                  <div class="text-muted-foreground text-center text-[7px] leading-tight">
-                    {card.def}
-                  </div>
-                </div>
-              {/each}
-            </div>
-            <div class="text-center">
-              <div class="text-foreground text-2xl font-semibold tabular-nums">100</div>
+          <div class="grid grid-cols-2 items-end gap-8 perspective-[900px] sm:gap-12">
+            <!-- Knowt stack: 6 basic terms (the ones that survive the cap). -->
+            <div class="flex flex-col items-center gap-5">
               <div
-                class="text-muted-foreground/70 mt-1 font-mono text-[10px] tracking-wider uppercase"
+                class="relative h-48 w-[120px]"
+                style="transform: rotateX(-14deg); transform-style: preserve-3d;"
+                onmousemove={(e) => onStackMove(e, "knowt")}
+                onmouseleave={() => onStackLeave("knowt")}
+                role="presentation"
               >
-                Knowt
+                {#each knowtCards as card, i (card.term)}
+                  {@const baseY = -i * 6}
+                  {@const ripple = rippleOffset(baseY, knowtCursorY, 192)}
+                  <div
+                    class="border-border bg-card absolute inset-x-0 bottom-0 flex aspect-[3/2] flex-col items-center justify-center rounded-md border p-2 shadow-md shadow-black/30 transition-transform duration-200 ease-out"
+                    style={`transform: translateY(${(baseY + ripple).toFixed(2)}px) translateX(${(Math.sin(i * 1.7) * 4).toFixed(2)}px) rotate(${(Math.sin(i * 2.3) * 2.5).toFixed(2)}deg);`}
+                  >
+                    <div class="text-foreground text-[10px] leading-tight font-semibold">
+                      {card.term}
+                    </div>
+                    <div class="bg-border/60 my-1 h-px w-3/4"></div>
+                    <div class="text-muted-foreground text-center text-[7px] leading-tight">
+                      {card.def}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+              <div class="text-center">
+                <div class="text-foreground text-2xl font-semibold tabular-nums">100</div>
+                <div
+                  class="text-muted-foreground/70 mt-1 font-mono text-[10px] tracking-wider uppercase"
+                >
+                  Knowt
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- QuickCards stack: 18 cards. The first 6 mirror Knowt's;
+            <!-- QuickCards stack: 18 cards. The first 6 mirror Knowt's;
                the next 12 are advanced terms only present in the full
                deck. Hover-skim reveals what Knowt would have lost. -->
-          <div class="flex flex-col items-center gap-5">
-            <div
-              class="relative h-48 w-[120px]"
-              style="transform: rotateX(-14deg); transform-style: preserve-3d;"
-              onmousemove={(e) => onStackMove(e, "qc")}
-              onmouseleave={() => onStackLeave("qc")}
-              role="presentation"
-            >
-              {#each qcCards as card, i (card.term)}
-                {@const baseY = -i * 6}
-                {@const ripple = rippleOffset(baseY, qcCursorY, 192)}
-                <div
-                  class="border-border bg-card absolute inset-x-0 bottom-0 flex aspect-[3/2] flex-col items-center justify-center rounded-md border p-2 shadow-md shadow-black/30 transition-transform duration-200 ease-out"
-                  style={`transform: translateY(${(baseY + ripple).toFixed(2)}px) translateX(${(Math.sin(i * 1.7) * 4).toFixed(2)}px) rotate(${(Math.sin(i * 2.3) * 2.5).toFixed(2)}deg);`}
-                >
-                  <div class="text-foreground text-[10px] leading-tight font-semibold">
-                    {card.term}
-                  </div>
-                  <div class="bg-border/60 my-1 h-px w-3/4"></div>
-                  <div class="text-muted-foreground text-center text-[7px] leading-tight">
-                    {card.def}
-                  </div>
-                </div>
-              {/each}
-            </div>
-            <div class="text-center">
-              <div class="text-foreground text-2xl font-semibold tabular-nums">300</div>
+            <div class="flex flex-col items-center gap-5">
               <div
-                class="text-muted-foreground/70 mt-1 font-mono text-[10px] tracking-wider uppercase"
+                class="relative h-48 w-[120px]"
+                style="transform: rotateX(-14deg); transform-style: preserve-3d;"
+                onmousemove={(e) => onStackMove(e, "qc")}
+                onmouseleave={() => onStackLeave("qc")}
+                role="presentation"
               >
-                QuickCards
+                {#each qcCards as card, i (card.term)}
+                  {@const baseY = -i * 6}
+                  {@const ripple = rippleOffset(baseY, qcCursorY, 192)}
+                  <div
+                    class="border-border bg-card absolute inset-x-0 bottom-0 flex aspect-[3/2] flex-col items-center justify-center rounded-md border p-2 shadow-md shadow-black/30 transition-transform duration-200 ease-out"
+                    style={`transform: translateY(${(baseY + ripple).toFixed(2)}px) translateX(${(Math.sin(i * 1.7) * 4).toFixed(2)}px) rotate(${(Math.sin(i * 2.3) * 2.5).toFixed(2)}deg);`}
+                  >
+                    <div class="text-foreground text-[10px] leading-tight font-semibold">
+                      {card.term}
+                    </div>
+                    <div class="bg-border/60 my-1 h-px w-3/4"></div>
+                    <div class="text-muted-foreground text-center text-[7px] leading-tight">
+                      {card.def}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+              <div class="text-center">
+                <div class="text-foreground text-2xl font-semibold tabular-nums">300</div>
+                <div
+                  class="text-muted-foreground/70 mt-1 font-mono text-[10px] tracking-wider uppercase"
+                >
+                  QuickCards
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ════════ The user's experience of the cap ════════ -->
-    <section use:reveal class="px-6 py-16 sm:py-20">
-      <div class="mx-auto max-w-[720px]">
-        <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-          The cap
-        </span>
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Does this sound familiar?</h2>
-        <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
-          <p>
-            You import a 300-card Quizlet set into Knowt. 100 cards come across. No error, no
-            warning, no "partial import" flag. You find out the rest are missing when a word you
-            expected never shows up in review.
-          </p>
-          <p>
-            Technically the cap is not fixed at 100. Knowt's help center documents the workaround:
-            before triggering the import, you have to open the Quizlet set, scroll all the way to
-            the bottom, click "See more", and only then run the importer. Most people miss that
-            step, so the practical effect is the same as a hard cap.
-          </p>
-          <p>
-            {SITE_NAME} reads the set a different way that does not depend on what the page has rendered,
-            so the scroll-then-click step is unnecessary. Full set, regardless of size, into Knowt or
-            into Anki, PDF, CSV, JSON, TXT.
-          </p>
+      <!-- ════════ The user's experience of the cap ════════ -->
+      <section use:reveal class="px-6 py-16 sm:py-20">
+        <div class="mx-auto max-w-[720px]">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            The cap
+          </span>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Does this sound familiar?
+          </h2>
+          <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
+            <p>
+              You import a 300-card Quizlet set into Knowt. 100 cards come across. No error, no
+              warning, no "partial import" flag. You find out the rest are missing when a word you
+              expected never shows up in review.
+            </p>
+            <p>
+              Technically the cap is not fixed at 100. Knowt's help center documents the workaround:
+              before triggering the import, you have to open the Quizlet set, scroll all the way to
+              the bottom, click "See more", and only then run the importer. Most people miss that
+              step, so the practical effect is the same as a hard cap.
+            </p>
+            <p>
+              {SITE_NAME} reads the set a different way that does not depend on what the page has rendered,
+              so the scroll-then-click step is unnecessary. Full set, regardless of size, into Knowt or
+              into Anki, PDF, CSV, JSON, TXT.
+            </p>
+          </div>
+          <figure class="mt-8">
+            <img
+              src="/screenshots/quickcards-widget.png"
+              alt="QuickCards widget on a Quizlet set page"
+              class="border-border w-full rounded-md border shadow-xl shadow-black/30"
+              width="795"
+              height="286"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption class="text-muted-foreground mt-3 text-xs">
+              The {SITE_NAME} widget appears on any Quizlet set.
+            </figcaption>
+          </figure>
         </div>
-        <figure class="mt-8">
-          <img
-            src="/screenshots/quickcards-widget.png"
-            alt="QuickCards widget on a Quizlet set page"
-            class="border-border w-full rounded-md border shadow-xl shadow-black/30"
-            width="795"
-            height="286"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption class="text-muted-foreground mt-3 text-xs">
-            The {SITE_NAME} widget appears on any Quizlet set.
-          </figcaption>
-        </figure>
-      </div>
-    </section>
+      </section>
 
-    <!-- ════════ Fair framing: Knowt is a real choice ════════ -->
-    <section use:reveal class="px-6 py-16 sm:py-20">
-      <div class="mx-auto max-w-[720px]">
-        <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-          The fair side
-        </span>
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-          When Knowt is the right call
-        </h2>
-        <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
-          <p>
-            QuickCards and Knowt are not the same shape and not really competing. Knowt is a free
-            Quizlet-style study app with its own learn/test/match modes; QuickCards is a converter
-            that gets your data out (or into Knowt) without changing where you study.
-          </p>
-          <p>
-            If you want to keep studying in a Quizlet-shaped product without paying for Quizlet
-            Plus, Knowt is a strong answer. The trade-offs are real (ads, an account is required)
-            but for a lot of students it is the right pick. We use it ourselves for some sets.
-          </p>
-          <p>
-            If you want your cards in Anki, on a printable PDF, in a CSV for a spreadsheet, or in
-            Knowt without the scroll-then-click step, that is where {SITE_NAME} fits.
-          </p>
+      <!-- ════════ Fair framing: Knowt is a real choice ════════ -->
+      <section use:reveal class="px-6 py-16 sm:py-20">
+        <div class="mx-auto max-w-[720px]">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            The fair side
+          </span>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            When Knowt is the right call
+          </h2>
+          <div class="text-muted-foreground mt-5 space-y-4 text-[15px] leading-7">
+            <p>
+              QuickCards and Knowt are not the same shape and not really competing. Knowt is a free
+              Quizlet-style study app with its own learn/test/match modes; QuickCards is a converter
+              that gets your data out (or into Knowt) without changing where you study.
+            </p>
+            <p>
+              If you want to keep studying in a Quizlet-shaped product without paying for Quizlet
+              Plus, Knowt is a strong answer. The trade-offs are real (ads, an account is required)
+              but for a lot of students it is the right pick. We use it ourselves for some sets.
+            </p>
+            <p>
+              If you want your cards in Anki, on a printable PDF, in a CSV for a spreadsheet, or in
+              Knowt without the scroll-then-click step, that is where {SITE_NAME} fits.
+            </p>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ════════ Side-by-side scoreboard ════════
+      <!-- ════════ Side-by-side scoreboard ════════
        Replaces a flat HTML comparison table with two profile-style
        columns: each path gets its own card, with the same labelled
        facts stacked vertically inside. The QuickCards column gets a
        subtle primary-tinted left border + slightly elevated bg so the
        eye reads it as the foregrounded path, without crossing into
        Knowt-bashing territory. -->
-    <section use:reveal class="px-6 py-16 sm:py-20">
-      <div class="mx-auto max-w-[720px]">
-        <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-          Side by side
-        </span>
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">What's different</h2>
-        <p class="text-muted-foreground mt-3 text-[15px] leading-7">
-          Where the two paths actually diverge. Both are free, and both need a Knowt account if you
-          want cards to end up in Knowt.
-        </p>
+      <section use:reveal class="px-6 py-16 sm:py-20">
+        <div class="mx-auto max-w-[720px]">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            Side by side
+          </span>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">What's different</h2>
+          <p class="text-muted-foreground mt-3 text-[15px] leading-7">
+            Where the two paths actually diverge. Both are free, and both need a Knowt account if
+            you want cards to end up in Knowt.
+          </p>
 
-        <div class="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5">
-          <!-- QuickCards column -->
+          <div class="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-5">
+            <!-- QuickCards column -->
+            <div
+              class="border-primary/40 bg-card relative rounded-lg border border-l-2 p-6 shadow-md shadow-black/20"
+            >
+              <div class="text-primary mb-5 text-sm font-semibold tracking-tight">
+                {SITE_NAME}
+              </div>
+              <dl class="space-y-4">
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Cards per set
+                  </dt>
+                  <dd class="text-foreground text-sm leading-snug font-medium">
+                    No limit, no extra steps
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Merge multiple sets
+                  </dt>
+                  <dd class="text-foreground text-sm leading-snug font-medium">
+                    Yes, with optional dedupe
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Account
+                  </dt>
+                  <dd class="text-foreground text-sm leading-snug font-medium">
+                    None for QuickCards itself; Knowt sign-in only when sending into Knowt
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Output
+                  </dt>
+                  <dd class="text-foreground text-sm leading-snug font-medium">
+                    Knowt, Anki, PDF, CSV, JSON, TXT
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <!-- Knowt column -->
+            <div class="border-border bg-card/50 relative rounded-lg border p-6">
+              <div class="text-foreground/85 mb-5 text-sm font-semibold tracking-tight">
+                Knowt's Quizlet import
+              </div>
+              <dl class="space-y-4">
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Cards per set
+                  </dt>
+                  <dd class="text-muted-foreground text-sm leading-snug">
+                    100 by default; "See more" first to get the rest
+                  </dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Merge multiple sets
+                  </dt>
+                  <dd class="text-muted-foreground text-sm leading-snug">One set at a time</dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Account
+                  </dt>
+                  <dd class="text-muted-foreground text-sm leading-snug">Knowt account (free)</dd>
+                </div>
+                <div>
+                  <dt
+                    class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
+                  >
+                    Output
+                  </dt>
+                  <dd class="text-muted-foreground text-sm leading-snug">Knowt only</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════ FAQ ════════ -->
+      <section use:reveal class="px-6 py-16 sm:py-20">
+        <div class="mx-auto max-w-[720px]">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            FAQ
+          </span>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Frequently asked questions
+          </h2>
+          <Accordion.Root
+            type="multiple"
+            class="border-border divide-border mt-6 divide-y rounded-lg border"
+          >
+            {#each faqs as faq (faq.q)}
+              <Accordion.Item value={slug(faq.q)} id={slug(faq.q)} class="border-b-0">
+                <Accordion.Trigger
+                  class="px-5 py-4 text-left text-[15px] font-medium hover:no-underline"
+                >
+                  {faq.q}
+                </Accordion.Trigger>
+                <Accordion.Content class="text-muted-foreground px-5 pb-5 text-[15px] leading-7">
+                  {faq.a}
+                </Accordion.Content>
+              </Accordion.Item>
+            {/each}
+          </Accordion.Root>
+        </div>
+      </section>
+
+      <!-- ════════ Closing CTA ════════ -->
+      <section class="px-6 py-20 sm:py-24">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Send the whole set into Knowt.
+          </h2>
+          <p class="text-muted-foreground mt-4 text-base leading-relaxed">
+            Or skip Knowt entirely. Anki, PDF, CSV, JSON, TXT, your call.
+          </p>
+          <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              href={CWS_URL}
+              onclick={() => trackInstallClick("knowt-footer")}
+              size="lg"
+              class="group h-12 gap-2 px-6 text-base"
+            >
+              <Puzzle class="size-4" />
+              Add to Chrome
+              <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Button>
+          </div>
           <div
-            class="border-primary/40 bg-card relative rounded-lg border border-l-2 p-6 shadow-md shadow-black/20"
+            class="text-muted-foreground/70 mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
           >
-            <div class="text-primary mb-5 text-sm font-semibold tracking-tight">
-              {SITE_NAME}
-            </div>
-            <dl class="space-y-4">
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Cards per set
-                </dt>
-                <dd class="text-foreground text-sm leading-snug font-medium">
-                  No limit, no extra steps
-                </dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Merge multiple sets
-                </dt>
-                <dd class="text-foreground text-sm leading-snug font-medium">
-                  Yes, with optional dedupe
-                </dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Account
-                </dt>
-                <dd class="text-foreground text-sm leading-snug font-medium">
-                  None for QuickCards itself; Knowt sign-in only when sending into Knowt
-                </dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Output
-                </dt>
-                <dd class="text-foreground text-sm leading-snug font-medium">
-                  Knowt, Anki, PDF, CSV, JSON, TXT
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <!-- Knowt column -->
-          <div class="border-border bg-card/50 relative rounded-lg border p-6">
-            <div class="text-foreground/85 mb-5 text-sm font-semibold tracking-tight">
-              Knowt's Quizlet import
-            </div>
-            <dl class="space-y-4">
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Cards per set
-                </dt>
-                <dd class="text-muted-foreground text-sm leading-snug">
-                  100 by default; "See more" first to get the rest
-                </dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Merge multiple sets
-                </dt>
-                <dd class="text-muted-foreground text-sm leading-snug">One set at a time</dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Account
-                </dt>
-                <dd class="text-muted-foreground text-sm leading-snug">Knowt account (free)</dd>
-              </div>
-              <div>
-                <dt
-                  class="text-muted-foreground/70 mb-1 font-mono text-[10px] tracking-wider uppercase"
-                >
-                  Output
-                </dt>
-                <dd class="text-muted-foreground text-sm leading-snug">Knowt only</dd>
-              </div>
-            </dl>
+            <a
+              href={resolve("/extension")}
+              class="hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Extension
+            </a>
+            <span>·</span>
+            <a
+              href={resolve("/tool")}
+              class="hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Web tool
+            </a>
+            <span>·</span>
+            <a
+              href={resolve("/quizlet-to-anki")}
+              class="hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Quizlet to Anki
+            </a>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- ════════ FAQ ════════ -->
-    <section use:reveal class="px-6 py-16 sm:py-20">
-      <div class="mx-auto max-w-[720px]">
-        <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-          FAQ
-        </span>
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Frequently asked questions
-        </h2>
-        <Accordion.Root
-          type="multiple"
-          class="border-border divide-border mt-6 divide-y rounded-lg border"
-        >
-          {#each faqs as faq (faq.q)}
-            <Accordion.Item value={slug(faq.q)} id={slug(faq.q)} class="border-b-0">
-              <Accordion.Trigger
-                class="px-5 py-4 text-left text-[15px] font-medium hover:no-underline"
-              >
-                {faq.q}
-              </Accordion.Trigger>
-              <Accordion.Content class="text-muted-foreground px-5 pb-5 text-[15px] leading-7">
-                {faq.a}
-              </Accordion.Content>
-            </Accordion.Item>
-          {/each}
-        </Accordion.Root>
-      </div>
-    </section>
-
-    <!-- ════════ Closing CTA ════════ -->
-    <section class="px-6 py-20 sm:py-24">
-      <div class="mx-auto max-w-3xl text-center">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Send the whole set into Knowt.
-        </h2>
-        <p class="text-muted-foreground mt-4 text-base leading-relaxed">
-          Or skip Knowt entirely. Anki, PDF, CSV, JSON, TXT, your call.
-        </p>
-        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
-          <Button
-            href={CWS_URL}
-            onclick={() => trackInstallClick("knowt-footer")}
-            size="lg"
-            class="group h-12 gap-2 px-6 text-base"
-          >
-            <Puzzle class="size-4" />
-            Add to Chrome
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-          </Button>
-        </div>
-        <div
-          class="text-muted-foreground/70 mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
-        >
-          <a
-            href={resolve("/extension")}
-            class="hover:text-foreground underline-offset-2 hover:underline"
-          >
-            Extension
-          </a>
-          <span>·</span>
-          <a
-            href={resolve("/tool")}
-            class="hover:text-foreground underline-offset-2 hover:underline"
-          >
-            Web tool
-          </a>
-          <span>·</span>
-          <a
-            href={resolve("/quizlet-to-anki")}
-            class="hover:text-foreground underline-offset-2 hover:underline"
-          >
-            Quizlet to Anki
-          </a>
-        </div>
-      </div>
-    </section>
+      </section>
+    </article>
   </main>
 
-  <footer class="border-foreground/10 border-t">
-    <div
-      class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
-    >
-      <div>
-        Made by
-        <a href="https://oseifert.ch" class="text-foreground hover:text-primary transition-colors">
-          Oliver Seifert
-        </a>
-        · MIT licensed.
-      </div>
-      <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-        <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
-        <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
-        >
-        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
-        <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
-        <a
-          href="https://github.com/ImGajeed76/quick-cards"
-          class="hover:text-foreground transition-colors">GitHub</a
-        >
-      </div>
-    </div>
-  </footer>
-
-  <p
-    class="text-muted-foreground/70 mx-auto max-w-xl px-6 pb-10 text-center text-xs leading-relaxed text-pretty"
-  >
-    QuickCards is an independent open-source project, not affiliated with Quizlet, Anki, Knowt, or
-    any other product mentioned. All trademarks belong to their respective owners.
-  </p>
+  <SiteFooter />
 </div>
