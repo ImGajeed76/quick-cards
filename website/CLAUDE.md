@@ -18,7 +18,7 @@ QuickCards is a Chrome extension (in `extension/`) with a companion SvelteKit we
 - **Deployment:** Vercel. Fully prerendered via `@sveltejs/adapter-static`.
 - **Analytics:** Self-hosted Plausible. Use `track(event, props)` from `$lib/analytics`. Event names are Title Case with lowercase continuation (`Share link`, `Knowt import result`, `Install CTA`).
 - **Site tokens:** `src/lib/site.ts` exports `SITE_NAME`, `SITE_URL`, `SITE_TAGLINE`, etc. Use these. Never hardcode the site name or URL.
-- **Punctuation:** Never use em dashes (—) or double hyphens (--). Use commas, periods, or restructure the sentence instead.
+- **Punctuation:** Never use em dashes (—) or double hyphens (--). Use commas, periods, or restructure the sentence instead. **Pre-commit check (mandatory):** before every commit, run `git diff --cached | grep -nP "—|--"` (or scan the changed files directly) and confirm no em dashes slipped into prose, comments, test names, or any other added content. Functional uses inside regex literals or test fixtures that exercise em-dash parsing are allowed; everything else must go.
 - **Linting:** Never trust inline IDE diagnostics/squiggles. Always verify by running `bun run check`, which runs Prettier, ESLint, and svelte-check.
 - **Formatting:** Run `bun run format` to auto-format all files before committing.
 - **Commits:** Always use [Conventional Commits](https://www.conventionalcommits.org/). Scope website changes as `feat(web): ...`, `fix(web): ...`, `chore(web): ...`, matching the existing git history.
@@ -76,12 +76,14 @@ The deadline picker preconfigures DeckConfig values (`desiredRetention`, `learnS
 The feature CAN and SHOULD be promoted. We just cannot overclaim what it does. The owner researched it, used it personally, and has anecdotal evidence it helps in cram-style situations. There is no research paper. The honest version is: "we noticed it helps, your mileage may vary."
 
 **Never write:**
+
 - "Optimizes FSRS", "FSRS optimization", "tunes FSRS", "FSRS-tuned"
 - "Science-backed", "research-backed", "proven"
 - "Guarantees you'll learn it by [date]"
 - "Magic", "AI-powered scheduling", or anything implying special algorithmic insight
 
 **Fine and encouraged:**
+
 - "Optional deadline mode"
 - "Adjusts deck options for tight deadlines"
 - "Useful for exam prep under two weeks"
