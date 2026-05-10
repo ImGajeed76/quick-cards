@@ -405,4 +405,11 @@ Cytoplasm,Gel filling a cell.`;
       </div>
     </div>
   </footer>
+
+  <p
+    class="text-muted-foreground/70 mx-auto max-w-xl px-6 pb-10 text-center text-xs leading-relaxed text-pretty"
+  >
+    QuickCards is an independent open-source project, not affiliated with Quizlet, Anki, Knowt, or
+    any other product mentioned. All trademarks belong to their respective owners.
+  </p>
 </div>
