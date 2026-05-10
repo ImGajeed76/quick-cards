@@ -24,10 +24,11 @@ export function parseInput(raw: string): ParseResult {
 
   // 1. Structured formats first — they're unambiguous when they parse.
   const json = tryJson(text);
-  if (json) return { kind: "vocab", pairs: json.pairs, separator: "json" };
+  if (json) return { kind: "vocab", pairs: unwrapQuotedSides(json.pairs), separator: "json" };
 
   const mdTable = tryMarkdownTable(text);
-  if (mdTable) return { kind: "vocab", pairs: mdTable.pairs, separator: "markdown-table" };
+  if (mdTable)
+    return { kind: "vocab", pairs: unwrapQuotedSides(mdTable.pairs), separator: "markdown-table" };
 
   // 2. Quizlet URLs.
   const sets = extractQuizletSets(text);
@@ -41,34 +42,51 @@ export function parseInput(raw: string): ParseResult {
 
   // 4. NDJSON / JSON Lines.
   const jsonl = tryJsonl(text);
-  if (jsonl) return { kind: "vocab", pairs: jsonl.pairs, separator: "jsonl" };
+  if (jsonl) return { kind: "vocab", pairs: unwrapQuotedSides(jsonl.pairs), separator: "jsonl" };
 
-  // 5. Quoted CSV — handles commas/semicolons inside content.
+  // 5. Quoted CSV — handles fully-quoted cells (every cell wrapped).
   const quotedCsv = tryQuotedCsv(text);
-  if (quotedCsv) return { kind: "vocab", pairs: quotedCsv.pairs, separator: "quoted-csv" };
+  if (quotedCsv)
+    return { kind: "vocab", pairs: unwrapQuotedSides(quotedCsv.pairs), separator: "quoted-csv" };
+
+  // 5.5. CSV with a header row. Quote-aware tokenizer; required header
+  //      gates this path so prose-with-commas can't accidentally trigger
+  //      it. Catches mixed-quoting CSV and quoted defs with internal
+  //      commas (the realistic AI-model output shapes). Reports the
+  //      "comma" separator name to match smartDelimiter's labeling.
+  const csvWithHeader = tryCsvWithHeader(text);
+  if (csvWithHeader) return { kind: "vocab", pairs: csvWithHeader.pairs, separator: "comma" };
 
   // 6. TOML-style `key = "value"` lines.
   const toml = tryToml(text);
-  if (toml) return { kind: "vocab", pairs: toml.pairs, separator: "toml" };
+  if (toml) return { kind: "vocab", pairs: unwrapQuotedSides(toml.pairs), separator: "toml" };
 
   // 7. Smart per-line delimiter scan with rarity × coverage scoring.
   const delimited = smartDelimiter(text);
-  if (delimited) return { kind: "vocab", pairs: delimited.pairs, separator: delimited.separator };
+  if (delimited)
+    return {
+      kind: "vocab",
+      pairs: unwrapQuotedSides(delimited.pairs),
+      separator: delimited.separator,
+    };
 
   // 7. Blank-line-separated 2-line pairs (e.g. Google Translate paste).
   const blank = tryBlankLinePairs(text);
-  if (blank) return { kind: "vocab", pairs: blank.pairs, separator: "blank-line-pairs" };
+  if (blank)
+    return { kind: "vocab", pairs: unwrapQuotedSides(blank.pairs), separator: "blank-line-pairs" };
 
   // 8. Alternating-line pairs (term / def / term / def).
   const alt = tryAlternatingPairs(text);
-  if (alt) return { kind: "vocab", pairs: alt.pairs, separator: "alternating-lines" };
+  if (alt)
+    return { kind: "vocab", pairs: unwrapQuotedSides(alt.pairs), separator: "alternating-lines" };
 
   // 9. Single-line hierarchical split — discovery-based. Catches Quizlet
   //    custom-export formats (`term:def;term:def`) and any other hierarchy
   //    the text implies. Runs last so the specialized multi-line paths get
   //    first crack.
   const hier = tryHierarchySplit(text);
-  if (hier) return { kind: "vocab", pairs: hier.pairs, separator: hier.separator };
+  if (hier)
+    return { kind: "vocab", pairs: unwrapQuotedSides(hier.pairs), separator: hier.separator };
 
   return {
     kind: "unknown",
@@ -131,6 +149,147 @@ function extractQuizletSets(text: string): QuizletSetRef[] {
 function hasNonQuizletUrl(text: string): boolean {
   const all = text.match(GENERIC_URL_RE) ?? [];
   return all.some((u) => !/quizlet\.com/i.test(u));
+}
+
+// --------------------------------------------------------------------------
+// Surrounding-quote stripping
+// --------------------------------------------------------------------------
+
+// Per-side, all-or-nothing rule: strip surrounding quotes from a side iff
+// EVERY pair on that side is wrapped in matching quotes and stripping
+// won't produce an empty cell. Term and definition sides checked
+// independently.
+const QUOTE_PAIRS: Array<readonly [string, string]> = [
+  ['"', '"'],
+  ["'", "'"],
+  ["“", "”"],
+  ["‘", "’"],
+];
+
+function stripSurroundingQuotes(s: string): string | null {
+  for (const [open, close] of QUOTE_PAIRS) {
+    if (s.length >= open.length + close.length && s.startsWith(open) && s.endsWith(close)) {
+      const inner = s.slice(open.length, s.length - close.length);
+      return inner.length === 0 ? null : inner;
+    }
+  }
+  return null;
+}
+
+function unwrapQuotedSides(pairs: VocabPair[]): VocabPair[] {
+  if (pairs.length === 0) return pairs;
+
+  const strippedTerms = pairs.map((p) => stripSurroundingQuotes(p.term));
+  const stripTerms = strippedTerms.every((s) => s !== null);
+
+  const strippedDefs = pairs.map((p) => stripSurroundingQuotes(p.definition));
+  const stripDefs = strippedDefs.every((s) => s !== null);
+
+  if (!stripTerms && !stripDefs) return pairs;
+
+  return pairs.map((p, i) => {
+    const t = strippedTerms[i];
+    const d = strippedDefs[i];
+    return {
+      term: stripTerms && t !== null ? t : p.term,
+      definition: stripDefs && d !== null ? d : p.definition,
+    };
+  });
+}
+
+// --------------------------------------------------------------------------
+// Header row detection
+// --------------------------------------------------------------------------
+
+// A row is treated as a header iff EVERY token in BOTH cells is in
+// HEADER_WORDS or HEADER_CONNECTIVES, and at least one HEADER_WORDS token
+// appears in each cell. Punctuation is stripped before tokenization so
+// "French (term)" still matches.
+const HEADER_WORDS = new Set([
+  "term",
+  "terms",
+  "definition",
+  "definitions",
+  "def",
+  "defs",
+  "front",
+  "back",
+  "question",
+  "questions",
+  "answer",
+  "answers",
+  "q",
+  "a",
+  "key",
+  "value",
+  "word",
+  "words",
+  "vocab",
+  "vocabulary",
+  "meaning",
+  "meanings",
+  "translation",
+  "translations",
+  "text",
+  "side",
+  "column",
+  "label",
+  "name",
+  "english",
+  "spanish",
+  "french",
+  "german",
+  "italian",
+  "portuguese",
+  "dutch",
+  "japanese",
+  "chinese",
+  "korean",
+  "russian",
+  "latin",
+  "hebrew",
+  "arabic",
+  "swedish",
+  "polish",
+  "greek",
+  "turkish",
+]);
+
+const HEADER_CONNECTIVES = new Set([
+  "or",
+  "and",
+  "the",
+  "a",
+  "an",
+  "in",
+  "of",
+  "to",
+  "from",
+  "with",
+  "as",
+]);
+
+function isHeaderCell(s: string): boolean {
+  const tokens = s
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  if (!tokens.some((t) => HEADER_WORDS.has(t))) return false;
+  return tokens.every((t) => HEADER_WORDS.has(t) || HEADER_CONNECTIVES.has(t));
+}
+
+// Drop pairs[0] if it looks like a header row in BOTH cells. Refuses to
+// drop if it would leave fewer than 2 pairs, since at that point the row
+// is more likely to be real data than a header.
+function dropHeaderRowIfPresent(pairs: VocabPair[]): VocabPair[] {
+  if (pairs.length < 3) return pairs;
+  const first = pairs[0];
+  if (isHeaderCell(first.term) && isHeaderCell(first.definition)) {
+    return pairs.slice(1);
+  }
+  return pairs;
 }
 
 // --------------------------------------------------------------------------
@@ -301,31 +460,13 @@ function tryMarkdownTable(text: string): { pairs: VocabPair[] } | null {
   );
   if (!parsed.every((r) => r.length >= 2)) return null;
 
-  // Skip header row if first cell looks like a common header word.
-  let start = 0;
-  const HEADER_WORDS = new Set([
-    "term",
-    "word",
-    "front",
-    "question",
-    "q",
-    "key",
-    "english",
-    "spanish",
-    "french",
-    "german",
-    "italian",
-    "japanese",
-    "chinese",
-  ]);
-  if (HEADER_WORDS.has(parsed[0][0].toLowerCase())) start = 1;
-
   const pairs: VocabPair[] = [];
-  for (let i = start; i < parsed.length; i++) {
-    const [term, def] = parsed[i];
+  for (const row of parsed) {
+    const [term, def] = row;
     if (term && def) pairs.push({ term, definition: def });
   }
-  return pairs.length >= 2 ? { pairs } : null;
+  const filtered = dropHeaderRowIfPresent(pairs);
+  return filtered.length >= 2 ? { pairs: filtered } : null;
 }
 
 // --------------------------------------------------------------------------
@@ -347,6 +488,73 @@ function tryQuotedCsv(text: string): { pairs: VocabPair[] } | null {
     const m = line.match(QUOTED_CSV_LINE_RE);
     if (!m) return null;
     pairs.push({ term: m[1], definition: m[2] });
+  }
+  const filtered = dropHeaderRowIfPresent(pairs);
+  return filtered.length >= 2 ? { pairs: filtered } : null;
+}
+
+// --------------------------------------------------------------------------
+// CSV with header (quote-aware)
+// --------------------------------------------------------------------------
+
+// Real-CSV tokenizer. Walks character-by-character, treating commas inside
+// "..." as literal content. Handles RFC-4180-style escaped quotes ("" -> ").
+// Produces an array of cell strings.
+function parseCsvLine(line: string): string[] {
+  const cells: string[] = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuote && line[i + 1] === '"') {
+        // Escaped quote inside a quoted cell: "" represents a literal "
+        cur += '"';
+        i++;
+        continue;
+      }
+      inQuote = !inQuote;
+      continue;
+    }
+    if (c === "," && !inQuote) {
+      cells.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += c;
+  }
+  cells.push(cur);
+  return cells.map((s) => s.trim());
+}
+
+// CSV with a recognizable header row (e.g. `term,definition`). Triggers
+// quote-aware parsing only when the first line is clearly a header, which
+// disambiguates from prose-with-commas. Handles every shape AI models
+// produce: fully-quoted cells, mixed quoting, bare terms with quoted defs
+// containing internal commas, etc.
+function tryCsvWithHeader(text: string): { pairs: VocabPair[] } | null {
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return null;
+
+  const headerCells = parseCsvLine(lines[0]);
+  if (headerCells.length < 2) return null;
+  // Both of the first two header cells must look like header words (term /
+  // definition / front / back / language names / etc).
+  if (!isHeaderCell(headerCells[0]) || !isHeaderCell(headerCells[1])) return null;
+
+  const pairs: VocabPair[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = parseCsvLine(lines[i]);
+    if (cells.length < 2) continue;
+    const term = cells[0];
+    // If a row has more than 2 cells, treat extras as part of the
+    // definition (joined back with commas). Anki and most users expect
+    // exactly two columns; extras shouldn't get silently dropped.
+    const def = cells.length > 2 ? cells.slice(1).join(", ") : cells[1];
+    if (term && def) pairs.push({ term, definition: def });
   }
   return pairs.length >= 2 ? { pairs } : null;
 }
@@ -457,7 +665,10 @@ function smartDelimiter(text: string): { pairs: VocabPair[]; separator: string }
     }
   }
 
-  return best ? { pairs: best.pairs, separator: best.separator } : null;
+  if (!best) return null;
+  const filtered = dropHeaderRowIfPresent(best.pairs);
+  if (filtered.length < 2) return null;
+  return { pairs: filtered, separator: best.separator };
 }
 
 // --------------------------------------------------------------------------

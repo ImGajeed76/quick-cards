@@ -13,6 +13,10 @@ export type Example = {
   format: Format;
   text: string;
   pairs: Pair[];
+  // Remaining pairs from the same language pool, used by preview mockups
+  // to fake a fuller-looking PDF without leaving the demo's 3-5 pairs
+  // looking lonely on the page.
+  pool: Pair[];
 };
 
 const WORDLISTS: Record<string, Pair[]> = {
@@ -141,14 +145,17 @@ const FORMATTERS: Record<Format, (pairs: Pair[]) => string> = {
  *  previous format so the cycle feels varied. */
 export function nextExample(prev?: Example): Example {
   const lang = LANGUAGES[Math.floor(Math.random() * LANGUAGES.length)];
-  const pool = WORDLISTS[lang];
+  const fullPool = WORDLISTS[lang];
+  const shuffled = shuffle(fullPool);
   const count = 3 + Math.floor(Math.random() * 3); // 3, 4, or 5 pairs
-  const pairs = shuffle(pool).slice(0, count);
+  const pairs = shuffled.slice(0, count);
+  const pool = shuffled.slice(count);
   const format = randomPick(FORMATS, prev?.format);
   return {
     format,
     text: FORMATTERS[format](pairs),
     pairs,
+    pool,
   };
 }
 

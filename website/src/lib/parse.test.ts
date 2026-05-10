@@ -835,6 +835,516 @@ describe("priority", () => {
 });
 
 // --------------------------------------------------------------------------
+// Header row detection
+// --------------------------------------------------------------------------
+
+describe("header row detection", () => {
+  // Positive cases: row 1 is a header, should be skipped.
+
+  test("CSV with term,definition header", () => {
+    const input = `term,definition\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV header is case-insensitive", () => {
+    const input = `Term,Definition\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV with front,back header", () => {
+    const input = `front,back\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV with question,answer header", () => {
+    const input = `question,answer\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV with multi-word header (english term, spanish def)", () => {
+    const input = `english term,spanish def\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV with language-name header (Spanish word, English meaning)", () => {
+    const input = `Spanish word,English meaning\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("CSV with parenthesized header (French (term), English (translation))", () => {
+    const input = `French (term),English (translation)\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("tab-separated with header", () => {
+    const input = `term\tdefinition\nhola\thello\ngato\tcat`;
+    expectVocab(parseInput(input), {
+      separator: "tab",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("pipe-separated with header", () => {
+    const input = `term | definition\nhola | hello\ngato | cat`;
+    expectVocab(parseInput(input), {
+      separator: "pipe",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("quoted CSV with header", () => {
+    const input = `"term","definition"\n"hola","hello"\n"gato","cat"`;
+    expectVocab(parseInput(input), {
+      separator: "quoted-csv",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("the /tool page CSV demo", () => {
+    const input = `term,definition
+Photosynthesis,Plants convert sunlight into chemical energy
+Mitosis,Cell division producing two identical daughter cells
+Osmosis,Water diffusing across a semipermeable membrane
+Cytoplasm,Gel-like substance filling a cell`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "Photosynthesis", definition: "Plants convert sunlight into chemical energy" },
+        { term: "Mitosis", definition: "Cell division producing two identical daughter cells" },
+        { term: "Osmosis", definition: "Water diffusing across a semipermeable membrane" },
+        { term: "Cytoplasm", definition: "Gel-like substance filling a cell" },
+      ],
+    });
+  });
+
+  // Negative cases: row 1 is real data, must NOT be skipped.
+
+  test("only one cell is a header word, not skipped", () => {
+    // term-side cell is "term" (header), but def-side "Mitosis" is not.
+    // This is real data: a flashcard whose term happens to be the word "term".
+    const input = `term,Mitosis\nhola,hello\ngato,cat`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "term", definition: "Mitosis" },
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("multi-word cells with non-header tokens, not skipped (front door, back door)", () => {
+    // Both cells contain a header word (front, back) but also "door"
+    // which is neither header nor connective. Real vocab pair.
+    const input = `front door,back door\nfoo,bar\nbaz,qux`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "front door", definition: "back door" },
+        { term: "foo", definition: "bar" },
+        { term: "baz", definition: "qux" },
+      ],
+    });
+  });
+
+  test("multi-word cells with non-header tokens, not skipped (term limit, definition section)", () => {
+    const input = `term limit,definition section\nfoo,bar\nbaz,qux`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "term limit", definition: "definition section" },
+        { term: "foo", definition: "bar" },
+        { term: "baz", definition: "qux" },
+      ],
+    });
+  });
+
+  test("plain real-word pair, not skipped", () => {
+    const input = `apple,red\nbanana,yellow\ngrape,purple`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "apple", definition: "red" },
+        { term: "banana", definition: "yellow" },
+        { term: "grape", definition: "purple" },
+      ],
+    });
+  });
+
+  // Edge: refuse to skip if it would leave < 2 pairs.
+
+  test("refuses to skip if only 1 data row would remain", () => {
+    // Two rows total, row 1 looks like a header. Don't skip; that would
+    // leave only 1 pair, which is below the parser's threshold and
+    // suggests the user actually meant `term`/`definition` as data.
+    const input = `term,definition\nhola,hello`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "term", definition: "definition" },
+      { term: "hola", definition: "hello" },
+    ]);
+  });
+});
+
+// --------------------------------------------------------------------------
+// /csv-to-anki landing page claim verification
+// --------------------------------------------------------------------------
+
+describe("/csv-to-anki snag claims", () => {
+  // Snag 01 (encoding): pasted text arrives already decoded, so non-ASCII
+  // characters survive into the parsed pairs verbatim. No encoding step
+  // means no mojibake.
+  test("non-ASCII / accented characters round-trip cleanly", () => {
+    const input = `café,coffee shop\npiña,pineapple\nMüller,family name\n友達,friend`;
+    expectVocab(parseInput(input), {
+      separator: "comma",
+      pairs: [
+        { term: "café", definition: "coffee shop" },
+        { term: "piña", definition: "pineapple" },
+        { term: "Müller", definition: "family name" },
+        { term: "友達", definition: "friend" },
+      ],
+    });
+  });
+
+  // Snag 02 (short rows): a row with a stray separator and a missing
+  // second field gets skipped, not padded with empty. Anki's importer
+  // would silently produce a half-blank card; ours drops it.
+  test("short row with empty second field is dropped, not padded", () => {
+    const input = `café,coffee shop\npiña,\nmanzana,apple`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "manzana", definition: "apple" },
+    ]);
+    expect(r.pairs.find((p) => p.term === "piña")).toBeUndefined();
+  });
+
+  test("row with only a term and no separator is dropped", () => {
+    const input = `café,coffee shop\npiña\nmanzana,apple`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    // The lone "piña" line has no comma, doesn't match the comma
+    // delimiter, gets ignored by the comma path.
+    expect(r.pairs.find((p) => p.term === "piña")).toBeUndefined();
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Surrounding-quote stripping
+// --------------------------------------------------------------------------
+
+// Per-side, all-or-nothing rule: strip surrounding quotes from a cell side
+// (term or definition) iff EVERY pair on that side has matching surrounding
+// quotes and stripping won't produce an empty cell. Each side is checked
+// independently, so "café = "coffee shop"" (bare terms, quoted defs) gets
+// the def quotes stripped while terms stay intact.
+
+describe("surrounding quote stripping", () => {
+  // Positive cases: side(s) are uniformly quoted, strip applies.
+
+  test("def-side quoted, terms bare (the /csv-to-anki Key=value tile)", () => {
+    const input = `café = "coffee shop"\npiña = "pineapple"\nmanzana = "apple"\nagua = "water"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+      { term: "agua", definition: "water" },
+    ]);
+  });
+
+  test("both sides uniformly quoted", () => {
+    const input = `"café" - "coffee shop"\n"piña" - "pineapple"\n"manzana" - "apple"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+
+  test("single quotes work the same", () => {
+    const input = `'café' - 'coffee shop'\n'piña' - 'pineapple'\n'manzana' - 'apple'`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+
+  test("curly double quotes", () => {
+    const input = `“café” - “coffee shop”\n“piña” - “pineapple”\n“manzana” - “apple”`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+
+  test("curly single quotes", () => {
+    const input = `‘café’ - ‘coffee shop’\n‘piña’ - ‘pineapple’\n‘manzana’ - ‘apple’`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+
+  test("apostrophe inside content survives the strip", () => {
+    const input = `"it's a test" - "foo bar"\n"another one" - "baz qux"\n"third pair" - "quux"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "it's a test", definition: "foo bar" },
+      { term: "another one", definition: "baz qux" },
+      { term: "third pair", definition: "quux" },
+    ]);
+  });
+
+  // Negative cases: leave quotes alone.
+
+  test("only some defs quoted, leave all unstripped", () => {
+    // Two pairs have quoted defs, one doesn't. Inconsistent: don't strip.
+    const input = `café - "coffee shop"\npiña - pineapple\nmanzana - "apple"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: '"coffee shop"' },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: '"apple"' },
+    ]);
+  });
+
+  test("mismatched open/close on one pair, don't strip", () => {
+    // First def starts with " but ends with ' (mismatched). Per-side
+    // strip aborts because that pair fails the matching-pair check.
+    const input = `café - "coffee shop'\npiña - "pineapple"\nmanzana - "apple"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs[0].definition).toBe(`"coffee shop'`);
+    expect(r.pairs[1].definition).toBe(`"pineapple"`);
+  });
+
+  test("stripping would produce empty cell, abort side strip", () => {
+    // First def is just `""` — strip would leave empty. Whole def-side
+    // strip aborts; quotes stay on every def including the others.
+    const input = `café - ""\npiña - "pineapple"\nmanzana - "apple"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs[0].definition).toBe(`""`);
+    expect(r.pairs[1].definition).toBe(`"pineapple"`);
+    expect(r.pairs[2].definition).toBe(`"apple"`);
+  });
+
+  test("term-side and def-side strip independently", () => {
+    // Terms all single-quoted, defs all double-quoted. Each side strips
+    // its own consistent quote style independently.
+    const input = `'café' - "coffee shop"\n'piña' - "pineapple"\n'manzana' - "apple"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "café", definition: "coffee shop" },
+      { term: "piña", definition: "pineapple" },
+      { term: "manzana", definition: "apple" },
+    ]);
+  });
+
+  // Regression: existing TOML format already strips quotes inside its
+  // own parser. Make sure the new helper doesn't double-strip or break
+  // that path.
+  test("regression: tryToml continues to work with bare keys + quoted values", () => {
+    const input = `hola = "hello"\ngato = "cat"\nperro = "dog"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.separator).toBe("toml");
+    expect(r.pairs).toEqual([
+      { term: "hola", definition: "hello" },
+      { term: "gato", definition: "cat" },
+      { term: "perro", definition: "dog" },
+    ]);
+  });
+});
+
+// --------------------------------------------------------------------------
+// Real AI model output (CSV with header)
+// --------------------------------------------------------------------------
+
+// These are verbatim outputs collected from ChatGPT, Claude (Haiku 4.5),
+// and DeepSeek (v3.2) when given the canonical "output a CSV codeblock
+// with two columns: term, definition" prompt. The /chatgpt-flashcards-
+// to-anki page promises these will parse cleanly; these tests are the
+// receipts.
+
+describe("real AI model CSV output", () => {
+  test("ChatGPT default: every cell wrapped in straight double quotes", () => {
+    const input = `term,definition
+"Nucleus","Organelle that contains DNA and controls cell activities"
+"Mitochondria","Organelles that produce ATP through cellular respiration"
+"Ribosome","Structure responsible for protein synthesis"
+"Cell Membrane","Selective barrier that regulates movement of substances into and out of the cell"
+"Endoplasmic Reticulum","Network of membranes involved in protein and lipid synthesis"
+"Lysosome","Organelle containing enzymes that digest waste materials and cellular debris"`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toEqual([
+      { term: "Nucleus", definition: "Organelle that contains DNA and controls cell activities" },
+      {
+        term: "Mitochondria",
+        definition: "Organelles that produce ATP through cellular respiration",
+      },
+      { term: "Ribosome", definition: "Structure responsible for protein synthesis" },
+      {
+        term: "Cell Membrane",
+        definition:
+          "Selective barrier that regulates movement of substances into and out of the cell",
+      },
+      {
+        term: "Endoplasmic Reticulum",
+        definition: "Network of membranes involved in protein and lipid synthesis",
+      },
+      {
+        term: "Lysosome",
+        definition: "Organelle containing enzymes that digest waste materials and cellular debris",
+      },
+    ]);
+  });
+
+  test("Claude (Haiku): mixed quoting, multi-comma unquoted defs", () => {
+    // Some rows bare, some quoted, some defs contain semicolons or commas.
+    // The Golgi row has 4 unquoted commas — must split on the first one.
+    // The Endoplasmic row is the only fully-quoted one — quotes must be
+    // stripped per cell, not silently kept as literal characters.
+    const input = `term,definition
+Mitochondria,Organelle responsible for producing ATP through cellular respiration; often called the powerhouse of the cell
+Ribosome,Non-membrane-bound organelle that synthesizes proteins by translating mRNA sequences into amino acid chains
+"Endoplasmic Reticulum (Rough)","Network of membrane-bound sacs studded with ribosomes; synthesizes and transports proteins"
+Golgi Apparatus,"Organelle that modifies, packages, and ships proteins and lipids in vesicles to their final destinations"
+Lysosome,Membrane-bound vesicle containing digestive enzymes that break down cellular waste and foreign materials
+Nucleolus,Dense region within the nucleus where ribosomal RNA is synthesized and assembled into ribosomal subunits`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toHaveLength(6);
+    expect(r.pairs[0].term).toBe("Mitochondria");
+    expect(r.pairs[2].term).toBe("Endoplasmic Reticulum (Rough)");
+    expect(r.pairs[2].definition).toContain(
+      "Network of membrane-bound sacs studded with ribosomes",
+    );
+    // No literal " characters survived.
+    expect(r.pairs[2].term.includes('"')).toBe(false);
+    expect(r.pairs[2].definition.includes('"')).toBe(false);
+    expect(r.pairs[3].term).toBe("Golgi Apparatus");
+    expect(r.pairs[3].definition).toContain("modifies, packages, and ships");
+  });
+
+  test("DeepSeek: bare terms + every def quoted with internal commas", () => {
+    const input = `term,definition
+Cell Membrane,"A selectively permeable lipid bilayer that encloses the cell contents, regulating the passage of materials in and out."
+Cytoplasm,"The gel-like substance inside the cell, excluding the nucleus, where organelles are suspended and metabolic reactions occur."
+Nucleus,"The membrane-bound organelle that houses the cell's genetic material (DNA) and controls cellular activities."
+Mitochondrion,"The organelle responsible for producing the majority of the cell's chemical energy (ATP) via aerobic respiration."
+Ribosome,"A molecular machine, composed of RNA and protein, that synthesizes polypeptides by translating messenger RNA (mRNA)."
+Endoplasmic Reticulum,"A network of membranous tubules and sacs involved in the synthesis, folding, and transport of proteins (rough ER) and lipids (smooth ER)."`;
+    const r = parseInput(input);
+    expect(r.kind).toBe("vocab");
+    if (r.kind !== "vocab") return;
+    expect(r.pairs).toHaveLength(6);
+    expect(r.pairs[0].term).toBe("Cell Membrane");
+    expect(r.pairs[0].definition).toContain(
+      "A selectively permeable lipid bilayer that encloses the cell contents",
+    );
+    expect(r.pairs[4].term).toBe("Ribosome");
+    expect(r.pairs[4].definition).toContain("A molecular machine, composed of RNA and protein");
+    // Internal commas inside the quoted def must survive.
+    expect(r.pairs[4].definition.includes(",")).toBe(true);
+    // No surrounding quotes leaked through.
+    expect(r.pairs[0].definition.startsWith('"')).toBe(false);
+    expect(r.pairs[0].definition.endsWith('"')).toBe(false);
+  });
+});
+
+// --------------------------------------------------------------------------
 // Unknown
 // --------------------------------------------------------------------------
 
