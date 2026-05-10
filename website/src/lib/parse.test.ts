@@ -1203,7 +1203,7 @@ describe("surrounding quote stripping", () => {
   });
 
   test("stripping would produce empty cell, abort side strip", () => {
-    // First def is just `""` — strip would leave empty. Whole def-side
+    // First def is just `""`, strip would leave empty. Whole def-side
     // strip aborts; quotes stay on every def including the others.
     const input = `café - ""\npiña - "pineapple"\nmanzana - "apple"`;
     const r = parseInput(input);
@@ -1292,9 +1292,9 @@ describe("real AI model CSV output", () => {
 
   test("Claude (Haiku): mixed quoting, multi-comma unquoted defs", () => {
     // Some rows bare, some quoted, some defs contain semicolons or commas.
-    // The Golgi row has 4 unquoted commas — must split on the first one.
-    // The Endoplasmic row is the only fully-quoted one — quotes must be
-    // stripped per cell, not silently kept as literal characters.
+    // The Golgi row has 4 unquoted commas; must split on the first one.
+    // The Endoplasmic row is the only fully-quoted one, and its quotes
+    // must be stripped per cell, not silently kept as literal characters.
     const input = `term,definition
 Mitochondria,Organelle responsible for producing ATP through cellular respiration; often called the powerhouse of the cell
 Ribosome,Non-membrane-bound organelle that synthesizes proteins by translating mRNA sequences into amino acid chains
