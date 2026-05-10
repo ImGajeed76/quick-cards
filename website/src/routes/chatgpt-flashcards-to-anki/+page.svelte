@@ -3,62 +3,124 @@
   import Github from "$lib/components/icons/Github.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { resolve } from "$app/paths";
-  import { ArrowRight, ClipboardPaste, Sparkles } from "@lucide/svelte";
+  import {
+    ArrowRight,
+    ClipboardPaste,
+    Sparkles,
+    Copy,
+    Check,
+    ArrowDown,
+    Code2,
+  } from "@lucide/svelte";
   import { SITE_NAME, SITE_URL } from "$lib/site";
 
   const title = `ChatGPT flashcards to Anki · ${SITE_NAME}`;
   const description =
-    "Convert ChatGPT, Claude, or Gemini flashcard output to an Anki deck file (.apkg). Paste a Markdown table, a numbered list, or a JSON array. No cleanup, no add-on. Free, no account, in your browser, open source.";
+    "Convert ChatGPT, Claude, Gemini, or DeepSeek flashcard output to an Anki deck file (.apkg). Ask any model for a CSV codeblock and paste it in. No cleanup, no add-on. Free, no account, in your browser, open source.";
 
-  const faq = [
-    {
-      q: "What format should I ask the model for?",
-      a: "Whatever it gives you naturally tends to work. Markdown tables are most common from ChatGPT and Claude and the parser handles them directly. Numbered lists with bold Front/Back labels work too. JSON arrays of objects work as long as the keys are something obvious like term/definition or front/back. If your model returns multiple formats in one reply, paste only the table or list portion.",
-    },
-    {
-      q: "Does it work with Claude and Gemini, not just ChatGPT?",
-      a: "Yes. The parser cares about the shape of the output, not which model produced it. Claude tends to default to Markdown tables. Gemini varies but Markdown tables and numbered lists are common. Local models via Ollama or LM Studio behave the same way.",
-    },
-    {
-      q: "What if the model adds extra columns or context columns?",
-      a: "Two-column tables (term, definition) are the cleanest. Three columns are also fine, the third is treated as supplemental and added to the back of the card. If the model produces something elaborate (front, hint, back, mnemonic), trim to two columns before pasting, or paste it and use the cards-preview step on QuickCards to spot anything weird before downloading.",
-    },
-    {
-      q: "Will the model's mistakes show up in my deck?",
-      a: "Yes, the same way they would if you pasted into Anki manually. QuickCards is a converter, not a fact-checker. Spot-check the cards in the preview step before saving the .apkg. Models hallucinate; review what you study.",
-    },
-    {
-      q: "Why not just have the model output CSV directly?",
-      a: "You can ask. The trouble is models often add code-block fences (```csv … ```), inconsistent quoting, or a header row in disguise. Markdown tables are visually clearer for the model to render and easier for the parser to handle reliably. CSV from a model also works in QuickCards but is less consistent.",
-    },
-    {
-      q: "Can I paste a long conversation, not just the cards?",
-      a: "It is better to paste only the table or list. The parser is designed to recognize structured data, not to extract cards from prose. Copy from where the table starts to where it ends.",
-    },
-    {
-      q: "What about images the model wants to attach?",
-      a: "Models do not actually attach images, they reference them with placeholders. The pasted-text path cannot carry media. If you need images bundled into the .apkg, that requires the QuickCards browser extension on a source that has them (a Quizlet set), not chat output.",
-    },
-  ];
+  // Educational template shown on the page. The {COUNT} / {TOPIC}
+  // placeholders teach the user how to parameterize. Asks for CSV
+  // because: (a) every modern parser handles it, (b) less likely to
+  // wrap in commentary than Markdown, (c) easier for the user to spot-
+  // check than JSON.
+  const promptTemplate = `You are an Anki card writer. Make {COUNT} flashcards on {TOPIC}.
+
+Output a CSV codeblock with two columns: term and definition.
+- First line: term,definition
+- One card per line
+- Use double quotes around any field that contains a comma
+- No introduction, no notes, no other text, just the codeblock.`;
+
+  // Concrete pre-filled version used by the "Try in ..." buttons. URL
+  // openers like ChatGPT and Perplexity auto-submit the prompt on
+  // landing, so placeholders would be sent as literal text and the
+  // model would produce nonsense. The default is a demonstration; users
+  // can edit count/topic in the chat once it lands.
+  const tryItPrompt = `You are an Anki card writer. Make 10 flashcards on cell biology.
+
+Output a CSV codeblock with two columns: term and definition.
+- First line: term,definition
+- One card per line
+- Use double quotes around any field that contains a comma
+- No introduction, no notes, no other text, just the codeblock.`;
+
+  const tryItChatGPT = `https://chatgpt.com/?q=${encodeURIComponent(tryItPrompt)}`;
+  const tryItPerplexity = `https://www.perplexity.ai/?q=${encodeURIComponent(tryItPrompt)}`;
+
+  // Hero chat-mockup CSV. Plain version is what the codeblock copy
+  // button puts on the clipboard. The HTML version (tinted commas, term
+  // column in foreground, def column in muted-foreground) renders the
+  // visible code. Safe {@html} since content is hardcoded by us, no
+  // user input.
+  const heroCsvPlain = `term,definition
+Photosynthesis,Plants convert sunlight into chemical energy.
+Mitosis,Cell division producing two identical cells.
+Osmosis,Water diffuses across a semipermeable membrane.
+Cytoplasm,Gel filling a cell.`;
+
+  const heroCsvHtml = `<span class="text-muted-foreground/70">term</span><span class="text-primary/70">,</span><span class="text-muted-foreground/70">definition</span>
+<span class="text-foreground">Photosynthesis</span><span class="text-primary/70">,</span><span class="text-muted-foreground">Plants convert sunlight into chemical energy.</span>
+<span class="text-foreground">Mitosis</span><span class="text-primary/70">,</span><span class="text-muted-foreground">Cell division producing two identical cells.</span>
+<span class="text-foreground">Osmosis</span><span class="text-primary/70">,</span><span class="text-muted-foreground">Water diffuses across a semipermeable membrane.</span>
+<span class="text-foreground">Cytoplasm</span><span class="text-primary/70">,</span><span class="text-muted-foreground">Gel filling a cell.</span>`;
+
+  let heroCsvCopied = $state(false);
+
+  async function copyHeroCsv(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(heroCsvPlain);
+      heroCsvCopied = true;
+      setTimeout(() => (heroCsvCopied = false), 1500);
+    } catch {
+      // clipboard may be blocked; user can select manually
+    }
+  }
+
+  let copied = $state(false);
+
+  async function copyPrompt(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(promptTemplate);
+      copied = true;
+      setTimeout(() => (copied = false), 1500);
+    } catch {
+      // clipboard may be blocked; user can select manually
+    }
+  }
 
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: faq.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "What format should I ask the model for?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "A CSV codeblock with two columns (term, definition) is the cleanest. The parser also handles JSON arrays, Markdown tables, TSV, and plain dash-separated vocab lists.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Does it work with Claude, Gemini, Perplexity, and DeepSeek?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes. The parser cares about the shape of the output, not the model. Any model that can produce a CSV codeblock works.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Will the model's mistakes show up in my deck?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Yes, the same way they would if you pasted manually. QuickCards is a converter, not a fact-checker. Spot-check the parsed cards before saving the .apkg.",
+        },
+      },
+    ],
   };
   /* eslint-disable no-useless-escape */
   const faqJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
-
-  const examplePrompt = `You are an Anki card writer. Make ${"<count>"} flashcards on ${"<topic>"}.
-Output a Markdown table with two columns: Front and Back.
-Front is concise (a term, a question, or a cloze prompt).
-Back is the answer in one sentence.
-No introduction, no notes, just the table.`;
 </script>
 
 <svelte:head>
@@ -101,174 +163,219 @@ No introduction, no notes, just the table.`;
   </header>
 
   <main class="flex-grow">
-    <article class="px-6 py-16 sm:py-24">
-      <div class="mx-auto max-w-3xl">
-        <span
-          class="text-muted-foreground mb-4 inline-block font-mono text-xs tracking-wider uppercase"
-        >
-          Guide · ChatGPT flashcards to Anki
-        </span>
-        <h1
-          class="text-4xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
-        >
-          ChatGPT flashcards to <span class="text-primary">Anki, in one paste.</span>
-        </h1>
-        <p class="text-muted-foreground mt-6 text-lg leading-relaxed">
-          Ask a model for flashcards, get back a Markdown table or numbered list, paste it into
-          QuickCards, get an Anki deck file (.apkg). Same flow for Claude and Gemini. The parser
-          handles the table syntax so you do not have to clean it by hand.
-        </p>
-        <div class="mt-8 flex flex-wrap items-center gap-3">
+    <!-- ════════ Hero: faux chat session as the centerpiece ════════
+       Two chat bubbles followed by a "→ paste this into QuickCards" handoff.
+       The visual itself communicates the workflow in one glance. -->
+    <section class="relative overflow-hidden px-4 pt-12 pb-16 sm:px-6 sm:pt-16 sm:pb-20">
+      <div
+        aria-hidden="true"
+        class="bg-primary pointer-events-none absolute -top-32 right-1/4 -z-10 h-[440px] w-[680px] rounded-full opacity-15 blur-[140px]"
+      ></div>
+
+      <div class="relative z-10 mx-auto max-w-5xl">
+        <div class="mx-auto mb-10 max-w-2xl text-center">
+          <h1
+            class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
+          >
+            ChatGPT in,<br /><span class="text-primary">Anki out.</span>
+          </h1>
+          <p
+            class="text-muted-foreground mx-auto mt-5 max-w-xl text-base leading-relaxed sm:text-lg"
+          >
+            Ask a model for flashcards, paste the reply, get an Anki deck file (.apkg). Works with
+            ChatGPT, Claude, and Gemini.
+          </p>
+        </div>
+
+        <!-- Hero mockup: just the model's CSV response and the QuickCards
+             output pill. Dropped the chat-bubble wrappers, avatars, user
+             prompt bubble, and action-button row, since they were each
+             working hard for very little. The codeblock IS the response;
+             the spatial relationship (codeblock → arrow → pill) carries
+             the workflow without explicit "copy + paste" hand-holding. -->
+        <div class="mx-auto max-w-xl">
+          <!-- Model CSV codeblock. Copy icon is a real button that puts
+               the plain CSV (no styling) on the clipboard. -->
+          <div use:reveal>
+            <div
+              class="border-border/60 bg-card overflow-hidden rounded-lg border font-mono text-[12px] leading-relaxed shadow-xl shadow-black/30"
+            >
+              <div class="border-border/50 flex items-center justify-between border-b px-3 py-1.5">
+                <div
+                  class="text-muted-foreground/80 flex items-center gap-1.5 font-mono text-[10px] tracking-wider uppercase"
+                >
+                  <Code2 class="size-3" />
+                  csv
+                </div>
+                <button
+                  type="button"
+                  onclick={copyHeroCsv}
+                  aria-label={heroCsvCopied ? "Copied" : "Copy CSV"}
+                  class="text-muted-foreground/60 hover:text-foreground cursor-pointer transition-colors"
+                >
+                  {#if heroCsvCopied}
+                    <Check class="size-3" />
+                  {:else}
+                    <Copy class="size-3" />
+                  {/if}
+                </button>
+              </div>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              <pre class="m-0 overflow-x-auto p-3">{@html heroCsvHtml}</pre>
+            </div>
+          </div>
+
+          <!-- Single arrow handoff -->
+          <div
+            use:reveal={{ delay: 120 }}
+            class="text-muted-foreground/50 my-3 flex justify-center"
+          >
+            <ArrowDown class="size-4" />
+          </div>
+
+          <!-- Output: outlined filename badge. Quiet enough that the
+               primary-filled "Try it now" CTA below stays the loudest
+               primary moment in the section. -->
+          <div use:reveal={{ delay: 200 }} class="flex justify-center">
+            <div
+              class="border-border/70 bg-card text-foreground/85 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-xs"
+            >
+              <ArrowDown class="text-primary size-3" />
+              cards.apkg
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="mt-12 flex flex-col items-center text-center">
           <Button href={resolve("/tool")} size="lg" class="group h-12 gap-2 px-6 text-base">
             <ClipboardPaste class="size-4" />
-            Open the web tool
+            Try it now
             <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
+          <p class="text-muted-foreground/80 mt-5 font-mono text-xs tracking-wide">
+            Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Nothing uploaded &nbsp;·&nbsp; Open source
+          </p>
         </div>
-        <p class="text-muted-foreground/80 mt-6 font-mono text-xs tracking-wide">
-          Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; No upload &nbsp;·&nbsp; Open source
-        </p>
-      </div>
-    </article>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Why this is finicky elsewhere ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          The Markdown table problem.
-        </h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          ChatGPT and Claude default to Markdown tables when asked for flashcards. Tables look clean
-          in chat. They are also a pain to import: Anki's CSV importer needs comma- or tab-separated
-          input, not pipes. Most people end up either deleting the leading and trailing pipes by
-          hand, dropping the separator row (the one with dashes), and saving as CSV; or pasting into
-          Excel, fighting the auto-formatting, exporting CSV, importing into Anki, and hoping the
-          encoding survives.
-        </p>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          QuickCards reads Markdown tables directly. Paste, see your cards, download the .apkg. That
-          is the whole loop.
-        </p>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ A prompt that works ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
+    <!-- ════════ The prompt as a real artifact ════════
+       This is the page's deliverable. Big code block with a working copy
+       button + "Try in <model>" launchers that pre-load the prompt with
+       a concrete default into the chat of the user's choice. -->
+    <section class="px-6 py-24 sm:py-32" use:reveal>
       <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">A prompt that works.</h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          Replace the placeholders with your topic and card count. Paste the model's reply straight
-          into QuickCards. Works on ChatGPT, Claude, Gemini, and most local models.
-        </p>
-        <div class="border-border bg-card/40 mt-8 rounded-lg border p-5">
+        <div class="mb-8 flex items-baseline justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">A prompt that works.</h2>
+            <p class="text-muted-foreground mt-2 text-sm leading-relaxed">
+              Any model that can output CSV. Replace
+              <code class="bg-muted text-foreground/80 rounded px-1 py-0.5 font-mono text-xs"
+                >{"{COUNT}"}</code
+              >
+              and
+              <code class="bg-muted text-foreground/80 rounded px-1 py-0.5 font-mono text-xs"
+                >{"{TOPIC}"}</code
+              >, paste the reply into QuickCards.
+            </p>
+          </div>
+          <Button onclick={copyPrompt} size="sm" variant="outline" class="shrink-0 gap-1.5">
+            {#if copied}
+              <Check class="size-3.5" />
+              Copied
+            {:else}
+              <Copy class="size-3.5" />
+              Copy
+            {/if}
+          </Button>
+        </div>
+
+        <div
+          class="border-border bg-card overflow-hidden rounded-lg border shadow-xl shadow-black/30"
+        >
+          <div
+            class="border-border/60 bg-muted/30 text-muted-foreground/70 flex items-center justify-between gap-2 border-b px-4 py-2 font-mono text-[10px] tracking-wider uppercase"
+          >
+            <span>Prompt template</span>
+            <span class="text-muted-foreground/50">{promptTemplate.length} chars</span>
+          </div>
           <pre
-            class="overflow-x-auto font-mono text-sm leading-relaxed whitespace-pre-wrap">{examplePrompt}</pre>
+            class="text-foreground/90 m-0 overflow-x-auto p-5 font-mono text-[13px] leading-relaxed whitespace-pre-wrap">{promptTemplate}</pre>
         </div>
-        <p class="text-muted-foreground mt-6 text-sm leading-relaxed">
-          The "no introduction, no notes, just the table" line matters. Without it, models sometimes
-          wrap the table in commentary that the parser will silently include as cards. Easy to fix
-          in the preview step but easier to avoid.
-        </p>
-      </div>
-    </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Steps ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Three quick steps.</h2>
-        <ol class="mt-10 space-y-8">
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <Sparkles class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Generate cards</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                Use the prompt above (or your own). Copy the model's reply, the whole table.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <ClipboardPaste class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Paste into QuickCards</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                <a
-                  href={resolve("/tool")}
-                  class="text-foreground hover:text-primary underline-offset-4 hover:underline"
-                  >Open the tool</a
-                >, paste, hit Continue. Spot-check the parsed cards. If the model added explanation
-                rows, deselect them or regenerate with a stricter prompt.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <ArrowRight class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Save Anki deck file (.apkg)</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                Pick Anki, save, double-click into Anki on whichever device you study on.
-              </p>
-            </div>
-          </li>
-        </ol>
-        <div class="mt-10">
-          <Button href={resolve("/tool")} size="lg" class="h-11 gap-2 px-5 text-base">
-            <ClipboardPaste class="size-4" />
-            Open the tool
+        <!-- Try-in launchers. URL-prefilled prompt with a concrete
+             default (10 cards on cell biology) since both ChatGPT and
+             Perplexity auto-submit on landing. -->
+        <div class="mt-5 flex flex-wrap items-center gap-2">
+          <span
+            class="text-muted-foreground/70 mr-1 font-mono text-[10px] tracking-wider uppercase"
+          >
+            Try a demo
+          </span>
+          <Button
+            href={tryItChatGPT}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+            variant="outline"
+            class="gap-1.5"
+          >
+            <Sparkles class="size-3.5" />
+            ChatGPT
+          </Button>
+          <Button
+            href={tryItPerplexity}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+            variant="outline"
+            class="gap-1.5"
+          >
+            <Sparkles class="size-3.5" />
+            Perplexity
           </Button>
         </div>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ FAQ ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Common questions.</h2>
-        <dl class="mt-10 space-y-7">
-          {#each faq as item (item.q)}
-            <div>
-              <dt class="text-foreground text-lg font-medium tracking-tight">{item.q}</dt>
-              <dd class="text-muted-foreground mt-2 leading-relaxed">{item.a}</dd>
-            </div>
-          {/each}
-        </dl>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Closing CTA ══════════════ -->
-    <section class="px-6 py-20 sm:py-24">
+    <!-- ════════ Closing CTA ════════ -->
+    <section class="px-6 py-24 sm:py-32">
       <div class="mx-auto max-w-3xl text-center">
         <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Skip the cleanup step.</h2>
-        <p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-          Markdown table in, Anki deck file out. No spreadsheet detour.
+        <p class="text-muted-foreground mt-4 text-base leading-relaxed">
+          Any AI's CSV output in, Anki deck file out. No spreadsheet detour.
         </p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Button href={resolve("/tool")} size="lg" class="group h-12 gap-2 px-6 text-base">
             <ClipboardPaste class="size-4" />
             Open the tool
             <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
+        </div>
+        <div
+          class="text-muted-foreground/70 mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
+        >
+          <a
+            href={resolve("/csv-to-anki")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            CSV to Anki
+          </a>
+          <span>·</span>
+          <a
+            href={resolve("/quizlet-to-anki")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Quizlet to Anki
+          </a>
+          <span>·</span>
+          <a
+            href={resolve("/print-flashcards-from-quizlet")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Print flashcards
+          </a>
         </div>
       </div>
     </section>
@@ -290,13 +397,11 @@ No introduction, no notes, just the table.`;
         <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
         <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
         >
-        <a href={resolve("/csv-to-anki")} class="hover:text-foreground transition-colors">
-          CSV to Anki
-        </a>
-        <a href={resolve("/quizlet-to-anki")} class="hover:text-foreground transition-colors">
-          Quizlet to Anki
-        </a>
         <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
+        <a
+          href="https://github.com/ImGajeed76/quick-cards"
+          class="hover:text-foreground transition-colors">GitHub</a
+        >
       </div>
     </div>
   </footer>

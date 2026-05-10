@@ -1,68 +1,78 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
+  import { HoverCard, HoverCardTrigger, HoverCardContent } from "$lib/components/ui/hover-card";
   import Github from "$lib/components/icons/Github.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { track } from "$lib/analytics";
   import { resolve } from "$app/paths";
-  import { ArrowRight, Puzzle, ClipboardPaste, Download, ChevronRight } from "@lucide/svelte";
+  import {
+    ArrowRight,
+    Puzzle,
+    ChevronRight,
+    ClipboardPaste,
+    Image as ImageIcon,
+    Play,
+    Pencil,
+    BookPlus,
+    Copy as CopyIcon,
+    Printer,
+    GitMerge,
+    Download,
+    Code2,
+    Trash2,
+    Info,
+  } from "@lucide/svelte";
   import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
 
   const title = `Convert Quizlet to Anki · ${SITE_NAME}`;
   const description =
-    "Three ways to convert a Quizlet set to an Anki deck file (.apkg): the QuickCards browser extension (recommended, with images and audio), the QuickCards web tool (no install), or Quizlet's built-in export (limited to sets you created). Free, no account, open source.";
+    "How to convert a Quizlet set to an Anki deck file (.apkg) with images and audio. Browser extension, web tool, or Quizlet's export, depending on your situation. Free, no account, open source.";
 
   function trackInstallClick(source: string): void {
     track("Install CTA click", { source });
   }
 
-  const faq = [
+  // Reader-mood prompts. Each one anchors a section below. Phrasing matches
+  // what real users actually say in r/Anki and AnkiForums threads, so this
+  // page does not read like a feature list, it reads like a reply.
+  const moods = [
     {
-      q: "Can I convert a Quizlet set I didn't create?",
-      a: "Yes, with the QuickCards extension. Quizlet's own export only works on sets you created yourself, but the extension reads any set you can open in your browser, including a teacher's set, a friend's set, or a set you copied. If you only have the exported text, paste it into the web tool.",
+      id: "exam",
+      quote: "I have an exam tomorrow.",
+      lede: "Forget the perfect setup. Get the cards into Anki, drill, sleep.",
     },
     {
-      q: "Will the images and audio come through to Anki?",
-      a: "With the extension, yes. Images, user-recorded audio, and Quizlet's TTS audio bundle into the .apkg file so cards work offline. The web tool produces a text-only deck because pasted data does not include media. Anki's built-in CSV import also drops media unless you copy each file into the collection.media folder by hand.",
+      id: "teacher-set",
+      quote: "It's a teacher's set. I can't export.",
+      lede: "Quizlet's own export is locked to creators. You don't need it.",
     },
     {
-      q: "Do I need to install an Anki add-on?",
-      a: "No. QuickCards builds the .apkg in your browser. You just open Anki and double-click the file (or use File, Import). It works the same on Anki desktop, AnkiMobile, AnkiDroid, and AnkiWeb.",
+      id: "addon-broke",
+      quote: "The Anki addon keeps breaking.",
+      lede: "Cloudflare keeps tripping it. There's a way around.",
     },
     {
-      q: "What about the deadline mode? Does it actually help?",
-      a: "It is an optional toggle on the Anki export step. It adjusts deck options (desired retention, learn steps, max interval) for tight timelines. Anecdotal, not science-backed. Useful in our experience for cramming under two weeks. Past two weeks the values land at Anki defaults anyway, so it is not magic, just sensible presets. Fine to leave it off.",
+      id: "media",
+      quote: "I want the images and audio.",
+      lede: "They're in the .apkg. No collection.media folder dance.",
     },
-    {
-      q: "Why not just use Quizlet's built-in export?",
-      a: "Two reasons. One, it only works for sets you created yourself, so a teacher's set is off-limits. Two, it is text-only, no images or audio, and the output is a single block of text with custom separators that often gets crammed into a single Excel cell on paste.",
-    },
-    {
-      q: "What about the Anki add-on that fetches from Quizlet?",
-      a: "Strong choice when it works. The recurring trouble is that Quizlet's Cloudflare layer blocks its image and audio fetches periodically, and add-ons run on Anki desktop, not AnkiMobile or AnkiWeb. QuickCards rides your own browser session on the Quizlet tab, so there is nothing for Cloudflare to challenge.",
-    },
-    {
-      q: "Is QuickCards free?",
-      a: "Yes. Free, open source (MIT licensed), no account, runs in your browser. Source on GitHub.",
-    },
-  ];
+  ] as const;
 
-  // FAQPage JSON-LD for rich-result eligibility on this page.
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: faq.map((item) => ({
+    mainEntity: moods.map((m) => ({
       "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
+      name: m.quote,
+      acceptedAnswer: { "@type": "Answer", text: m.lede },
     })),
   };
-
-  const articleJsonLd = {
+  const howtoJsonLd = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to convert a Quizlet set to an Anki deck",
+    name: "Convert a Quizlet set to an Anki deck",
     description:
-      "Step-by-step: install the QuickCards browser extension, open a Quizlet set, click the QuickCards banner, choose Anki, save the .apkg, import into Anki.",
+      "Install the QuickCards browser extension, open the Quizlet set, click the QuickCards banner, choose Anki, save the .apkg, import into Anki on any client.",
     totalTime: "PT2M",
     step: [
       {
@@ -73,24 +83,23 @@
       {
         "@type": "HowToStep",
         name: "Open the Quizlet set",
-        text: "Navigate to the Quizlet set page in your browser. A small QuickCards banner appears at the bottom of the page with the card count.",
+        text: "The QuickCards banner appears at the bottom of the set page with the card count.",
       },
       {
         "@type": "HowToStep",
         name: "Choose Anki",
-        text: "Click the QuickCards banner, pick Anki .apkg as the export target. Optional: turn on deadline mode if you have an exam under two weeks away.",
+        text: "One click. Images and audio bundle into the .apkg.",
       },
       {
         "@type": "HowToStep",
         name: "Import into Anki",
-        text: "Open the downloaded .apkg with Anki (desktop, AnkiMobile, AnkiDroid, or AnkiWeb).",
+        text: "Open the .apkg with Anki on desktop, AnkiMobile, AnkiDroid, or AnkiWeb.",
       },
     ],
   };
-
   /* eslint-disable no-useless-escape */
   const faqJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`;
-  const articleJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(articleJsonLd)}<\/script>`;
+  const howtoJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(howtoJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
 </script>
 
@@ -104,7 +113,7 @@
   <link rel="canonical" href={`${SITE_URL}/quizlet-to-anki`} />
   <!-- eslint-disable svelte/no-at-html-tags -->
   {@html faqJsonLdHtml}
-  {@html articleJsonLdHtml}
+  {@html howtoJsonLdHtml}
 </svelte:head>
 
 <div class="bg-background text-foreground flex min-h-screen flex-col">
@@ -140,255 +149,453 @@
   </header>
 
   <main class="flex-grow">
-    <!-- ══════════════ Hero ══════════════ -->
-    <article class="px-6 py-16 sm:py-24">
-      <div class="mx-auto max-w-3xl">
-        <span
-          class="text-muted-foreground mb-4 inline-block font-mono text-xs tracking-wider uppercase"
-        >
-          Guide · Quizlet to Anki
-        </span>
-        <h1
-          class="text-4xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
-        >
-          Convert <span class="text-primary">Quizlet to Anki.</span>
-        </h1>
-        <p class="text-muted-foreground mt-6 text-lg leading-relaxed">
-          You have a Quizlet set, you want it as an Anki deck file (.apkg), with images and audio
-          intact, and you do not want to install an add-on or sign up for anything. Three ways to do
-          it, depending on what you have and where you study.
-        </p>
+    <!-- ════════ Hero + mood tiles ════════
+       The page opens by inviting the reader to pick the line that sounds
+       like them. Each tile anchors a section below. Visual treatment: a
+       large primary-color opening quote on the left, the user's voice in
+       the middle, an arrow on the right. Reads like overheard speech, not
+       like another feature card grid. -->
+    <section class="relative overflow-hidden px-4 pt-12 pb-12 sm:px-6 sm:pt-16 sm:pb-14">
+      <div
+        aria-hidden="true"
+        class="bg-primary pointer-events-none absolute -top-32 left-1/2 -z-10 h-[420px] w-[680px] -translate-x-1/2 rounded-full opacity-15 blur-[140px]"
+      ></div>
 
-        <div class="mt-8 flex flex-wrap items-center gap-3">
-          <Button
-            href={CWS_URL}
-            onclick={() => trackInstallClick("q2a-hero")}
-            size="lg"
-            class="group h-12 gap-2 px-6 text-base"
+      <div class="mx-auto max-w-3xl">
+        <div class="mb-8 text-center">
+          <h1
+            class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
           >
-            <Puzzle class="size-4" />
-            Add to Chrome
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-          </Button>
-          <Button href={resolve("/tool")} variant="outline" size="lg" class="h-12 px-5 text-base">
-            No install? Use the web tool
-          </Button>
+            Convert <span class="text-primary">Quizlet to Anki.</span>
+          </h1>
+          <p
+            class="text-muted-foreground mx-auto mt-5 max-w-xl text-base leading-relaxed sm:text-lg"
+          >
+            Pick the line that sounds like you. Each one is a different way out.
+          </p>
         </div>
-        <p class="text-muted-foreground/80 mt-6 font-mono text-xs tracking-wide">
-          Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Open source
-        </p>
-      </div>
-    </article>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Three ways ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Three ways to do it.</h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          Pick whichever fits your situation. The first option is what we recommend for most people
-          because it carries images and audio across.
-        </p>
-
-        <div class="mt-12 space-y-12">
-          <!-- Method 1: extension -->
-          <div>
-            <div class="mb-3 flex items-center gap-3">
-              <span class="text-muted-foreground/70 font-mono text-sm tabular-nums">01</span>
-              <span
-                class="bg-primary/10 text-primary rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-wider uppercase"
-              >
-                Recommended
-              </span>
-            </div>
-            <h3 class="text-xl font-semibold tracking-tight sm:text-2xl">
-              QuickCards browser extension
-            </h3>
-            <p class="text-muted-foreground mt-3 leading-relaxed">
-              Add it to Chrome (or sideload it on Firefox), open the Quizlet set, click the
-              QuickCards banner, pick Anki. The .apkg downloads with images and audio bundled in,
-              ready to double-click into Anki desktop, AnkiMobile, AnkiDroid, or AnkiWeb. Works on
-              any set you can open in your browser, including teacher's sets that Quizlet's own
-              export blocks.
-            </p>
-            <ul
-              class="text-muted-foreground/90 mt-4 list-inside list-disc space-y-1.5 pl-2 text-sm leading-relaxed"
+        <div class="space-y-3">
+          {#each moods as m, i (m.id)}
+            <a
+              href={`#${m.id}`}
+              use:reveal={{ delay: i * 60 }}
+              class="border-border hover:bg-card/80 hover:border-primary/40 group flex items-center gap-4 rounded-lg border p-4 transition-colors sm:gap-5 sm:p-5"
             >
-              <li>Bundles images, user audio, and Quizlet's TTS into the .apkg</li>
-              <li>Works on sets you didn't create</li>
-              <li>Optionally merges multiple open Quizlet tabs into one deck</li>
-              <li>No Anki add-on required, works the same on every Anki client</li>
-            </ul>
-            <div class="mt-6 flex flex-wrap items-center gap-3">
-              <Button href={CWS_URL} onclick={() => trackInstallClick("q2a-method1")} class="gap-2">
-                <Puzzle class="size-4" />
-                Add to Chrome
-              </Button>
-              <Button href={resolve("/extension")} variant="ghost" class="gap-2">
-                Read more
-                <ChevronRight class="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          <!-- Method 2: web tool -->
-          <div>
-            <div class="mb-3 flex items-center gap-3">
-              <span class="text-muted-foreground/70 font-mono text-sm tabular-nums">02</span>
               <span
-                class="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-wider uppercase"
+                aria-hidden="true"
+                class="text-primary/70 group-hover:text-primary -mt-2 font-serif text-5xl leading-none transition-colors sm:text-6xl"
               >
-                No install
+                "
+              </span>
+              <div class="flex-1">
+                <div class="text-foreground text-base font-medium sm:text-lg">{m.quote}</div>
+                <div class="text-muted-foreground mt-0.5 text-sm">{m.lede}</div>
+              </div>
+              <ChevronRight
+                class="text-muted-foreground/50 group-hover:text-primary size-4 shrink-0 transition-colors"
+              />
+            </a>
+          {/each}
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ Section: Exam tomorrow ════════
+       Two-column: text left, vertical timing-stack right.
+       (LRLR pattern: section 1 = text-left.) -->
+    <section id="exam" class="scroll-mt-20 px-6 py-20 sm:py-28" use:reveal>
+      <div class="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
+        <div>
+          <div class="mb-6 flex items-center gap-3">
+            <span class="text-primary font-mono text-xs tracking-wider uppercase">
+              01 · exam tomorrow
+            </span>
+            <span class="bg-border/60 h-px w-12"></span>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Cards in Anki in under a minute.
+          </h2>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            Add the
+            <a
+              href="https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc"
+              onclick={() => trackInstallClick("q2a-exam")}
+              class="text-foreground hover:text-primary underline-offset-2 hover:underline"
+            >
+              QuickCards extension</a
+            >
+            to Chrome. Open your Quizlet set. Click the banner. Pick Anki. Open the .apkg with Anki on
+            whatever device you'll study on. You're now drilling.
+          </p>
+          <div class="mt-7 flex flex-wrap gap-3">
+            <Button href={CWS_URL} onclick={() => trackInstallClick("q2a-exam-cta")}>
+              <Puzzle class="size-4" />
+              Add to Chrome
+            </Button>
+            <Button href={resolve("/extension")} variant="ghost">
+              More about the extension
+              <ChevronRight class="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        <!-- Vertical timing breakdown. Each step on its own line with a
+             monospace timing pill. -->
+        <div class="border-border max-w-xs rounded-lg border p-4 sm:p-5 lg:max-w-none">
+          <div class="text-muted-foreground/70 mb-3 font-mono text-[10px] tracking-wider uppercase">
+            estimated · start to finish
+          </div>
+          <div class="divide-border/50 divide-y">
+            {#each [{ step: "Install extension", t: "~10s" }, { step: "Open Quizlet, export", t: "~20s" }, { step: "Open .apkg in Anki", t: "~10s" }] as row, i (row.step)}
+              <div class="flex items-center gap-3 py-2.5">
+                <span class="text-primary/70 font-mono text-[10px] tabular-nums">
+                  0{i + 1}
+                </span>
+                <span class="text-foreground/85 flex-1 text-sm">{row.step}</span>
+                <span
+                  class="text-muted-foreground bg-muted/40 rounded px-2 py-0.5 font-mono text-[11px] tabular-nums"
+                >
+                  {row.t}
+                </span>
+              </div>
+            {/each}
+            <div class="flex items-center gap-3 pt-3">
+              <span class="text-primary font-mono text-[10px] tabular-nums">≈</span>
+              <span class="text-foreground flex-1 text-sm font-medium">Total</span>
+              <span
+                class="text-primary bg-primary/10 rounded px-2 py-0.5 font-mono text-[11px] tabular-nums"
+              >
+                under 1 min
               </span>
             </div>
-            <h3 class="text-xl font-semibold tracking-tight sm:text-2xl">
-              QuickCards web tool, paste mode
-            </h3>
-            <p class="text-muted-foreground mt-3 leading-relaxed">
-              If you cannot install browser extensions (locked-down school computer, mobile browser,
-              Safari without extensions enabled), the web tool accepts pasted text. Use Quizlet's
-              built-in Export feature to copy the set as text (only works on sets you created
-              yourself), paste it into QuickCards, get the .apkg. Text-only, no images or audio, but
-              no install needed.
-            </p>
-            <div class="mt-6 flex flex-wrap items-center gap-3">
-              <Button href={resolve("/tool")} class="gap-2">
-                <ClipboardPaste class="size-4" />
-                Open the web tool
-              </Button>
-            </div>
-          </div>
-
-          <!-- Method 3: Quizlet's own export -->
-          <div>
-            <div class="mb-3 flex items-center gap-3">
-              <span class="text-muted-foreground/70 font-mono text-sm tabular-nums">03</span>
-              <span
-                class="bg-muted text-muted-foreground rounded-full px-2.5 py-0.5 font-mono text-[10px] tracking-wider uppercase"
-              >
-                Limited
-              </span>
-            </div>
-            <h3 class="text-xl font-semibold tracking-tight sm:text-2xl">
-              Quizlet's built-in export, then Anki's CSV import
-            </h3>
-            <p class="text-muted-foreground mt-3 leading-relaxed">
-              The path Quizlet officially supports. Open your set, choose Export, copy the text,
-              save it as a .csv or .tsv, then import the file into Anki. Works fine for sets you
-              created yourself with no media, but breaks for the common cases: sets you copied or
-              saved from someone else (export option is gone), sets with images or audio (text
-              only), and sets with unusual characters (Excel re-encodes UTF-8 weirdly on macOS).
-              Listed for completeness; reach for one of the first two options if you can.
-            </p>
           </div>
         </div>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Quick steps ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Two-minute walkthrough (extension).
-        </h2>
-        <ol class="mt-10 space-y-8">
-          <li class="flex gap-5">
+    <!-- ════════ Section: Teacher's set ════════
+       Two-column: menu mockup LEFT, text RIGHT.
+       (LRLR pattern: section 2 = visual-left.) -->
+    <section id="teacher-set" class="scroll-mt-20 px-6 py-20 sm:py-28" use:reveal>
+      <div class="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
+        <!-- Inline mockup: a generic "set menu" patterned after how flashcard
+             apps usually structure their dropdown. Export struck through as a
+             visual shorthand for "you can't" on a teacher's set. -->
+        <div class="order-2 lg:order-1">
+          <div
+            class="border-border max-w-xs overflow-hidden rounded-lg border shadow-lg lg:mx-auto"
+          >
             <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
+              class="border-border/50 text-muted-foreground/70 border-b px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase"
+            >
+              teacher's set · menu
+            </div>
+            <ul class="text-sm">
+              {#each [{ icon: Pencil, label: "Edit" }, { icon: BookPlus, label: "Add to course" }, { icon: CopyIcon, label: "Copy set" }, { icon: Printer, label: "Print" }, { icon: GitMerge, label: "Merge" }, { icon: Download, label: "Export", strike: true }, { icon: Code2, label: "Embed" }, { icon: Trash2, label: "Delete", danger: true }] as item (item.label)}
+                {@const Icon = item.icon}
+                <li
+                  class={[
+                    "flex items-center gap-3 px-3 py-2",
+                    item.strike && "text-muted-foreground/50 line-through decoration-1",
+                    item.danger && !item.strike && "text-rose-400/80",
+                    !item.strike && !item.danger && "text-foreground/85",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <Icon class="size-4 shrink-0" />
+                  <span>{item.label}</span>
+                </li>
+              {/each}
+            </ul>
+          </div>
+        </div>
+
+        <div class="order-1 lg:order-2">
+          <div class="mb-6 flex items-center gap-3">
+            <span class="text-primary font-mono text-xs tracking-wider uppercase">
+              02 · teacher's set
+            </span>
+            <span class="bg-border/60 h-px w-12"></span>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Quizlet's export is locked to creators. You don't need it.
+          </h2>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            Since the rules tightened, Quizlet only lets you export sets you created yourself. Saved
+            a teacher's set? Copied a friend's set? The Export option is gone.
+          </p>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            QuickCards reads any set your browser can render. Including teacher's sets.
+          </p>
+          <div class="mt-7">
+            <Button href={CWS_URL} onclick={() => trackInstallClick("q2a-teacher-cta")}>
+              <Puzzle class="size-4" />
+              Add to Chrome
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ Section: Addon keeps breaking ════════
+       Two-column: text LEFT, 403/200 stack RIGHT (vertical, narrow column).
+       (LRLR pattern: section 3 = text-left.) -->
+    <section id="addon-broke" class="scroll-mt-20 px-6 py-20 sm:py-28" use:reveal>
+      <div class="mx-auto grid max-w-5xl items-start gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-14">
+        <div>
+          <div class="mb-6 flex items-center gap-3">
+            <span class="text-primary font-mono text-xs tracking-wider uppercase">
+              03 · the add-on path
+            </span>
+            <span class="bg-border/60 h-px w-12"></span>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Quizlet talking to Quizlet.
+          </h2>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            The established Anki add-on for Quizlet runs from outside the browser. Its requests go
+            out cross-origin, without the user's session attached, and Cloudflare's bot mitigation
+            sometimes challenges them on images and audio. The common workaround, unchecking audio
+            download, gets you a deck without the audio.
+          </p>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            QuickCards runs as a browser extension on the Quizlet page. Its fetches go out from
+            quizlet.com with the user's real session attached, so Cloudflare sees same-origin
+            traffic and treats it accordingly. Quizlet talking to Quizlet, essentially.
+          </p>
+        </div>
+
+        <!-- Architectural-symptom visual. Two stacked rows: the friction
+             that comes with fetching from outside the browser, then the
+             friction-free route via in-tab session. Neutral titles, no
+             attack on any specific project. -->
+        <div>
+          <div class="border-border overflow-hidden rounded-lg border">
+            <div
+              class="text-muted-foreground/70 border-border/50 flex items-center justify-between border-b px-4 py-2 font-mono text-[10px] tracking-wider uppercase"
+            >
+              <span>external fetch · rough spots</span>
+              <span class="text-muted-foreground/60">3</span>
+            </div>
+            <ul class="divide-border/40 divide-y text-sm">
+              {#each [{ title: "Cloudflare verification on image fetch", note: "intermittent" }, { title: "Audio sometimes missing on large sets", note: "throttled" }, { title: "Re-patches after Quizlet front-end updates", note: "maintenance" }] as item (item.title)}
+                <li class="flex items-start gap-3 px-4 py-3">
+                  <span class="bg-muted-foreground/40 mt-1 inline-block size-2 rounded-full"></span>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-foreground/90 truncate text-[13px]">{item.title}</div>
+                    <div class="text-muted-foreground/70 mt-0.5 font-mono text-[10px]">
+                      {item.note}
+                    </div>
+                  </div>
+                </li>
+              {/each}
+            </ul>
+          </div>
+
+          <div class="text-muted-foreground/40 my-3 text-center font-mono text-[10px]">
+            ↓ in-tab session, none of the above
+          </div>
+
+          <div
+            class="border-primary/30 bg-primary/5 flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
+          >
+            <div class="flex items-center gap-2.5">
+              <span class="bg-primary inline-block size-2 rounded-full"></span>
+              <span class="text-foreground/90 text-[13px] font-medium">QuickCards</span>
+            </div>
+            <span
+              class="text-primary bg-primary/10 rounded px-2 py-0.5 font-mono text-[11px] tabular-nums"
+            >
+              clean path
+            </span>
+          </div>
+
+          <div class="mt-3 flex justify-end">
+            <HoverCard openDelay={120}>
+              <HoverCardTrigger
+                class="text-muted-foreground/70 hover:text-foreground inline-flex items-center gap-1.5 text-xs underline-offset-2 hover:underline"
+              >
+                <Info class="size-3" />
+                about this comparison
+              </HoverCardTrigger>
+              <HoverCardContent class="w-80 text-xs leading-relaxed">
+                <p class="text-muted-foreground">
+                  Illustrative, not real issue titles. The established Anki path is
+                  <a
+                    href="https://github.com/sviatoslav-lebediev/anki-quizlet-importer-extended"
+                    class="text-foreground hover:text-primary underline-offset-2 hover:underline"
+                  >
+                    anki-quizlet-importer-extended
+                  </a>
+                  , well-built and actively maintained. It runs as a desktop add-on; QuickCards runs as
+                  a browser extension on the page. Same destination, different architecture.
+                </p>
+              </HoverCardContent>
+            </HoverCard>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ Section: Media in deck ════════
+       Two-column: Anki-style card mockup LEFT (on desktop), text RIGHT.
+       (LRLR pattern: section 4 = visual-left.) On mobile the text reads
+       first, mockup follows. -->
+    <section id="media" class="scroll-mt-20 px-6 py-20 sm:py-28" use:reveal>
+      <div class="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14">
+        <!-- Anki-style card mockup. Stacked siblings behind for deck feel. -->
+        <div class="relative order-2 mx-auto w-full max-w-sm lg:order-1">
+          <div
+            aria-hidden="true"
+            class="border-border bg-background absolute inset-0 -translate-x-2 translate-y-2 -rotate-3 rounded-xl border opacity-60"
+          ></div>
+          <div
+            aria-hidden="true"
+            class="border-border bg-background absolute inset-0 translate-x-1.5 -translate-y-1.5 rotate-2 rounded-xl border opacity-80"
+          ></div>
+          <div
+            class="border-border bg-background relative flex flex-col items-center rounded-xl border px-5 py-6 shadow-2xl shadow-black/40"
+          >
+            <!-- Image area. Gradient placeholder; abstract, on-brand. -->
+            <div
+              class="flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-emerald-700/35 via-amber-500/25 to-rose-500/25"
+            >
+              <ImageIcon class="size-6 text-white/30" />
+            </div>
+
+            <!-- Front term + TTS triangle -->
+            <div class="text-foreground mt-5 text-lg font-semibold">Photosynthesis</div>
+            <span
+              class="text-muted-foreground/70 mt-1.5 flex size-5 items-center justify-center rounded-full bg-white/5"
+            >
+              <Play class="size-2 fill-current" />
+            </span>
+
+            <!-- Divider -->
+            <div class="border-border/60 my-4 w-3/4 border-t"></div>
+
+            <!-- Back + TTS triangle -->
+            <div class="text-muted-foreground text-center text-sm leading-relaxed">
+              Plants convert sunlight into chemical energy.
+            </div>
+            <span
+              class="text-muted-foreground/70 mt-1.5 flex size-5 items-center justify-center rounded-full bg-white/5"
+            >
+              <Play class="size-2 fill-current" />
+            </span>
+          </div>
+        </div>
+
+        <!-- Text column on the right (lg). Appears first on mobile so the
+             section reads top-down naturally. -->
+        <div class="order-1 lg:order-2">
+          <div class="mb-6 flex items-center gap-3">
+            <span class="text-primary font-mono text-xs tracking-wider uppercase">
+              04 · media intact
+            </span>
+            <span class="bg-border/60 h-px w-12"></span>
+          </div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Image, audio, TTS bundled into the .apkg.
+          </h2>
+          <p class="text-muted-foreground mt-4 leading-relaxed">
+            CSV imports drop media unless you copy each file into Anki's collection.media folder by
+            hand. We don't do that. The .apkg is self-contained. Email it, AirDrop it, share it.
+            Imports the same on every Anki client.
+          </p>
+          <div
+            class="text-muted-foreground/70 mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px]"
+          >
+            <span>Images</span>
+            <span>·</span>
+            <span>User audio</span>
+            <span>·</span>
+            <span>Quizlet TTS</span>
+            <span>·</span>
+            <span>all in the .apkg</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ Closing: comparison + CTA ════════
+       One short, fair comparison block at the very end (not the focus of
+       the page, just a parking spot for users who want it), then closing
+       CTA. Compresses the previous "three methods" section. -->
+    <section class="px-6 py-24 sm:py-32">
+      <div class="mx-auto max-w-3xl">
+        <div class="mb-8 max-w-xl">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            If you want options
+          </span>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Three paths, fairly compared.
+          </h2>
+        </div>
+        <div class="border-border divide-border divide-y rounded-lg border">
+          <div class="space-y-1.5 p-5">
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-sm font-medium">QuickCards extension</h3>
+              <span class="text-primary/80 font-mono text-[10px] uppercase">recommended</span>
+            </div>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              On any Quizlet tab, with images and audio bundled. No add-on, multi-set merge built
+              in.
+            </p>
+          </div>
+          <div class="space-y-1.5 p-5">
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-sm font-medium">
+                <a
+                  href="https://github.com/sviatoslav-lebediev/anki-quizlet-importer-extended"
+                  class="hover:text-primary underline-offset-2 hover:underline"
+                >
+                  anki-quizlet-importer-extended
+                </a>
+                <span class="text-muted-foreground/80">(Anki add-on)</span>
+              </h3>
+              <span class="text-muted-foreground/70 font-mono text-[10px] uppercase">
+                older path
+              </span>
+            </div>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              Established and maintained. Desktop add-on, more setup, occasional Cloudflare friction
+              on media.
+            </p>
+          </div>
+          <div class="space-y-1.5 p-5">
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-sm font-medium">Quizlet's own export + Anki CSV import</h3>
+              <span class="text-muted-foreground/70 font-mono text-[10px] uppercase">
+                if it works
+              </span>
+            </div>
+            <p class="text-muted-foreground text-sm leading-relaxed">
+              Built in. Only on sets you created, plain text only, encoding gotchas on macOS.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-12 text-center">
+          <h3 class="text-3xl font-semibold tracking-tight sm:text-4xl">Ready to convert?</h3>
+          <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              href={CWS_URL}
+              onclick={() => trackInstallClick("q2a-footer")}
+              size="lg"
+              class="group h-12 gap-2 px-6 text-base"
             >
               <Puzzle class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Install the extension</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                <a
-                  href="https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc"
-                  onclick={() => trackInstallClick("q2a-step1")}
-                  class="text-foreground hover:text-primary underline-offset-4 hover:underline"
-                >
-                  Add to Chrome from the Chrome Web Store</a
-                >. Or sideload the release ZIP if you are on Firefox.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <ChevronRight class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Open the Quizlet set in your browser</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                A small QuickCards banner appears at the bottom right with the card count. If you
-                are signed in, you can also see private sets your account has access to.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <Download class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Click Anki, save the file, import</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                Open the .apkg with Anki on whichever device you study on. The cards land with
-                images, audio, and Quizlet's TTS already bundled in.
-              </p>
-            </div>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ FAQ ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Questions people actually ask.
-        </h2>
-        <dl class="mt-10 space-y-7">
-          {#each faq as item (item.q)}
-            <div>
-              <dt class="text-foreground text-lg font-medium tracking-tight">{item.q}</dt>
-              <dd class="text-muted-foreground mt-2 leading-relaxed">{item.a}</dd>
-            </div>
-          {/each}
-        </dl>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Closing CTA ══════════════ -->
-    <section class="px-6 py-20 sm:py-24">
-      <div class="mx-auto max-w-3xl text-center">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Ready to convert?</h2>
-        <p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-          The extension is the fastest path. The web tool is the no-install fallback. Both are free,
-          open source, run in your browser.
-        </p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button
-            href={CWS_URL}
-            onclick={() => trackInstallClick("q2a-footer")}
-            size="lg"
-            class="group h-12 gap-2 px-6 text-base"
-          >
-            <Puzzle class="size-4" />
-            Add to Chrome
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-          </Button>
-          <Button href={resolve("/tool")} variant="outline" size="lg" class="h-12 px-5 text-base">
-            Web tool
-          </Button>
+              Add to Chrome
+              <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Button>
+            <Button href={resolve("/tool")} variant="outline" size="lg" class="h-12 px-5 text-base">
+              <ClipboardPaste class="size-4" />
+              Web tool instead
+            </Button>
+          </div>
         </div>
       </div>
     </section>
@@ -411,7 +618,7 @@
         >
         <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
         <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
-          Coming from Knowt?
+          Knowt?
         </a>
         <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
       </div>

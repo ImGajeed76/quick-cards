@@ -1,38 +1,47 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { Button } from "$lib/components/ui/button";
   import Github from "$lib/components/icons/Github.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { track } from "$lib/analytics";
   import { resolve } from "$app/paths";
-  import {
-    ArrowRight,
-    Puzzle,
-    Layers,
-    Image as ImageIcon,
-    ShieldCheck,
-    Code2,
-    Download,
-    FileText,
-    FileSpreadsheet,
-    FileJson,
-    FileType,
-    Send,
-    Files,
-    BookOpen,
-  } from "@lucide/svelte";
+  import { ArrowRight, Puzzle, MoreHorizontal, Play, Lock } from "@lucide/svelte";
   import { SITE_NAME, SITE_URL, CWS_URL, SITE_REPO } from "$lib/site";
 
-  const title = `${SITE_NAME} extension · Convert any Quizlet set to Anki, PDF, CSV, JSON, or Knowt`;
+  let { data } = $props();
+
+  const title = `${SITE_NAME} extension · One-click Quizlet to Anki, PDF, CSV, JSON, Knowt`;
   const description =
-    "Browser extension that exports any Quizlet set to Anki (.apkg), printable PDF flashcards, vocab list PDF, CSV, JSON, TXT, or sends it straight into Knowt. Free, no account, runs in your browser, open source.";
+    "Browser extension that runs on any Quizlet set page. One click and the set is yours: Anki deck file (.apkg) with images and audio bundled, printable PDF, CSV, JSON, TXT, or directly into your Knowt account. Free, no account, open source.";
 
   function trackInstallClick(source: string): void {
     track("Install CTA click", { source });
   }
 
-  // SoftwareApplication schema specifically for the browser extension. Same
-  // org schema and family as the homepage but scoped to the BrowserApplication
-  // surface, so search engines don't conflate the extension with the web tool.
+  // svelte-ignore state_referenced_locally
+  let displayStars = $state<number | null>(data.stars);
+
+  onMount(() => {
+    const initial = data.stars;
+    if (initial === null || initial < 4) return;
+    displayStars = 0;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number): void => {
+      const t = Math.min((now - start) / 700, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      displayStars = Math.round(initial * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  });
+
+  function formatStars(n: number): string {
+    if (n < 1000) return String(n);
+    return (Math.round((n / 1000) * 10) / 10).toString().replace(/\.0$/, "") + "k";
+  }
+
   const appJsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -48,92 +57,14 @@
   const appJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(appJsonLd)}<\/script>`;
   /* eslint-enable no-useless-escape */
 
-  const formats = [
-    {
-      icon: Layers,
-      name: "Anki",
-      desc: "Anki deck file (.apkg) with images and audio bundled.",
-    },
-    {
-      icon: FileText,
-      name: "PDF flashcards",
-      desc: "2x4 grid, double-sided, syllable-aware hyphenation.",
-    },
-    {
-      icon: FileText,
-      name: "PDF vocab list",
-      desc: "Clean two-column table for printing or studying offline.",
-    },
-    {
-      icon: FileSpreadsheet,
-      name: "CSV",
-      desc: "Open in Excel, Sheets, Numbers. Headerless or labeled.",
-    },
-    {
-      icon: FileJson,
-      name: "JSON",
-      desc: "Structured data for programmatic use.",
-    },
-    {
-      icon: FileType,
-      name: "TXT",
-      desc: "Plain text with configurable separators.",
-    },
-    {
-      icon: Send,
-      name: "Knowt",
-      desc: "One click. Uses your Knowt session, no API key.",
-    },
-  ];
-
-  const steps = [
-    {
-      n: "01",
-      icon: Puzzle,
-      title: "Install the extension",
-      description: "From the Chrome Web Store, or sideload the release ZIP for Firefox.",
-    },
-    {
-      n: "02",
-      icon: BookOpen,
-      title: "Open a Quizlet set",
-      description:
-        "A small QuickCards banner appears at the bottom of the page with the card count.",
-    },
-    {
-      n: "03",
-      icon: Download,
-      title: "Pick where it goes",
-      description: "Anki deck file, printable PDF, CSV, JSON, TXT, or send it straight into Knowt.",
-    },
-  ];
-
-  const differentiators = [
-    {
-      icon: ShieldCheck,
-      title: "Works on any set you can see",
-      description:
-        "If your browser can open the set, QuickCards can export it. No login automation, no scraping detour. Includes sets you didn't create yourself, so a teacher's set or a friend's set isn't off-limits.",
-    },
-    {
-      icon: Files,
-      title: "Merge multiple open tabs",
-      description:
-        "Have three Quizlet tabs open for chapters 4, 5, and 6? QuickCards can merge them into one export with optional case-insensitive deduplication. Useful when teachers split a unit across sets.",
-    },
-    {
-      icon: ImageIcon,
-      title: "Media survives the export",
-      description:
-        "Images, user-recorded audio, and Quizlet's TTS audio are bundled into the .apkg so cards work offline. CSV imports usually drop media; we don't.",
-    },
-    {
-      icon: Code2,
-      title: "Open source, MIT licensed",
-      description:
-        "The extension runs inside your own browser session. No third-party server, no analytics on your card content, every line on GitHub.",
-    },
-  ];
+  const tileTints = [
+    "from-violet-500/30 to-violet-700/10",
+    "from-cyan-400/30 to-cyan-700/10",
+    "from-rose-400/30 to-amber-500/10",
+    "from-blue-400/30 to-indigo-700/10",
+    "from-emerald-400/30 to-cyan-700/10",
+    "from-amber-400/30 to-rose-500/10",
+  ] as const;
 </script>
 
 <svelte:head>
@@ -144,12 +75,12 @@
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <link rel="canonical" href={`${SITE_URL}/extension`} />
-  <!-- eslint-disable svelte/no-at-html-tags — content is our own JSON.stringify output, no user input -->
+  <link rel="preconnect" href="https://api.github.com" crossorigin="anonymous" />
+  <!-- eslint-disable svelte/no-at-html-tags -->
   {@html appJsonLdHtml}
 </svelte:head>
 
 <div class="bg-background text-foreground flex min-h-screen flex-col">
-  <!-- ══════════════ Header ══════════════ -->
   <header
     class="border-foreground/10 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-30 border-b backdrop-blur-md"
   >
@@ -161,17 +92,21 @@
         <Button
           variant="ghost"
           size="sm"
-          href={SITE_REPO}
+          href="https://github.com/ImGajeed76/quick-cards"
           aria-label="GitHub repository"
           class="gap-2"
         >
           <Github class="size-4" />
-          <span class="hidden sm:inline">GitHub</span>
+          {#if displayStars !== null}
+            <span class="text-sm tabular-nums">{formatStars(displayStars)}</span>
+          {:else}
+            <span class="hidden sm:inline">GitHub</span>
+          {/if}
         </Button>
         <Button
           size="sm"
           href={CWS_URL}
-          onclick={() => trackInstallClick("extension-header")}
+          onclick={() => trackInstallClick("ext-header")}
           class="gap-2"
         >
           Add to Chrome
@@ -182,398 +117,316 @@
   </header>
 
   <main class="flex-grow">
-    <!-- ══════════════ Hero ══════════════ -->
-    <section class="relative overflow-hidden px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
+    <!-- ════════ Hero: same flashcard-app silhouette twice ════════
+       Two identical generic-flashcard-app silhouettes side by side. The
+       only difference: the right one has the QuickCards floating banner
+       overlaid at the bottom right, faithful to the actual content-script
+       UI (horizontal pill, "{N} cards" + Copy + ··· ). The visual itself
+       carries the entire pitch: same tab, this one extra thing. -->
+    <section class="relative overflow-hidden px-4 pt-12 pb-20 sm:px-6 sm:pt-16 sm:pb-24">
       <div
         aria-hidden="true"
-        class="text-foreground absolute inset-0 -z-20 opacity-[0.04]"
-        style="background-image: linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px); background-size: 56px 56px;"
-      ></div>
-      <div
-        aria-hidden="true"
-        class="from-background pointer-events-none absolute inset-0 -z-10 bg-radial-[ellipse_at_center] from-30% to-transparent"
-      ></div>
-      <div
-        aria-hidden="true"
-        class="bg-primary pointer-events-none absolute -top-32 left-1/2 -z-10 h-[480px] w-[760px] -translate-x-1/2 rounded-full opacity-15 blur-[140px]"
+        class="bg-primary pointer-events-none absolute -top-40 left-1/2 -z-10 h-[480px] w-[760px] -translate-x-1/2 rounded-full opacity-15 blur-[160px]"
       ></div>
 
-      <div
-        class="relative z-10 mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.15fr_1fr] lg:gap-16"
-      >
-        <div>
-          <span
-            class="text-muted-foreground mb-4 inline-block font-mono text-xs tracking-wider uppercase"
-          >
-            Browser extension · Chrome and Firefox
-          </span>
-          <h1
-            class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
-          >
-            Export any Quizlet set, <span class="text-primary">in your browser.</span>
+      <div class="relative z-10 mx-auto max-w-4xl">
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <h1 class="text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl md:text-6xl">
+            Same tab.<br /><span class="text-primary">One extra thing.</span>
           </h1>
-          <p class="text-muted-foreground mt-6 max-w-xl text-lg leading-relaxed">
-            Open a Quizlet set, click the QuickCards banner, get an Anki deck file (.apkg),
-            printable PDF, CSV, JSON, or send it straight into your Knowt account. One click. No
-            copy-paste, no add-on.
-          </p>
-
-          <div class="mt-8 flex flex-wrap items-center gap-3">
-            <Button
-              href={CWS_URL}
-              onclick={() => trackInstallClick("extension-hero")}
-              size="lg"
-              class="group h-12 gap-2 px-6 text-base"
-            >
-              <Puzzle class="size-4" />
-              Add to Chrome
-              <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Button>
-            <Button
-              href={`${SITE_REPO}/tree/main/extension#sideload-manual-install`}
-              variant="outline"
-              size="lg"
-              class="h-12 px-5 text-base"
-            >
-              Sideload (Firefox / manual)
-            </Button>
-          </div>
-
-          <p class="text-muted-foreground/80 mt-8 font-mono text-xs tracking-wide">
-            Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; Open source &nbsp;·&nbsp; Manifest V3
+          <p
+            class="text-muted-foreground mx-auto mt-5 max-w-xl text-base leading-relaxed sm:text-lg"
+          >
+            Browser extension. Lives only on your flashcard tab. Click it, get an Anki deck file
+            (.apkg), printable PDF, CSV, JSON, or send to Knowt. Free, open source, no account.
           </p>
         </div>
 
-        <div class="relative">
-          <div class="bg-card/40 border-border/60 rounded-xl border p-3 shadow-2xl shadow-black/40">
-            <img
-              src="/screenshots/floating_banner.png"
-              alt="QuickCards floating banner on a Quizlet set page"
-              class="rounded-md"
-              loading="eager"
-              fetchpriority="high"
-            />
+        <!-- Twin silhouettes -->
+        <div class="grid items-end gap-4 sm:grid-cols-2 sm:gap-5">
+          <!-- Without QuickCards. Labeled subtle. -->
+          <div class="relative">
+            <div
+              class="text-muted-foreground/70 mb-3 px-1 font-mono text-[10px] tracking-wider uppercase"
+            >
+              Without it
+            </div>
+            <div
+              class="border-border/60 overflow-hidden rounded-lg border shadow-xl shadow-black/40"
+            >
+              <!-- Window chrome -->
+              <div class="border-border/40 border-b px-3 py-2">
+                <div class="flex gap-1.5">
+                  <span class="size-2 rounded-full bg-red-500/70"></span>
+                  <span class="size-2 rounded-full bg-yellow-500/70"></span>
+                  <span class="size-2 rounded-full bg-green-500/70"></span>
+                </div>
+              </div>
+              <!-- Generic flashcard-app silhouette -->
+              <div class="bg-[#0E1029] p-4">
+                <div class="mb-4 flex items-center justify-between">
+                  <div class="h-3 w-32 rounded bg-white/15"></div>
+                  <div class="h-3 w-12 rounded bg-white/10"></div>
+                </div>
+                <div class="mb-3 grid grid-cols-3 gap-1.5">
+                  {#each tileTints as tint, i (i)}
+                    <div
+                      class="flex items-center gap-2 rounded-md bg-[#171A36] px-2 py-1.5 text-[10px]"
+                    >
+                      <span class={`size-3 shrink-0 rounded bg-gradient-to-br ${tint}`}></span>
+                      <span class="h-1.5 w-10 rounded bg-white/15"></span>
+                    </div>
+                  {/each}
+                </div>
+                <div class="flex h-24 items-center justify-center rounded-md bg-[#13162E]">
+                  <div class="h-2.5 w-2/3 rounded bg-white/30"></div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- With QuickCards. Same silhouette + the actual banner. -->
+          <div class="relative">
+            <div class="text-primary/90 mb-3 px-1 font-mono text-[10px] tracking-wider uppercase">
+              With QuickCards
+            </div>
+            <div
+              class="border-border/60 ring-primary/20 shadow-primary/10 overflow-hidden rounded-lg border shadow-2xl ring-1"
+            >
+              <div class="border-border/40 border-b px-3 py-2">
+                <div class="flex gap-1.5">
+                  <span class="size-2 rounded-full bg-red-500/70"></span>
+                  <span class="size-2 rounded-full bg-yellow-500/70"></span>
+                  <span class="size-2 rounded-full bg-green-500/70"></span>
+                </div>
+              </div>
+              <div class="relative bg-[#0E1029] p-4">
+                <div class="mb-4 flex items-center justify-between">
+                  <div class="h-3 w-32 rounded bg-white/15"></div>
+                  <div class="h-3 w-12 rounded bg-white/10"></div>
+                </div>
+                <div class="mb-3 grid grid-cols-3 gap-1.5">
+                  {#each tileTints as tint, i (i)}
+                    <div
+                      class="flex items-center gap-2 rounded-md bg-[#171A36] px-2 py-1.5 text-[10px]"
+                    >
+                      <span class={`size-3 shrink-0 rounded bg-gradient-to-br ${tint}`}></span>
+                      <span class="h-1.5 w-10 rounded bg-white/15"></span>
+                    </div>
+                  {/each}
+                </div>
+                <div class="flex h-24 items-center justify-center rounded-md bg-[#13162E]">
+                  <div class="h-2.5 w-2/3 rounded bg-white/30"></div>
+                </div>
+
+                <!-- The actual floating banner. Faithful to
+                     extension/src/content/content.ts: horizontal pill,
+                     "<N> cards" + 1px divider + Copy button (primary) +
+                     32x32 ··· button. Internal proportions kept at the
+                     real extension's sizing; the whole banner is scaled
+                     down via CSS scale anchored to bottom-right so it
+                     reads as small inside the silhouette without losing
+                     the real-extension look. -->
+                <div class="absolute right-3 bottom-3 origin-bottom-right scale-65">
+                  <div
+                    class="border-border/70 bg-card text-foreground inline-flex items-center gap-3 rounded-lg border px-4 py-2 shadow-lg shadow-black/40"
+                  >
+                    <span class="text-muted-foreground text-xs">
+                      <span class="text-foreground font-semibold tabular-nums">37</span> cards
+                    </span>
+                    <span class="bg-border/70 h-3.5 w-px"></span>
+                    <span
+                      class="bg-primary text-primary-foreground rounded-md px-3 py-1 text-xs font-medium"
+                    >
+                      Copy
+                    </span>
+                    <span
+                      class="text-muted-foreground flex size-6 items-center justify-center rounded-md"
+                    >
+                      <MoreHorizontal class="size-3.5" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-12 flex flex-col items-center text-center">
+          <Button
+            href={CWS_URL}
+            onclick={() => trackInstallClick("ext-hero")}
+            size="lg"
+            class="h-12 gap-2 px-6 text-base"
+          >
+            <Puzzle class="size-4" />
+            Add to Chrome
+          </Button>
           <div
-            aria-hidden="true"
-            class="bg-primary/30 absolute -inset-x-4 -bottom-4 -z-10 h-12 rounded-full blur-2xl"
-          ></div>
+            class="text-muted-foreground/80 mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 font-mono text-xs"
+          >
+            <span>Free</span>
+            <span>·</span>
+            <span>No account</span>
+            <span>·</span>
+            <span>Open source</span>
+            <span>·</span>
+            <a
+              href="https://github.com/ImGajeed76/quick-cards/tree/main/extension#sideload-manual-install"
+              class="hover:text-foreground underline-offset-2 hover:underline"
+            >
+              Firefox? Sideload
+            </a>
+          </div>
         </div>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Format strip ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-5xl">
-        <div class="mb-10 flex flex-col items-center text-center">
-          <span class="text-muted-foreground mb-3 font-mono text-xs tracking-wider uppercase">
-            Anywhere you study
-          </span>
-          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Seven export targets, one click each.
-          </h2>
-        </div>
-        <div
-          class="bg-border/50 grid grid-cols-1 gap-px sm:grid-cols-2 lg:grid-cols-[repeat(7,minmax(0,1fr))]"
-        >
-          {#each formats as f (f.name)}
-            {@const Icon = f.icon}
-            <div class="bg-background flex flex-col gap-3 p-5 lg:p-4">
-              <Icon class="text-primary size-5 shrink-0" />
-              <div class="flex flex-col gap-1">
-                <span class="text-sm font-medium">{f.name}</span>
-                <span class="text-muted-foreground text-xs leading-relaxed lg:hidden">
-                  {f.desc}
-                </span>
-              </div>
-            </div>
-          {/each}
-        </div>
-        <p class="text-muted-foreground/80 mt-8 text-center text-sm">
-          Anki deck file (.apkg) with media, printable PDF flashcards (2x4 double-sided), vocab list
-          PDF, CSV, JSON, TXT, and direct import into Knowt.
-        </p>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ How it works ══════════════ -->
-    <section class="px-6 py-24 sm:py-32" use:reveal>
-      <div class="mx-auto max-w-5xl">
-        <div class="mb-14 flex flex-col items-center text-center">
-          <span class="text-muted-foreground mb-3 font-mono text-xs tracking-wider uppercase">
-            How it works
-          </span>
-          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Install. Open. Export.</h2>
-          <p class="text-muted-foreground mt-4 max-w-xl">
-            Three steps from a Quizlet set to a finished file. No setup, no command line.
-          </p>
-        </div>
-        <div class="bg-border/50 grid grid-cols-1 gap-px sm:grid-cols-3">
-          {#each steps as step (step.title)}
-            {@const Icon = step.icon}
-            <div class="bg-background group flex flex-col gap-4 p-8">
-              <div class="flex items-center justify-between">
-                <span class="text-muted-foreground/70 font-mono text-sm tabular-nums">{step.n}</span
-                >
-                <Icon class="text-primary size-5 transition-transform group-hover:scale-110" />
-              </div>
-              <h3 class="text-xl font-medium">{step.title}</h3>
-              <p class="text-muted-foreground leading-relaxed">{step.description}</p>
-            </div>
-          {/each}
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Why people switch ══════════════ -->
+    <!-- ════════ The actual differentiator ════════
+       Manifesto-style. Four short claims with primary-colored opening
+       qualifiers, each its own line. Reads as overheard not as prose. -->
     <section class="px-6 py-24 sm:py-32" use:reveal>
       <div class="mx-auto max-w-4xl">
-        <div class="mb-14 flex flex-col items-center text-center">
-          <span class="text-muted-foreground mb-3 font-mono text-xs tracking-wider uppercase">
-            Why people switch
-          </span>
-          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-            What other importers can't do.
-          </h2>
-        </div>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {#each differentiators as item (item.title)}
-            {@const Icon = item.icon}
+        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+          Reads any set you can see.
+        </h2>
+        <ul class="divide-border/50 mt-8 divide-y text-[17px] leading-relaxed">
+          <!-- Even unowned: faux set menu with Export struck through. -->
+          <li class="grid gap-4 py-6 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-8">
+            <div class="border-border/60 bg-card overflow-hidden rounded-md border shadow-sm">
+              <div class="border-border/30 text-foreground/85 border-b px-2.5 py-1 text-[10px]">
+                Edit
+              </div>
+              <div
+                class="border-border/30 text-muted-foreground/40 border-b px-2.5 py-1 text-[10px] line-through"
+              >
+                Export
+              </div>
+              <div class="text-foreground/85 px-2.5 py-1 text-[10px]">Print</div>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-primary font-mono text-xs tracking-wider uppercase">
+                Even unowned
+              </span>
+              <span class="text-muted-foreground">
+                Teacher's sets, friend's sets, copies, anything rendered in your tab. Quizlet's own
+                export gives up; this doesn't.
+              </span>
+            </div>
+          </li>
+
+          <!-- With media: mini Anki card. Image-band on top reads as
+               "media included", centered term below, divider, then a
+               TTS pill (matches the AnkiCardsPreview visual language).
+               Drops the truncated "cell div" def to reduce density at
+               this scale. -->
+          <li class="grid gap-4 py-6 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-8">
             <div
-              class="border-border bg-card/30 hover:bg-card/50 rounded-lg border p-6 transition-colors"
+              class="border-border/60 bg-card flex flex-col items-center gap-1.5 rounded-md border p-2.5 shadow-sm"
             >
-              <div class="flex gap-4">
+              <div
+                class="h-10 w-full rounded bg-gradient-to-br from-violet-500/55 via-cyan-500/45 to-rose-500/45"
+              ></div>
+              <div class="text-foreground text-[11px] leading-none font-semibold">Mitose</div>
+              <div class="bg-border/70 h-px w-3/4"></div>
+              <span
+                class="text-muted-foreground/70 flex size-3.5 items-center justify-center rounded-full bg-white/5"
+              >
+                <Play class="size-1.5 fill-current" />
+              </span>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-primary font-mono text-xs tracking-wider uppercase">
+                With media
+              </span>
+              <span class="text-muted-foreground">
+                Images, user audio, and TTS bundle into the .apkg. CSV imports drop these; we don't.
+              </span>
+            </div>
+          </li>
+
+          <!-- Same origin: tiny browser window with quizlet.com in the
+               URL bar plus skeleton page hints below. Reads as "we live
+               inside this tab", which is the architectural point. -->
+          <li class="grid gap-4 py-6 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-8">
+            <div class="border-border/60 bg-card overflow-hidden rounded-md border shadow-sm">
+              <div class="border-border/40 flex items-center gap-1.5 border-b px-2 py-1.5">
+                <span class="size-1.5 rounded-full bg-red-500/70"></span>
+                <span class="size-1.5 rounded-full bg-yellow-500/70"></span>
+                <span class="size-1.5 rounded-full bg-green-500/70"></span>
                 <div
-                  class="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-md"
+                  class="bg-muted/50 ml-1 inline-flex flex-1 items-center gap-1 rounded-sm px-1.5 py-0.5"
                 >
-                  <Icon class="size-5" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <h3 class="text-lg font-medium">{item.title}</h3>
-                  <p class="text-muted-foreground text-sm leading-relaxed">{item.description}</p>
+                  <Lock class="text-muted-foreground/70 size-2 shrink-0" />
+                  <span class="text-foreground/80 truncate font-mono text-[8px]">quizlet.com</span>
                 </div>
               </div>
+              <div class="space-y-1 p-2">
+                <div class="bg-muted-foreground/30 h-1 w-3/4 rounded"></div>
+                <div class="bg-muted-foreground/20 h-1 w-1/2 rounded"></div>
+                <div class="bg-muted-foreground/20 h-1 w-2/3 rounded"></div>
+                <div class="bg-muted-foreground/15 h-1 w-1/3 rounded"></div>
+              </div>
             </div>
-          {/each}
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Use cases (editorial list) ══════════════ -->
-    <section class="px-6 py-24 sm:py-32" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <div class="mb-14 max-w-xl">
-          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-            What people use it for
-          </span>
-          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Same flow, every reason to export.
-          </h2>
-          <p class="text-muted-foreground mt-4 leading-relaxed">
-            Open the set, click the banner, pick a destination. The pattern is the same whether
-            you're moving years of saved sets to Anki or printing flashcards for tomorrow's exam.
-          </p>
-        </div>
-
-        <ul class="border-foreground/10 divide-foreground/10 divide-y border-y">
-          <li class="grid grid-cols-[3rem_1fr] gap-6 py-7 sm:grid-cols-[4rem_1fr] sm:gap-8 sm:py-8">
-            <span
-              class="text-muted-foreground/70 font-mono text-sm tabular-nums sm:text-base"
-              aria-hidden="true">01</span
-            >
-            <div>
-              <h3 class="text-lg font-medium tracking-tight sm:text-xl">
-                Migrate your Quizlet library to Anki
-              </h3>
-              <p class="text-muted-foreground mt-2 leading-relaxed">
-                Convert a Quizlet set to an Anki deck file (.apkg) with images, user audio, and
-                Quizlet's TTS bundled in. Import once into Anki and your cards work the same on
-                desktop, AnkiMobile, AnkiDroid, and AnkiWeb. No add-on required.
-              </p>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-primary font-mono text-xs tracking-wider uppercase">
+                Same origin
+              </span>
+              <span class="text-muted-foreground">
+                Runs on the page, so its fetches go out from quizlet.com with the user's real
+                session. Cloudflare sees same-origin traffic and treats it accordingly.
+              </span>
             </div>
           </li>
-          <li class="grid grid-cols-[3rem_1fr] gap-6 py-7 sm:grid-cols-[4rem_1fr] sm:gap-8 sm:py-8">
-            <span
-              class="text-muted-foreground/70 font-mono text-sm tabular-nums sm:text-base"
-              aria-hidden="true">02</span
-            >
-            <div>
-              <h3 class="text-lg font-medium tracking-tight sm:text-xl">
-                Print flashcards for offline study
-              </h3>
-              <p class="text-muted-foreground mt-2 leading-relaxed">
-                Export a printable PDF, 2x4 grid, double-sided so the backs line up after folding.
-                Long terms hyphenate cleanly. Useful for K-12 teachers, language learners, and
-                anyone studying away from a screen.
-              </p>
+
+          <!-- Every client: 2x2 grid of Anki platforms. -->
+          <li class="grid gap-4 py-6 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:gap-8">
+            <div class="grid grid-cols-2 gap-1">
+              {#each ["desktop", "iOS", "droid", "web"] as label, i (i)}
+                <div
+                  class="border-border/60 bg-card flex items-center gap-1.5 rounded border px-1.5 py-1 font-mono text-[9px] shadow-sm"
+                >
+                  <span class="bg-primary/70 size-1 shrink-0 rounded-full"></span>
+                  <span class="text-muted-foreground tracking-wider uppercase">{label}</span>
+                </div>
+              {/each}
             </div>
-          </li>
-          <li class="grid grid-cols-[3rem_1fr] gap-6 py-7 sm:grid-cols-[4rem_1fr] sm:gap-8 sm:py-8">
-            <span
-              class="text-muted-foreground/70 font-mono text-sm tabular-nums sm:text-base"
-              aria-hidden="true">03</span
-            >
-            <div>
-              <h3 class="text-lg font-medium tracking-tight sm:text-xl">
-                Move a Quizlet set into Knowt in one click
-              </h3>
-              <p class="text-muted-foreground mt-2 leading-relaxed">
-                If you're studying inside Knowt, the import button uses your existing Knowt session
-                to create a new flashcard set on your account. Title and description prefill from
-                the Quizlet set. No 100-card cap, no copy-paste between tabs.
-              </p>
-            </div>
-          </li>
-          <li class="grid grid-cols-[3rem_1fr] gap-6 py-7 sm:grid-cols-[4rem_1fr] sm:gap-8 sm:py-8">
-            <span
-              class="text-muted-foreground/70 font-mono text-sm tabular-nums sm:text-base"
-              aria-hidden="true">04</span
-            >
-            <div>
-              <h3 class="text-lg font-medium tracking-tight sm:text-xl">
-                Cramming under a deadline
-              </h3>
-              <p class="text-muted-foreground mt-2 leading-relaxed">
-                Optional deadline mode adjusts deck options (desired retention, learn steps, max
-                interval) for tight timelines. We've found it useful for exam prep under two weeks.
-                Anecdotal, not science-backed. Beyond two weeks the values land at Anki defaults
-                anyway, so it's not magic, just sensible presets.
-              </p>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-primary font-mono text-xs tracking-wider uppercase">
+                Every client
+              </span>
+              <span class="text-muted-foreground">
+                The .apkg you download imports the same on desktop, AnkiMobile, AnkiDroid, and
+                AnkiWeb. Email it, AirDrop it, share it.
+              </span>
             </div>
           </li>
         </ul>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Compared fairly ══════════════ -->
-    <section class="px-6 py-24 sm:py-28" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <div class="mb-10 max-w-xl">
-          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
-            If you've tried other tools
-          </span>
-          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Different shape, not a takedown.
-          </h2>
-          <p class="text-muted-foreground mt-4 leading-relaxed">
-            Other tools in this space are good at what they do. QuickCards is built differently.
-            Here's the honest read so you can pick what fits.
-          </p>
-        </div>
-
-        <div class="border-border divide-border divide-y rounded-lg border">
-          <div class="space-y-2 p-6">
-            <div class="flex items-baseline justify-between gap-4">
-              <h3 class="text-base font-medium">Knowt's Quizlet importer</h3>
-              <span class="text-muted-foreground/70 font-mono text-xs uppercase">
-                Stay in Knowt
-              </span>
-            </div>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              Great if Knowt is where you study. Their extension imports cards into a new Knowt set,
-              but on sets larger than 100 cards you have to remember to scroll and click "See more"
-              first or it silently caps. Knowt-only output, no Anki, no PDF.
-            </p>
-          </div>
-          <div class="space-y-2 p-6">
-            <div class="flex items-baseline justify-between gap-4">
-              <h3 class="text-base font-medium">Anki add-ons that fetch from Quizlet</h3>
-              <span class="text-muted-foreground/70 font-mono text-xs uppercase">
-                Anki desktop only
-              </span>
-            </div>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              Strong choice when they work. Recurring trouble: Quizlet's Cloudflare layer blocks
-              their image and audio fetches periodically, and add-ons run on Anki desktop, not
-              AnkiMobile or AnkiWeb. QuickCards rides your own browser session on the Quizlet tab,
-              so there's nothing for Cloudflare to challenge.
-            </p>
-          </div>
-          <div class="space-y-2 p-6">
-            <div class="flex items-baseline justify-between gap-4">
-              <h3 class="text-base font-medium">Quizlet's own export</h3>
-              <span class="text-muted-foreground/70 font-mono text-xs uppercase">
-                Sets you created
-              </span>
-            </div>
-            <p class="text-muted-foreground text-sm leading-relaxed">
-              Built in, but only works on sets you created yourself. If you've copied or saved
-              someone else's set, the export option is gone. Plain text only, no images or audio.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Open source + Firefox ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl text-center">
-        <Code2 class="text-primary mx-auto mb-4 size-6" />
-        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Open source, MIT licensed</h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          Every line of the extension is on
-          <a
-            href="https://github.com/ImGajeed76/quick-cards"
-            class="text-foreground hover:text-primary underline-offset-4 hover:underline"
-          >
-            GitHub</a
-          >. Inspect it, fork it, file an issue, send a PR. The build produces both a Chrome zip and
-          a Firefox zip; the Chrome version lives in the Chrome Web Store, the Firefox version is
-          sideload-only for now and a Firefox Add-ons listing is planned for the next major release.
-        </p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button href={SITE_REPO} variant="outline" size="lg" class="h-11 gap-2 px-5 text-base">
-            <Github class="size-4" />
-            View on GitHub
-          </Button>
-          <Button
-            href={`${SITE_REPO}/releases`}
-            variant="ghost"
-            size="lg"
-            class="h-11 px-5 text-base"
-          >
-            Latest release
-          </Button>
-        </div>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Closing CTA ══════════════ -->
-    <section class="px-6 py-24 sm:py-28">
-      <div class="mx-auto max-w-3xl text-center">
+    <!-- ════════ Closing ════════ -->
+    <section class="px-6 py-24 sm:py-32">
+      <div class="mx-auto flex max-w-3xl flex-col items-center text-center">
         <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Ready to get your Quizlet sets out?
+          Get it once, use it on every tab.
         </h2>
-        <p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-          Free, in your browser, open source. Install once, use it on every Quizlet tab.
+        <p class="text-muted-foreground mt-4 max-w-md text-sm leading-relaxed">
+          Installs in about 10 seconds. Lives only on quizlet.com pages. No data leaves your
+          browser.
         </p>
         <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button
             href={CWS_URL}
-            onclick={() => trackInstallClick("extension-footer")}
+            onclick={() => trackInstallClick("ext-footer")}
             size="lg"
-            class="group h-12 gap-2 px-6 text-base"
+            class="h-12 gap-2 px-6 text-base"
           >
             <Puzzle class="size-4" />
             Add to Chrome
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
           <Button
-            href={`${SITE_REPO}/tree/main/extension#sideload-manual-install`}
+            href="https://github.com/ImGajeed76/quick-cards/tree/main/extension#sideload-manual-install"
             variant="outline"
             size="lg"
             class="h-12 px-5 text-base"
@@ -581,11 +434,26 @@
             Firefox / sideload
           </Button>
         </div>
+        <div class="text-muted-foreground/70 mt-8 text-xs">
+          Open source, MIT licensed.
+          <a
+            href="https://github.com/ImGajeed76/quick-cards"
+            class="text-foreground hover:text-primary ml-0.5 underline-offset-2 hover:underline"
+          >
+            View on GitHub</a
+          >
+          ·
+          <a
+            href={resolve("/quizlet-to-anki")}
+            class="text-foreground hover:text-primary ml-0.5 underline-offset-2 hover:underline"
+          >
+            Quizlet to Anki guide
+          </a>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- ══════════════ Footer ══════════════ -->
   <footer class="border-foreground/10 border-t">
     <div
       class="text-muted-foreground mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 px-6 py-10 text-sm sm:flex-row"
@@ -599,6 +467,7 @@
       </div>
       <div class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
         <a href={resolve("/")} class="hover:text-foreground transition-colors">Home</a>
+        <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
         <a href={resolve("/knowt-alternative")} class="hover:text-foreground transition-colors">
           Coming from Knowt?
         </a>
@@ -607,12 +476,6 @@
           href="https://github.com/ImGajeed76/quick-cards"
           class="hover:text-foreground transition-colors">GitHub</a
         >
-        <a
-          href="https://github.com/ImGajeed76/quick-cards/issues"
-          class="hover:text-foreground transition-colors"
-        >
-          Report a bug
-        </a>
       </div>
     </div>
   </footer>

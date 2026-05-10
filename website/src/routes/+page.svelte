@@ -2,29 +2,20 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { Button } from "$lib/components/ui/button";
-  import { Input } from "$lib/components/ui/input";
-  import { Label } from "$lib/components/ui/label";
-  import { Calendar } from "$lib/components/ui/calendar";
   import * as Dialog from "$lib/components/ui/dialog";
   import {
-    today,
-    getLocalTimeZone,
-    type DateValue,
-    type CalendarDate,
-  } from "@internationalized/date";
-  import {
     ArrowRight,
-    CalendarClock,
     ChevronDown,
     ChevronRight,
-    Code2,
     Download,
-    Link2,
     Puzzle,
-    ShieldCheck,
     ClipboardPaste,
+    FileText,
   } from "@lucide/svelte";
   import Github from "$lib/components/icons/Github.svelte";
+  import PdfFlashcardsPreview from "$lib/components/mockups/PdfFlashcardsPreview.svelte";
+  import PdfListPreview from "$lib/components/mockups/PdfListPreview.svelte";
+  import AnkiCardsPreview from "$lib/components/mockups/AnkiCardsPreview.svelte";
   import { track } from "$lib/analytics";
   import { reveal } from "$lib/actions/reveal";
   import { nextExample, FORMAT_LABELS, type Example } from "$lib/demo";
@@ -103,13 +94,13 @@
     document.getElementById("about")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // Linear-style bordered hover: update per-card CSS vars on every mouse move
-  // in the grid so each card's ::after gradient tracks the cursor. The border
-  // glow is shown for every card while the cursor is anywhere in the grid,
-  // no flicker when moving through the gap between cards.
-  function handleCardMove(event: MouseEvent) {
+  // Bordered-hover glow: update per-card CSS vars on every mouse move in
+  // the section so each card's ::after gradient tracks the cursor. The
+  // glow is shown for every card while the cursor is anywhere in the
+  // section, no flicker between cards.
+  function handleGuideMove(event: MouseEvent): void {
     const container = event.currentTarget as HTMLElement;
-    for (const card of container.querySelectorAll<HTMLElement>(".feature-card")) {
+    for (const card of container.querySelectorAll<HTMLElement>(".guide-card")) {
       const rect = card.getBoundingClientRect();
       card.style.setProperty("--mouse-x", `${event.clientX - rect.left}px`);
       card.style.setProperty("--mouse-y", `${event.clientY - rect.top}px`);
@@ -182,29 +173,56 @@
     return "";
   });
 
+  // Syntax-tinted HTML for the CSV / JSON previews. Content is generated
+  // from our own demo data (no user input), so direct {@html} injection
+  // is safe. For CSV: header row in muted, commas tinted primary, term
+  // and def cells in foreground / muted-foreground respectively. For
+  // JSON: object keys tinted primary, string values in muted-foreground.
+  const previewHtml = $derived.by(() => {
+    if (previewFormat === "csv") {
+      const lines = previewText.split("\n");
+      return lines
+        .map((line, lineIdx) => {
+          const cells = line.split(",");
+          const isHeader = lineIdx === 0;
+          return cells
+            .map((cell, cellIdx) => {
+              if (isHeader) {
+                return `<span class="text-muted-foreground/70">${cell}</span>`;
+              }
+              if (cellIdx === 0) {
+                return `<span class="text-foreground">${cell}</span>`;
+              }
+              return `<span class="text-muted-foreground">${cell}</span>`;
+            })
+            .join('<span class="text-primary/70">,</span>');
+        })
+        .join("\n");
+    }
+    if (previewFormat === "json") {
+      return previewText
+        .replace(/("[^"\\]*(?:\\.[^"\\]*)*")(\s*:)/g, '<span class="text-primary">$1</span>$2')
+        .replace(
+          /(:\s*)("[^"\\]*(?:\\.[^"\\]*)*")/g,
+          '$1<span class="text-muted-foreground">$2</span>',
+        );
+    }
+    return previewText;
+  });
+
+  const previewFilename = $derived(
+    previewFormat === "csv"
+      ? "cards.csv"
+      : previewFormat === "json"
+        ? "cards.json"
+        : previewFormat === "txt"
+          ? "cards.txt"
+          : "",
+  );
+
   function openPreview(format: typeof previewFormat) {
     previewFormat = format;
     previewOpen = true;
-  }
-
-  // Interactive Anki preview — mirrors the /process dialog so visitors can
-  // see the real picker, not a screenshot. Independent state from anything
-  // else on the page.
-  const ankiPreviewTz = getLocalTimeZone();
-  const ankiPreviewToday = today(ankiPreviewTz);
-  let ankiPreviewSelected = $state<DateValue>(ankiPreviewToday.add({ days: 14 }));
-
-  const ankiPreviewDays = $derived(
-    Math.round(
-      (ankiPreviewSelected.toDate(ankiPreviewTz).getTime() -
-        ankiPreviewToday.toDate(ankiPreviewTz).getTime()) /
-        86_400_000,
-    ),
-  );
-
-  function setAnkiPreviewDays(days: number) {
-    if (!Number.isFinite(days) || days < 1) return;
-    ankiPreviewSelected = ankiPreviewToday.add({ days });
   }
 </script>
 
@@ -224,7 +242,7 @@
 
 <div class="flex flex-col">
   <!-- ══════════════ Hero ══════════════ -->
-  <section class="relative flex min-h-screen flex-col">
+  <section class="relative flex min-h-[88vh] flex-col">
     <!-- Ambient violet glow -->
     <div
       class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[60vh]"
@@ -261,17 +279,12 @@
          situation without scrolling. -->
     <main class="flex flex-1 flex-col items-center justify-center px-4 pb-24">
       <div class="w-full max-w-3xl text-center">
-        <span
-          class="text-muted-foreground/90 mb-5 inline-block font-mono text-xs tracking-wider uppercase"
-        >
-          Two surfaces, one job
-        </span>
         <h1 class="text-5xl font-bold tracking-tight sm:text-6xl">
           Export Cards, <span class="text-primary">quick.</span>
         </h1>
         <p class="text-muted-foreground mx-auto mt-6 max-w-xl text-lg leading-relaxed">
-          A browser extension that exports any Quizlet set, and a web tool for any flashcard data
-          you have. Anki, PDF, CSV, JSON. Free, in your browser, open source.
+          Extension for Quizlet, web tool for everything else.<br />
+          Anki, PDF, CSV, JSON.
         </p>
 
         <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -279,21 +292,19 @@
             href={CWS_URL}
             onclick={() => trackInstallClick("home-hero")}
             size="lg"
-            class="group h-12 gap-2 px-6 text-base"
+            class="h-12 gap-2 px-6 text-base"
           >
             <Puzzle class="size-4" />
             Add to Chrome
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
           <Button
             href={resolve("/tool")}
             variant="outline"
             size="lg"
-            class="group h-12 gap-2 px-6 text-base"
+            class="h-12 gap-2 px-6 text-base"
           >
             <ClipboardPaste class="size-4" />
             Open the web tool
-            <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
         </div>
 
@@ -402,7 +413,7 @@
       </div>
 
       <p use:reveal class="text-muted-foreground/70 mt-10 text-center text-xs">
-        Recognizes vocab lists, JSON, CSV, TSV, Markdown, TOML, Quizlet URLs, and more.
+        Recognizes vocab lists, JSON, CSV, TSV, Markdown, TOML, and more.
       </p>
     </div>
   </section>
@@ -434,38 +445,32 @@
 
       <div class="preview-body">
         {#if previewFormat === "txt" || previewFormat === "csv" || previewFormat === "json"}
-          <pre class="preview-code">{previewText}</pre>
+          <div class="preview-file">
+            <div class="preview-file-chrome">
+              <FileText class="size-3.5 shrink-0" />
+              <span class="font-mono">{previewFilename}</span>
+            </div>
+            {#if previewFormat === "txt"}
+              <pre class="preview-code">{previewText}</pre>
+            {:else if previewFormat === "csv"}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              <pre class="preview-code">{@html previewHtml}</pre>
+            {:else}
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              <pre class="preview-code preview-code-fade">{@html previewHtml}</pre>
+            {/if}
+          </div>
         {:else if previewFormat === "pdf-list"}
-          <img src="/screenshots/pdf_list.png" alt="PDF vocab list preview" class="preview-image" />
-        {:else if previewFormat === "pdf-cards"}
-          <img
-            src="/screenshots/pdf_cards.png"
-            alt="PDF flashcards preview"
-            class="preview-image"
+          <PdfListPreview
+            title="Example set"
+            cards={currentExample.pairs}
+            padFrom={currentExample.pool}
           />
+        {:else if previewFormat === "pdf-cards"}
+          <PdfFlashcardsPreview cards={currentExample.pairs} padFrom={currentExample.pool} />
         {:else if previewFormat === "anki"}
           <div class="preview-anki">
-            <div class="preview-anki-picker">
-              <div class="space-y-1.5">
-                <Label class="text-muted-foreground text-xs" for="anki-preview-days">Days</Label>
-                <Input
-                  id="anki-preview-days"
-                  type="number"
-                  min="1"
-                  value={ankiPreviewDays}
-                  oninput={(e) => setAnkiPreviewDays(Number((e.target as HTMLInputElement).value))}
-                  class="tabular-nums [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-              </div>
-              <div class="border-border flex justify-center rounded-md border">
-                <Calendar
-                  type="single"
-                  bind:value={ankiPreviewSelected as CalendarDate}
-                  minValue={ankiPreviewToday.add({ days: 1 })}
-                  class="bg-transparent"
-                />
-              </div>
-            </div>
+            <AnkiCardsPreview cards={currentExample.pairs} />
             <div class="preview-anki-info">
               <div class="preview-anki-stat">
                 <span class="preview-anki-label">Two decks:</span>
@@ -475,9 +480,8 @@
                 <li>Typing (both directions), up to {currentExample.pairs.length * 2} cards</li>
               </ul>
               <div class="preview-anki-meta">
-                Deck options preset for a <strong class="text-foreground">{ankiPreviewDays}</strong>
-                {ankiPreviewDays === 1 ? "day" : "day"} timeline. Useful under two weeks, anecdotal, not
-                science-backed.
+                Optional deadline-mode preset for tight deadlines, or use Anki's defaults. Useful
+                under two weeks. Anecdotal, not science-backed.
               </div>
             </div>
           </div>
@@ -486,77 +490,48 @@
     </Dialog.Content>
   </Dialog.Root>
 
-  <!-- ══════════════ Section 2 — Four things ══════════════ -->
-  <!-- mousemove is decorative (hover glow) -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <section
-    id="features"
-    onmousemove={handleCardMove}
-    class="feature-section scroll-mt-8 px-6 py-24 sm:py-32"
-  >
-    <div class="mx-auto max-w-4xl">
-      <div use:reveal class="text-center">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Four things worth knowing</h2>
-        <p class="text-muted-foreground mx-auto mt-4 max-w-xl text-[15px] leading-7">
-          The parts we'd otherwise bury in the README.
-        </p>
-      </div>
-
-      <div class="feature-grid">
-        <div use:reveal={{ delay: 80 }} class="feature-card">
-          <div class="feature-card-inner">
-            <ShieldCheck class="text-primary size-5 shrink-0" />
-            <div>
-              <h3 class="text-base font-semibold">Runs in your browser</h3>
-              <p class="text-muted-foreground mt-1.5 text-[15px] leading-7">
-                No server, no account. Your cards never leave your device. The URL in your address
-                bar holds the whole set, compressed with lz-string.
-              </p>
-            </div>
-          </div>
+  <!-- ══════════════ Anti-feature strip ══════════════
+       Replaces the "Four things worth knowing" feature grid which was the
+       most generic moment on the site. Single-line, four short callouts,
+       inline mono labels, no card containers. Communicates the same trust
+       points (in-browser, shareable, open source) in a quarter the height. -->
+  <section class="px-6 py-16 sm:py-20">
+    <div class="mx-auto max-w-5xl">
+      <div
+        class="text-muted-foreground/80 grid grid-cols-2 gap-x-8 gap-y-4 font-mono text-xs sm:grid-cols-4 sm:text-sm"
+      >
+        <div class="flex flex-col gap-1">
+          <span class="text-primary text-[10px] tracking-wider uppercase">runs in</span>
+          <span class="text-foreground/90">your browser</span>
+          <span class="text-muted-foreground/70 font-sans text-[11px] leading-snug">
+            No server, no upload, no account.
+          </span>
         </div>
-
-        <div use:reveal={{ delay: 160 }} class="feature-card">
-          <div class="feature-card-inner">
-            <Link2 class="text-primary size-5 shrink-0" />
-            <div>
-              <h3 class="text-base font-semibold">Share a URL, share the cards</h3>
-              <p class="text-muted-foreground mt-1.5 text-[15px] leading-7">
-                Finish an export, copy the share link, send it to anyone. Opens the same page with
-                the same cards pre-loaded.
-              </p>
-            </div>
-          </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-primary text-[10px] tracking-wider uppercase">stored in</span>
+          <span class="text-foreground/90">the URL</span>
+          <span class="text-muted-foreground/70 font-sans text-[11px] leading-snug">
+            lz-string compresses the whole set into the address bar. Share the link.
+          </span>
         </div>
-
-        <div use:reveal={{ delay: 240 }} class="feature-card">
-          <div class="feature-card-inner">
-            <CalendarClock class="text-primary size-5 shrink-0" />
-            <div>
-              <h3 class="text-base font-semibold">Optional deadline mode</h3>
-              <p class="text-muted-foreground mt-1.5 text-[15px] leading-7">
-                Pick a date and we'll preset deck options (retention, learn steps, max interval).
-                Useful for cramming under two weeks. Anecdotal, not science-backed.
-              </p>
-            </div>
-          </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-primary text-[10px] tracking-wider uppercase">licensed</span>
+          <span class="text-foreground/90">MIT, on GitHub</span>
+          <span class="text-muted-foreground/70 font-sans text-[11px] leading-snug">
+            <a
+              href="https://github.com/ImGajeed76/quick-cards"
+              class="text-foreground hover:text-primary underline-offset-2 hover:underline"
+            >
+              View source</a
+            >. Fork it, send a PR.
+          </span>
         </div>
-
-        <div use:reveal={{ delay: 320 }} class="feature-card">
-          <div class="feature-card-inner">
-            <Code2 class="text-primary size-5 shrink-0" />
-            <div>
-              <h3 class="text-base font-semibold">Open source</h3>
-              <p class="text-muted-foreground mt-1.5 text-[15px] leading-7">
-                Every line on
-                <a
-                  href="https://github.com/ImGajeed76/quick-cards"
-                  class="text-foreground hover:text-primary underline-offset-4 hover:underline"
-                  >GitHub</a
-                >. MIT licensed. Inspect it, fork it, contribute.
-              </p>
-            </div>
-          </div>
+        <div class="flex flex-col gap-1">
+          <span class="text-primary text-[10px] tracking-wider uppercase">priced at</span>
+          <span class="text-foreground/90">$0, forever</span>
+          <span class="text-muted-foreground/70 font-sans text-[11px] leading-snug">
+            No "free for students," no trials. Just free.
+          </span>
         </div>
       </div>
     </div>
@@ -565,7 +540,7 @@
   <!-- ══════════════ Section 3 — Extension ══════════════ -->
   <section id="extension" class="scroll-mt-8 px-6 py-24 sm:py-32">
     <div class="mx-auto max-w-4xl">
-      <div use:reveal class="border-border bg-card/40 rounded-lg border p-8 sm:p-12">
+      <div use:reveal class="border-border rounded-lg border p-8 sm:p-12">
         <div class="grid items-center gap-10 sm:grid-cols-[1fr_auto]">
           <div>
             <span
@@ -603,12 +578,12 @@
   </section>
 
   <!-- ══════════════ Section 4 — Guides ══════════════
-     Editorial link cluster pointing at the topical landing pages. Distinct
-     from the feature grid above visually (compact link tiles, no icons or
-     hover glow), so the eye doesn't read this as a third repetition of the
-     same card pattern. Internal links from body copy carry SEO weight; the
-     footer doesn't. -->
-  <section class="px-6 py-24 sm:py-32">
+     Editorial link cluster pointing at the topical landing pages. Cards
+     use the bordered-hover-glow treatment: the gradient ring tracks the
+     cursor across the section. -->
+  <!-- onmousemove drives the glow effect; decorative -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <section onmousemove={handleGuideMove} class="guides-section px-6 py-24 sm:py-32">
     <div class="mx-auto max-w-4xl">
       <div use:reveal class="mb-12 max-w-xl">
         <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
@@ -622,65 +597,63 @@
           looks like, what to watch for, and how QuickCards fits.
         </p>
       </div>
-      <div use:reveal={{ delay: 80 }} class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <a
-          href={resolve("/quizlet-to-anki")}
-          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
-        >
-          <div>
-            <div class="text-foreground font-medium">Quizlet to Anki</div>
-            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-              Three methods, fairly compared. Extension recommended for media support.
+
+      <div use:reveal={{ delay: 80 }} class="guide-grid">
+        <a href={resolve("/quizlet-to-anki")} class="guide-card group">
+          <div class="guide-card-inner">
+            <div class="flex-1">
+              <div class="text-foreground text-base font-medium">Quizlet to Anki</div>
+              <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                Three methods, fairly compared. Extension recommended for media support.
+              </div>
             </div>
+            <ChevronRight
+              class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+            />
           </div>
-          <ChevronRight
-            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
-          />
         </a>
-        <a
-          href={resolve("/csv-to-anki")}
-          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
-        >
-          <div>
-            <div class="text-foreground font-medium">CSV to Anki</div>
-            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-              Spreadsheets, Google Sheets, Excel. No add-on, no field mapping, no encoding issues.
+        <a href={resolve("/csv-to-anki")} class="guide-card group">
+          <div class="guide-card-inner">
+            <div class="flex-1">
+              <div class="text-foreground text-base font-medium">CSV to Anki</div>
+              <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                Spreadsheets, Google Sheets, Excel. No add-on, no field mapping, no encoding issues.
+              </div>
             </div>
+            <ChevronRight
+              class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+            />
           </div>
-          <ChevronRight
-            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
-          />
         </a>
-        <a
-          href={resolve("/chatgpt-flashcards-to-anki")}
-          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
-        >
-          <div>
-            <div class="text-foreground font-medium">ChatGPT flashcards to Anki</div>
-            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-              Markdown tables, numbered lists, JSON arrays. Paste straight in, no cleanup.
+        <a href={resolve("/chatgpt-flashcards-to-anki")} class="guide-card group">
+          <div class="guide-card-inner">
+            <div class="flex-1">
+              <div class="text-foreground text-base font-medium">ChatGPT flashcards to Anki</div>
+              <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                Markdown tables, numbered lists, JSON arrays. Paste straight in, no cleanup.
+              </div>
             </div>
+            <ChevronRight
+              class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+            />
           </div>
-          <ChevronRight
-            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
-          />
         </a>
-        <a
-          href={resolve("/print-flashcards-from-quizlet")}
-          class="border-border bg-card/30 hover:bg-card/60 hover:border-primary/40 group flex items-start justify-between gap-4 rounded-lg border p-5 transition-colors"
-        >
-          <div>
-            <div class="text-foreground font-medium">Print flashcards from Quizlet</div>
-            <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
-              2x4 double-sided PDF with syllable-aware hyphenation. For teachers, parents, and
-              offline study.
+        <a href={resolve("/print-flashcards-from-quizlet")} class="guide-card group">
+          <div class="guide-card-inner">
+            <div class="flex-1">
+              <div class="text-foreground text-base font-medium">Print flashcards from Quizlet</div>
+              <div class="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+                2x4 double-sided PDF with syllable-aware hyphenation. For teachers, parents, and
+                offline study.
+              </div>
             </div>
+            <ChevronRight
+              class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
+            />
           </div>
-          <ChevronRight
-            class="text-muted-foreground/50 group-hover:text-primary mt-0.5 size-4 shrink-0 transition-colors"
-          />
         </a>
       </div>
+
       <p class="text-muted-foreground/70 mt-8 text-sm">
         Coming from Knowt?
         <a
@@ -923,6 +896,28 @@
     overflow: auto;
   }
 
+  /* File-chrome wrapper around the text-format previews so TXT / CSV /
+     JSON read as actual files (filename in mono, file-icon header) and
+     not just textareas. The chrome bar is shared across all three. */
+  .preview-file {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--muted);
+  }
+  .preview-file-chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+  }
+
   .preview-code {
     margin: 0;
     padding: 1rem;
@@ -930,37 +925,33 @@
     font-size: 0.8125rem;
     line-height: 1.6;
     color: var(--foreground);
-    background: var(--muted);
-    border-radius: var(--radius-md);
-    white-space: pre;
-    overflow-x: auto;
+    background: transparent;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: hidden;
   }
 
-  .preview-image {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-    background: white;
+  /* JSON variant: cap the visible height and fade the bottom inside
+     the file frame. When the JSON is short, the fade falls in empty
+     whitespace and is invisible. When it's long, the bottom rows fade
+     into the file's muted bg, signalling "there's more". */
+  .preview-code-fade {
+    max-height: 22rem;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, black 75%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent);
   }
 
   .preview-anki {
     display: grid;
-    gap: 1rem;
+    gap: 1.5rem;
   }
 
   @media (min-width: 640px) {
     .preview-anki {
       grid-template-columns: 1fr 1fr;
-      align-items: start;
+      align-items: center;
     }
-  }
-
-  .preview-anki-picker {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
   }
 
   .preview-anki-info {
@@ -989,38 +980,34 @@
     font-size: 0.8125rem;
   }
 
-  /* Linear-style bordered hover effect for the feature cards.
-	 *
-	 * The card has a light background (= visible "border" color). A content box
-	 * inside with `margin: 1px` covers everything except a 1px ring, showing the
-	 * parent's background through that gap. A pseudo-element sits behind the
-	 * content with a mouse-tracking radial gradient — only visible through the
-	 * ring, so the effect is purely on the border.
-	 *
-	 * The `:hover` trigger is on the grid, not on each card, so the glow doesn't
-	 * flicker as the cursor crosses the gap between cards. */
+  /* Bordered hover-glow for the Guides cluster.
+   * Each card uses a thin gradient ring that tracks the cursor; the ring
+   * is shown for every card when the cursor is anywhere in the section,
+   * so the eye doesn't see it flicker between cards. */
 
-  .feature-grid {
-    margin-top: 4rem;
+  .guide-grid {
     display: grid;
-    gap: 1rem;
+    gap: 0.75rem;
+    grid-template-columns: 1fr;
   }
 
   @media (min-width: 640px) {
-    .feature-grid {
+    .guide-grid {
       grid-template-columns: 1fr 1fr;
     }
   }
 
-  .feature-card {
+  .guide-card {
     position: relative;
     border-radius: var(--radius-lg);
     background: var(--border);
     isolation: isolate;
     overflow: hidden;
+    text-decoration: none;
+    color: inherit;
   }
 
-  .feature-card::after {
+  .guide-card::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -1036,21 +1023,20 @@
     z-index: 1;
   }
 
-  /* Hover zone extends to the entire section, not just the grid, so the
-	   glow stays active when the cursor is above/below or beside the cards. */
-  .feature-section:hover .feature-card::after {
+  .guides-section:hover .guide-card::after {
     opacity: 1;
   }
 
-  .feature-card-inner {
+  .guide-card-inner {
     position: relative;
     z-index: 2;
     margin: 1px;
     min-height: calc(100% - 2px);
     background: var(--card);
     border-radius: calc(var(--radius-lg) - 1px);
-    padding: 1.5rem;
+    padding: 1.25rem;
     display: flex;
+    align-items: flex-start;
     gap: 1rem;
     box-sizing: border-box;
   }

@@ -3,58 +3,70 @@
   import Github from "$lib/components/icons/Github.svelte";
   import { reveal } from "$lib/actions/reveal";
   import { resolve } from "$app/paths";
-  import {
-    ArrowRight,
-    ClipboardPaste,
-    FileSpreadsheet,
-    ChevronRight,
-    Download,
-  } from "@lucide/svelte";
+  import { ArrowRight, ClipboardPaste, ChevronRight, Play } from "@lucide/svelte";
   import { SITE_NAME, SITE_URL } from "$lib/site";
 
   const title = `CSV to Anki · ${SITE_NAME}`;
   const description =
-    "Convert a CSV, TSV, Google Sheets paste, or Excel column pair to an Anki deck file (.apkg). No add-on, no manual column mapping, no encoding headaches. Free, no account, in your browser, open source.";
+    "Convert a CSV, TSV, Google Sheets paste, or Excel column pair to an Anki deck file (.apkg). No add-on, no field mapping, no encoding headaches. Free, no account, in your browser, open source.";
 
-  const faq = [
-    {
-      q: "Do I need an Anki add-on?",
-      a: "No. QuickCards builds the .apkg in your browser. You then double-click it into Anki desktop, AnkiMobile, AnkiDroid, or AnkiWeb. No add-on, no AnkiConnect, no command line.",
-    },
-    {
-      q: "What CSV shapes does it accept?",
-      a: "Two columns is the simplest case (term, definition). The parser also handles three-column shapes (term, definition, tags), quoted CSV, semicolons as separators (common in European exports), tab-separated (TSV), and trailing-comma stragglers. If a header row is present, it is detected and skipped.",
-    },
-    {
-      q: "What about accents, kanji, emoji?",
-      a: "Pasting works because the data is already decoded by your browser. The resulting .apkg is UTF-8 throughout. The classic problem with Anki's built-in CSV import (Excel saving Latin-1 instead of UTF-8 on macOS, then accents breaking on import) does not apply because there is no save-to-disk-then-reload step.",
-    },
-    {
-      q: "Can I include images or audio?",
-      a: "Pasted text-only CSVs cannot carry media. The same is true of Anki's built-in CSV import: media is referenced by filename and the user must place files in the collection.media folder by hand. If your data is from Quizlet, the QuickCards browser extension handles media end-to-end.",
-    },
-    {
-      q: "What about Anki's built-in CSV import? When does that work?",
-      a: "It works when your data is well-shaped, you do not need to skip columns, and your file is reliably UTF-8. The Anki 2.1.55 change made it 'Keep content of unmapped fields when importing CSV' by default, which broke a lot of workflows where users had been deliberately leaving fields unmapped to skip junk columns. AnkiMobile on iOS 18 specifically refuses to let users select a CSV file from inside the app at all. QuickCards sidesteps these by handling the conversion entirely in the browser before the file ever lands on disk.",
-    },
-    {
-      q: "Can I share the converted set with classmates?",
-      a: "Yes. Either share the .apkg file directly (it imports the same on every Anki client), or copy the QuickCards URL after parsing. The URL contains the full set, lz-string compressed, and reproduces the same export on the other side.",
-    },
-    {
-      q: "Is QuickCards free?",
-      a: "Yes. Free, open source (MIT licensed), no account, in your browser. Source on GitHub.",
-    },
+  // Faux spreadsheet contents. The first SELECTED_COUNT rows are styled
+  // as a selected range (violet outline + tinted bg). The trailing
+  // unselected row(s) keep the selection outline away from the
+  // spreadsheet's rounded outer corners and read as "this is part of a
+  // bigger document, the user only selected the top rows."
+  const sheet = [
+    { term: "Photosynthesis", def: "Plants convert sunlight to energy" },
+    { term: "Mitosis", def: "Cell divides into two identical cells" },
+    { term: "Osmosis", def: "Water moves across a membrane" },
+    { term: "Ribosome", def: "Synthesizes proteins from mRNA" },
+    { term: "Cytoplasm", def: "Gel-like substance filling a cell" },
   ];
+  const SELECTED_COUNT = 4;
+
+  // The selection outline is drawn as a single absolute overlay element
+  // that sits above the cells in z-order. This way the gray inter-row
+  // and inter-column gridlines stay visible inside the selection, and
+  // the violet outline renders unbroken on top of them.
+  let rowRefs = $state<(HTMLDivElement | undefined)[]>([]);
+  const selectionStyle = $derived.by(() => {
+    const first = rowRefs[0];
+    const last = rowRefs[SELECTED_COUNT - 1];
+    if (!first || !last) return "display: none;";
+    const top = first.offsetTop;
+    const height = last.offsetTop + last.offsetHeight - top;
+    return `top: ${top}px; height: ${height}px;`;
+  });
 
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: faq.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "Do I need an Anki add-on?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "No. QuickCards builds the .apkg in your browser. Double-click it into Anki on any client.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "What about accents and special characters?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Pasting works because the data is already decoded by your browser. The classic Excel-saves-Latin-1 problem doesn't apply, since there's no save-to-disk-then-reload step.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Can I include images or audio?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Pasted CSV is text-only. The QuickCards browser extension on Quizlet handles media end-to-end if your data is from there.",
+        },
+      },
+    ],
   };
   /* eslint-disable no-useless-escape */
   const faqJsonLdHtml = `<script type="application/ld+json">${JSON.stringify(faqJsonLd)}<\/script>`;
@@ -101,186 +113,349 @@
   </header>
 
   <main class="flex-grow">
-    <article class="px-6 py-16 sm:py-24">
-      <div class="mx-auto max-w-3xl">
-        <span
-          class="text-muted-foreground mb-4 inline-block font-mono text-xs tracking-wider uppercase"
-        >
-          Guide · CSV to Anki
-        </span>
-        <h1
-          class="text-4xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
-        >
-          Convert <span class="text-primary">CSV to Anki</span>, no add-on.
-        </h1>
-        <p class="text-muted-foreground mt-6 text-lg leading-relaxed">
-          You have a list of cards in a spreadsheet (Google Sheets, Excel, Numbers, a downloaded CSV
-          from somewhere) and you want them as an Anki deck file (.apkg). Paste, check, save. That
-          is it.
-        </p>
-        <div class="mt-8 flex flex-wrap items-center gap-3">
+    <!-- ════════ Hero: spreadsheet → cards split ════════
+       Faux spreadsheet on the left, faux Anki card stack on the right, an
+       arrow-with-label between them. The visual itself shows the workflow.
+       Headline sits centered above. -->
+    <section class="relative overflow-hidden px-4 pt-12 pb-16 sm:px-6 sm:pt-16 sm:pb-20">
+      <div
+        aria-hidden="true"
+        class="bg-primary pointer-events-none absolute -top-32 left-1/2 -z-10 h-[460px] w-[760px] -translate-x-1/2 rounded-full opacity-15 blur-[150px]"
+      ></div>
+
+      <div class="relative z-10 mx-auto max-w-6xl">
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <h1
+            class="text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl"
+          >
+            CSV to <span class="text-primary">Anki,</span> no add-on.
+          </h1>
+          <p
+            class="text-muted-foreground mx-auto mt-5 max-w-xl text-base leading-relaxed sm:text-lg"
+          >
+            Copy two columns out of a spreadsheet, paste into QuickCards, get an Anki deck file
+            (.apkg). No field mapping, no encoding gotchas, no add-on.
+          </p>
+        </div>
+
+        <!-- Centerpiece split: faux spreadsheet + arrow + faux Anki cards -->
+        <div class="grid items-center gap-6 sm:gap-2 lg:grid-cols-[1fr_auto_1fr] lg:gap-4">
+          <!-- Faux spreadsheet, mimicking Sheets/Excel. mx-auto + max-w
+               so both side blocks center in their 1fr columns and the
+               PASTE pill sits with equal visual whitespace on each side. -->
+          <div use:reveal class="mx-auto w-full max-w-md">
+            <div
+              class="border-border/70 relative overflow-hidden rounded-lg border shadow-2xl shadow-black/40"
+            >
+              <!-- App-bar -->
+              <div class="border-border/50 bg-muted/30 flex items-center gap-2 border-b px-3 py-2">
+                <div class="flex gap-1">
+                  <span class="size-2.5 rounded-full bg-red-500/70"></span>
+                  <span class="size-2.5 rounded-full bg-yellow-500/70"></span>
+                  <span class="size-2.5 rounded-full bg-green-500/70"></span>
+                </div>
+                <span
+                  class="text-muted-foreground/80 ml-2 font-mono text-[10px] tracking-wider uppercase"
+                >
+                  vocab.csv
+                </span>
+              </div>
+              <!-- Column headers (A B) -->
+              <div
+                class="border-border/40 bg-muted/20 text-muted-foreground/70 grid grid-cols-[28px_1fr_1fr] border-b font-mono text-[10px]"
+              >
+                <div class="border-border/40 border-r py-1.5 text-center"></div>
+                <div class="border-border/40 border-r py-1.5 text-center font-medium">A</div>
+                <div class="py-1.5 text-center font-medium">B</div>
+              </div>
+              <!-- Header row (the labels) -->
+              <div
+                class="border-border/40 grid grid-cols-[28px_1fr_1fr] border-b text-xs font-medium"
+              >
+                <div
+                  class="bg-muted/20 text-muted-foreground/70 border-border/40 border-r py-1.5 text-center font-mono text-[10px]"
+                >
+                  1
+                </div>
+                <div class="border-border/40 text-foreground/90 border-r px-2.5 py-1.5">term</div>
+                <div class="text-foreground/90 px-2.5 py-1.5">definition</div>
+              </div>
+              <!-- Data rows. The gray inter-row and inter-column
+                   gridlines are restored on cells; the violet selection
+                   outline is drawn separately as an absolute overlay
+                   below, which sits above the cells in z-order so the
+                   outline stays continuous. -->
+              {#each sheet as row, i (row.term)}
+                {@const isSelected = i < SELECTED_COUNT}
+                <div
+                  bind:this={rowRefs[i]}
+                  class={[
+                    "grid grid-cols-[28px_1fr_1fr] text-xs",
+                    i < sheet.length - 1 && "border-border/30 border-b",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  <div
+                    class="bg-muted/20 text-muted-foreground/70 border-border/40 border-r py-1.5 text-center font-mono text-[10px]"
+                  >
+                    {i + 2}
+                  </div>
+                  <div
+                    class={[
+                      "border-border/40 text-foreground/85 truncate border-r px-2.5 py-1.5",
+                      isSelected && "bg-primary/5",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {row.term}
+                  </div>
+                  <div
+                    class={[
+                      "text-muted-foreground truncate px-2.5 py-1.5",
+                      isSelected && "bg-primary/5",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    {row.def}
+                  </div>
+                </div>
+              {/each}
+
+              <!-- Selection outline. Single absolute element drawn over
+                   the selected data area at z-10 so the violet rectangle
+                   sits ON TOP of the cells' gray gridlines instead of
+                   fighting with them at every cell boundary. Position is
+                   computed in JS from the first/last selected row refs
+                   so it stays accurate across font sizes and zoom. -->
+              <div
+                aria-hidden="true"
+                class="border-primary/60 pointer-events-none absolute right-0 left-[28px] z-10 border-2"
+                style={selectionStyle}
+              ></div>
+            </div>
+            <div class="text-muted-foreground/70 mt-3 text-center text-xs">
+              Select two columns. Cmd / Ctrl + C.
+            </div>
+          </div>
+
+          <!-- Center arrow with label. One pill across all breakpoints. -->
+          <div use:reveal={{ delay: 120 }} class="flex justify-center">
+            <div
+              class="border-border bg-card text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase shadow-md"
+            >
+              Paste
+              <ArrowRight class="text-primary size-3" />
+            </div>
+          </div>
+
+          <!-- Anki card mockup. Same visual language as the rest of the
+               site: one foreground card with term + divider + def, two
+               muted cards stacked behind for the deck-file feel. The
+               foreground card content matches the spreadsheet's first
+               row, so the eye couples "this row → that card" directly. -->
+          <div use:reveal={{ delay: 240 }} class="relative mx-auto w-full max-w-sm">
+            <div class="relative flex h-64 w-full items-center justify-center">
+              <div class="relative h-52 w-full">
+                <div
+                  aria-hidden="true"
+                  class="border-border bg-card absolute inset-0 -translate-x-2 translate-y-2 -rotate-6 rounded-lg border"
+                ></div>
+                <div
+                  aria-hidden="true"
+                  class="border-border bg-card absolute inset-0 translate-x-1 -translate-y-1 rotate-3 rounded-lg border"
+                ></div>
+                <div
+                  class="border-border bg-card relative flex h-full flex-col items-center justify-center rounded-lg border p-6 text-center shadow-2xl shadow-black/40"
+                >
+                  <div class="text-foreground text-lg leading-tight font-semibold sm:text-xl">
+                    {sheet[0].term}
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    class="text-muted-foreground/70 mt-2 flex size-4 items-center justify-center rounded-full bg-white/5"
+                  >
+                    <Play class="size-2 fill-current" />
+                  </span>
+                  <div class="bg-border/60 my-4 h-px w-3/4"></div>
+                  <div class="text-muted-foreground text-sm leading-snug">
+                    {sheet[0].def}
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    class="text-muted-foreground/70 mt-2 flex size-4 items-center justify-center rounded-full bg-white/5"
+                  >
+                    <Play class="size-2 fill-current" />
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="text-muted-foreground/70 mt-3 text-center text-xs">
+              vocab.apkg · double-click into Anki, any client.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-12 flex flex-col items-center text-center">
           <Button href={resolve("/tool")} size="lg" class="group h-12 gap-2 px-6 text-base">
             <ClipboardPaste class="size-4" />
-            Open the web tool
+            Open the tool
             <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
-        </div>
-        <p class="text-muted-foreground/80 mt-6 font-mono text-xs tracking-wide">
-          Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; No upload &nbsp;·&nbsp; Open source
-        </p>
-      </div>
-    </article>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ How it goes ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">From spreadsheet to deck.</h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          The shortest reliable path is to copy two columns out of your spreadsheet and paste them
-          into the QuickCards tool. The parser detects the separator (tab, comma, semicolon), skips
-          the header row if present, and produces a card list you can verify before any download
-          runs.
-        </p>
-        <ol class="mt-10 space-y-8">
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <FileSpreadsheet class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Select two columns in your spreadsheet</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                Term column on the left, definition column on the right. A header row is fine, the
-                parser detects and skips it. Copy with Cmd+C / Ctrl+C.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <ClipboardPaste class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Paste into the QuickCards tool</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                Open the tool, paste, hit Continue. You see the parsed cards with a count before any
-                download runs. If something looks wrong (wrong column, wrong separator), fix it and
-                paste again.
-              </p>
-            </div>
-          </li>
-          <li class="flex gap-5">
-            <div
-              class="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-md"
-            >
-              <Download class="size-4" />
-            </div>
-            <div>
-              <div class="text-foreground font-medium">Pick Anki, download, import</div>
-              <p class="text-muted-foreground mt-1 leading-relaxed">
-                The .apkg builds in your browser. Open it with Anki on any client (desktop,
-                AnkiMobile, AnkiDroid, AnkiWeb). Optional: turn on deadline mode if you have an exam
-                under two weeks away.
-              </p>
-            </div>
-          </li>
-        </ol>
-        <div class="mt-10">
-          <Button href={resolve("/tool")} size="lg" class="h-11 gap-2 px-5 text-base">
-            <ClipboardPaste class="size-4" />
-            Open the tool
-          </Button>
+          <p class="text-muted-foreground/80 mt-5 font-mono text-xs tracking-wide">
+            Free &nbsp;·&nbsp; No account &nbsp;·&nbsp; No upload &nbsp;·&nbsp; Open source
+          </p>
         </div>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
+    <!-- ════════ What you can paste ════════
+       Six format tiles, each with a tiny code preview of the input shape
+       the parser accepts. Frames the page around capability instead of
+       contrast: the user sees their own format and feels "yes, that
+       works." No Anki-bashing, no version-attribution risk. -->
+    <section class="px-6 py-24 sm:py-32" use:reveal>
+      <div class="mx-auto max-w-5xl">
+        <div class="mb-12 max-w-xl">
+          <span class="text-muted-foreground mb-3 block font-mono text-xs tracking-wider uppercase">
+            What you can paste
+          </span>
+          <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+            If it looks like cards, it works.
+          </h2>
+          <p class="text-muted-foreground mt-3 text-[15px] leading-relaxed">
+            The parser auto-detects the shape. Pick whatever's already in your clipboard.
+          </p>
+        </div>
 
-    <!-- ══════════════ Why this beats the obvious alternative ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Why not just use Anki's CSV import?
-        </h2>
-        <p class="text-muted-foreground mt-4 leading-relaxed">
-          You can. It is built in. It also confuses people regularly. The friction shows up at
-          predictable points:
-        </p>
-        <ul class="text-muted-foreground/90 mt-6 space-y-3 leading-relaxed">
-          <li class="flex gap-3">
-            <ChevronRight class="text-primary mt-1 size-4 shrink-0" />
-            <span>
-              <strong class="text-foreground">Encoding.</strong> Excel on macOS often saves CSVs as Latin-1
-              by default, which then breaks accented characters when Anki reads them as UTF-8.
-            </span>
-          </li>
-          <li class="flex gap-3">
-            <ChevronRight class="text-primary mt-1 size-4 shrink-0" />
-            <span>
-              <strong class="text-foreground">Field mapping.</strong> Anki 2.1.55 changed the default
-              to keep unmapped fields, breaking workflows that relied on leaving columns unmapped to skip
-              junk data.
-            </span>
-          </li>
-          <li class="flex gap-3">
-            <ChevronRight class="text-primary mt-1 size-4 shrink-0" />
-            <span>
-              <strong class="text-foreground">Mobile.</strong> AnkiMobile on iOS 18 cannot select a CSV
-              from inside the app. AnkiDroid handles it but with manual file-system steps.
-            </span>
-          </li>
-          <li class="flex gap-3">
-            <ChevronRight class="text-primary mt-1 size-4 shrink-0" />
-            <span>
-              <strong class="text-foreground">Note types.</strong> Anki picks Basic by default. If you
-              wanted a custom note type, you have to map fields manually each time.
-            </span>
-          </li>
-        </ul>
-        <p class="text-muted-foreground mt-6 leading-relaxed">
-          QuickCards skips all of that by handling the conversion in your browser before the file
-          touches disk. The .apkg lands ready to import on any Anki client without further
-          configuration.
-        </p>
-      </div>
-    </section>
-
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ FAQ ══════════════ -->
-    <section class="px-6 py-20 sm:py-24" use:reveal>
-      <div class="mx-auto max-w-3xl">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Frequently asked.</h2>
-        <dl class="mt-10 space-y-7">
-          {#each faq as item (item.q)}
-            <div>
-              <dt class="text-foreground text-lg font-medium tracking-tight">{item.q}</dt>
-              <dd class="text-muted-foreground mt-2 leading-relaxed">{item.a}</dd>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <!-- CSV -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              CSV
             </div>
-          {/each}
-        </dl>
+            <pre
+              class="border-border/60 bg-card text-foreground/90 m-0 overflow-hidden rounded-md border p-3 font-mono text-[10.5px] leading-relaxed">term,definition
+café,coffee shop
+piña,pineapple
+manzana,apple</pre>
+          </div>
+
+          <!-- TSV / spreadsheet copy -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              TSV / spreadsheet copy
+            </div>
+            <pre
+              class="border-border/60 bg-card text-foreground/90 m-0 overflow-hidden rounded-md border p-3 font-mono text-[10.5px] leading-relaxed">term	definition
+café	coffee shop
+piña	pineapple
+manzana	apple</pre>
+          </div>
+
+          <!-- Markdown table -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              Markdown table
+            </div>
+            <pre
+              class="border-border/60 bg-card text-foreground/90 m-0 overflow-hidden rounded-md border p-3 font-mono text-[10.5px] leading-relaxed">| Term | Definition  |
+| ---- | ----------- |
+| café | coffee shop |
+| piña | pineapple   |</pre>
+          </div>
+
+          <!-- JSON. Wrapped in a template-literal expression so Svelte
+               doesn't try to interpret the JSON's braces as expressions.
+               The fade lives on the INNER pre (not on the bordered card)
+               so the card border stays sharp; only the text content
+               fades at the right. -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              JSON
+            </div>
+            <div class="border-border/60 bg-card overflow-hidden rounded-md border">
+              <pre
+                style="mask-image: linear-gradient(to right, black 88%, transparent); -webkit-mask-image: linear-gradient(to right, black 88%, transparent);"
+                class="text-foreground/90 m-0 p-3 font-mono text-[10.5px] leading-relaxed">{`[
+  {"term": "café", "definition": "coffee shop"},
+  {"term": "piña", "definition": "pineapple"}
+]`}</pre>
+            </div>
+          </div>
+
+          <!-- Vocab list (dash-separated) -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              Vocab list
+            </div>
+            <pre
+              class="border-border/60 bg-card text-foreground/90 m-0 overflow-hidden rounded-md border p-3 font-mono text-[10.5px] leading-relaxed">café - coffee shop
+piña - pineapple
+manzana - apple
+agua - water</pre>
+          </div>
+
+          <!-- Key = value (TOML-ish) -->
+          <div class="border-border flex flex-col gap-3 rounded-lg border p-5">
+            <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+              Key = value
+            </div>
+            <pre
+              class="border-border/60 bg-card text-foreground/90 m-0 overflow-hidden rounded-md border p-3 font-mono text-[10.5px] leading-relaxed">café = "coffee shop"
+piña = "pineapple"
+manzana = "apple"
+agua = "water"</pre>
+          </div>
+        </div>
+
+        <p class="text-muted-foreground/85 mt-10 max-w-2xl text-[15px] leading-relaxed">
+          Whatever you paste, the output is a standard .apkg. Open it on Anki desktop, AnkiMobile,
+          AnkiDroid, or AnkiWeb.
+        </p>
       </div>
     </section>
 
-    <hr class="border-foreground/10 mx-auto w-3/5" aria-hidden="true" />
-
-    <!-- ══════════════ Closing CTA ══════════════ -->
+    <!-- ════════ Closing CTA ════════ -->
     <section class="px-6 py-20 sm:py-24">
       <div class="mx-auto max-w-3xl text-center">
-        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Try it now.</h2>
-        <p class="text-muted-foreground mt-4 text-lg leading-relaxed">
-          Paste your data, see the parsed cards, save the .apkg.
+        <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Try your data.</h2>
+        <p class="text-muted-foreground mt-3 text-base leading-relaxed">
+          Paste, see the parsed cards, save the .apkg.
         </p>
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
           <Button href={resolve("/tool")} size="lg" class="group h-12 gap-2 px-6 text-base">
             <ClipboardPaste class="size-4" />
             Open the tool
             <ArrowRight class="size-4 transition-transform group-hover:translate-x-0.5" />
           </Button>
+        </div>
+        <div
+          class="text-muted-foreground/70 mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs"
+        >
+          <a
+            href={resolve("/chatgpt-flashcards-to-anki")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            ChatGPT to Anki
+          </a>
+          <span>·</span>
+          <a
+            href={resolve("/quizlet-to-anki")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Quizlet to Anki
+          </a>
+          <span>·</span>
+          <a
+            href={resolve("/print-flashcards-from-quizlet")}
+            class="hover:text-foreground underline-offset-2 hover:underline"
+          >
+            Print flashcards
+          </a>
+          <ChevronRight class="size-3" />
         </div>
       </div>
     </section>
@@ -302,16 +477,11 @@
         <a href={resolve("/tool")} class="hover:text-foreground transition-colors">Tool</a>
         <a href={resolve("/extension")} class="hover:text-foreground transition-colors">Extension</a
         >
-        <a href={resolve("/quizlet-to-anki")} class="hover:text-foreground transition-colors">
-          Quizlet to Anki
-        </a>
-        <a
-          href={resolve("/chatgpt-flashcards-to-anki")}
-          class="hover:text-foreground transition-colors"
-        >
-          ChatGPT to Anki
-        </a>
         <a href={resolve("/privacy")} class="hover:text-foreground transition-colors">Privacy</a>
+        <a
+          href="https://github.com/ImGajeed76/quick-cards"
+          class="hover:text-foreground transition-colors">GitHub</a
+        >
       </div>
     </div>
   </footer>

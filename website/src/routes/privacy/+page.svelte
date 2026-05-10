@@ -43,7 +43,7 @@
     {SITE_NAME} touches and what we do (and don't do) with it.
   </p>
 
-  <div class="border-border bg-card/50 mt-6 rounded-lg border p-5">
+  <div class="border-border mt-6 rounded-lg border p-5">
     <p class="text-foreground text-[15px] leading-7">
       <span class="font-medium">Short version.</span>
       {SITE_NAME} runs in your browser. We have no user accounts. We don't store your flashcards, your
