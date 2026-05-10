@@ -2,7 +2,7 @@
   import { Button } from "$lib/components/ui/button";
   import * as Accordion from "$lib/components/ui/accordion";
   import Github from "$lib/components/icons/Github.svelte";
-  import { ArrowRight, Puzzle, Settings, Maximize2, MoreHorizontal } from "@lucide/svelte";
+  import { ArrowRight, Puzzle } from "@lucide/svelte";
   import { resolve } from "$app/paths";
   import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
   import { track } from "$lib/analytics";
@@ -374,62 +374,16 @@
             into Anki, PDF, CSV, JSON, TXT.
           </p>
         </div>
-        <!-- Inline mockup faithful to the actual screenshot we used to
-             ship: a cropped corner of a study-app set page. Top-left
-             shows the bottom-right corner of a partial UI element
-             extending off-frame, plus a row of free-floating icon
-             controls and a short divider. The QuickCards floating
-             banner sits in the bottom-right exactly where it would on
-             a real page (faithful to extension/src/content/content.ts).
-             Abstract enough to avoid brand replicas. -->
         <figure class="mt-8">
-          <div
-            class="border-border relative h-[280px] overflow-hidden rounded-md border bg-[#0E1029] shadow-xl shadow-black/30"
-          >
-            <!-- Partial card preview extending off the top-left edge -->
-            <div
-              aria-hidden="true"
-              class="absolute -top-10 -left-10 h-28 w-40 rounded-2xl bg-[#2A2F4A]"
-            ></div>
-
-            <!-- Free-floating icon row + cut-off primary dot to the left -->
-            <div class="absolute top-[120px] left-1 flex items-center gap-3 text-white/65">
-              <span aria-hidden="true" class="bg-primary -ml-2 size-3 shrink-0 rounded-full"></span>
-              <Settings class="size-5" />
-              <Maximize2 class="size-5" />
-            </div>
-
-            <!-- Short divider, left side only -->
-            <div
-              aria-hidden="true"
-              class="absolute top-[160px] left-0 h-px w-[110px] bg-white/15"
-            ></div>
-
-            <!-- The actual floating banner. Faithful to
-                 extension/src/content/content.ts: horizontal pill,
-                 "{N} cards" + 1px divider + Copy button (primary) +
-                 ··· button. Bottom-right, 24/24 from edges. -->
-            <div class="absolute right-6 bottom-6">
-              <div
-                class="border-border/70 bg-card text-foreground inline-flex items-center gap-3 rounded-lg border px-4 py-2 shadow-lg shadow-black/40"
-              >
-                <span class="text-muted-foreground text-xs">
-                  <span class="text-foreground font-semibold tabular-nums">145</span> cards
-                </span>
-                <span class="bg-border/70 h-3.5 w-px"></span>
-                <span
-                  class="bg-primary text-primary-foreground rounded-md px-3 py-1 text-xs font-medium"
-                >
-                  Copy
-                </span>
-                <span
-                  class="text-muted-foreground flex size-6 items-center justify-center rounded-md"
-                >
-                  <MoreHorizontal class="size-3.5" />
-                </span>
-              </div>
-            </div>
-          </div>
+          <img
+            src="/screenshots/quickcards-widget.png"
+            alt="QuickCards widget on a Quizlet set page"
+            class="border-border w-full rounded-md border shadow-xl shadow-black/30"
+            width="795"
+            height="286"
+            loading="lazy"
+            decoding="async"
+          />
           <figcaption class="text-muted-foreground mt-3 text-xs">
             The {SITE_NAME} widget appears on any Quizlet set.
           </figcaption>
