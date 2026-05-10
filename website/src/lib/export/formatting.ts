@@ -52,10 +52,20 @@ export function sanitizeFilename(name: string): string {
 
 type Data = ArrayBuffer | ArrayBufferView | Uint8Array | string;
 
-/** Legacy blob download — no cancel detection. Used as fallback when the
- *  File System Access API isn't available (Firefox, Safari). */
-function blobDownload(bytes: Data, filename: string, mimeType: string): void {
-  const blob = new Blob([bytes as BlobPart], { type: mimeType });
+/**
+ * Save a file via the standard anchor-click download path. The browser's
+ * own download manager handles it, the file lands in the user's downloads
+ * folder, and it shows up in the browser's downloads bar / chip. No
+ * native save dialog. Returns immediately after triggering the download;
+ * "cancelled" is never produced (the browser doesn't surface that).
+ */
+export async function saveFile(
+  getData: () => Data | Promise<Data>,
+  filename: string,
+  mimeType: string,
+): Promise<"ok" | "cancelled"> {
+  const data = await getData();
+  const blob = new Blob([data as BlobPart], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -64,51 +74,5 @@ function blobDownload(bytes: Data, filename: string, mimeType: string): void {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-/**
- * Save via the File System Access API when available — the returned promise
- * resolves with `'ok'` only after the user accepts the save dialog, or
- * `'cancelled'` if they dismiss it. On Firefox/Safari, falls back to a blob
- * download and resolves `'ok'` immediately (no cancel detection possible there).
- *
- * The picker is opened BEFORE `getData()` runs so the (often cheap) data
- * generation happens while the user is still interacting with the dialog —
- * and we never compute the payload if they cancel.
- */
-export async function saveFile(
-  getData: () => Data | Promise<Data>,
-  filename: string,
-  mimeType: string,
-): Promise<"ok" | "cancelled"> {
-  const w = window as unknown as {
-    showSaveFilePicker?: (opts: {
-      suggestedName: string;
-      types?: { description?: string; accept: Record<string, string[]> }[];
-    }) => Promise<FileSystemFileHandle>;
-  };
-
-  if (typeof w.showSaveFilePicker !== "function") {
-    const data = await getData();
-    blobDownload(data, filename, mimeType);
-    return "ok";
-  }
-
-  const ext = filename.match(/\.[^.]+$/)?.[0];
-  let handle: FileSystemFileHandle;
-  try {
-    handle = await w.showSaveFilePicker({
-      suggestedName: sanitizeFilename(filename),
-      types: ext ? [{ accept: { [mimeType]: [ext] } }] : [],
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") return "cancelled";
-    throw err;
-  }
-
-  const data = await getData();
-  const writable = await handle.createWritable();
-  await writable.write(data as FileSystemWriteChunkType);
-  await writable.close();
   return "ok";
 }

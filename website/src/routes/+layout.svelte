@@ -2,6 +2,7 @@
   import "./layout.css";
   import { page } from "$app/state";
   import { SITE_URL, SITE_NAME } from "$lib/site";
+  import { Toaster } from "$lib/components/ui/sonner";
 
   let { children } = $props();
 
@@ -33,3 +34,5 @@
 </svelte:head>
 
 {@render children()}
+
+<Toaster richColors closeButton position="bottom-right" />

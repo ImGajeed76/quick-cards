@@ -23,8 +23,23 @@ export function parseInput(raw: string): ParseResult {
   if (!text.trim()) return { kind: "empty" };
 
   // 1. Structured formats first — they're unambiguous when they parse.
+  //
+  // Important architectural rule: if the input *parses as* a structured
+  // format (JSON, TOML, etc.), we COMMIT to that format. Either we extract
+  // pairs or we return `unknown`. We do NOT fall through to the smart-
+  // delimiter scan, because that scan would happily chop a JSON file by
+  // colons and produce dozens of garbage "pairs" from the raw text.
   const json = tryJson(text);
-  if (json) return { kind: "vocab", pairs: unwrapQuotedSides(json.pairs), separator: "json" };
+  if (json) {
+    if (json.ok) {
+      return { kind: "vocab", pairs: unwrapQuotedSides(json.pairs), separator: "json" };
+    }
+    return {
+      kind: "unknown",
+      reason:
+        "This is valid JSON, but we couldn't find term/definition pairs in it. Expected an array of {term, definition} or a wrapper with a cards / flashcards / notes / terms array.",
+    };
+  }
 
   const mdTable = tryMarkdownTable(text);
   if (mdTable)
@@ -57,9 +72,18 @@ export function parseInput(raw: string): ParseResult {
   const csvWithHeader = tryCsvWithHeader(text);
   if (csvWithHeader) return { kind: "vocab", pairs: csvWithHeader.pairs, separator: "comma" };
 
-  // 6. TOML-style `key = "value"` lines.
+  // 6. TOML-style `key = "value"` lines. Same commit rule as JSON: if the
+  //    input clearly looks like TOML (has [section] or [[array-of-tables]]
+  //    markers) but we couldn't extract pairs, return unknown rather than
+  //    let the colon scanner chop it.
   const toml = tryToml(text);
   if (toml) return { kind: "vocab", pairs: unwrapQuotedSides(toml.pairs), separator: "toml" };
+  if (looksLikeToml(text)) {
+    return {
+      kind: "unknown",
+      reason: "This looks like TOML, but we couldn't extract term/definition pairs from it.",
+    };
+  }
 
   // 7. Smart per-line delimiter scan with rarity × coverage scoring.
   const delimited = smartDelimiter(text);
@@ -321,7 +345,14 @@ const DEF_KEYS = [
   "target",
 ];
 
-function tryJson(text: string): { pairs: VocabPair[] } | null {
+// `tryJson` returns:
+//   null              – input doesn't look like JSON (caller falls through)
+//   { ok: true,  ... } – parsed as JSON, extracted pairs successfully
+//   { ok: false }     – parsed as JSON but no extractable shape (caller
+//                       must commit to JSON path and return unknown)
+type JsonAttempt = { ok: true; pairs: VocabPair[] } | { ok: false };
+
+function tryJson(text: string): JsonAttempt | null {
   const trimmed = text.trim();
   if (!(trimmed.startsWith("[") || trimmed.startsWith("{"))) return null;
 
@@ -333,7 +364,8 @@ function tryJson(text: string): { pairs: VocabPair[] } | null {
   }
 
   const pairs = extractPairsFromJsonValue(parsed);
-  return pairs && pairs.length > 0 ? { pairs } : null;
+  if (pairs && pairs.length > 0) return { ok: true, pairs };
+  return { ok: false };
 }
 
 function tryJsonl(text: string): { pairs: VocabPair[] } | null {
@@ -368,6 +400,34 @@ function tryJsonl(text: string): { pairs: VocabPair[] } | null {
   return pairs.length >= 2 ? { pairs } : null;
 }
 
+// Wrapper-object keys we recognize as "the cards live in here". Tried in
+// order; first match wins. Kept narrow on purpose: `items` and `data` are
+// too generic and would false-positive on unrelated shapes.
+const WRAPPER_KEYS = ["cards", "flashcards", "notes", "terms"] as const;
+
+// Look up a wrapper key in `obj` (case-insensitive). Returns:
+//   undefined – no wrapper key present at all (caller can try other shapes)
+//   null      – wrapper key present but extraction failed (a clear "they
+//               meant a wrapper but we couldn't read it" signal)
+//   pairs     – successful extraction
+function extractFromWrapper(obj: Record<string, unknown>): VocabPair[] | null | undefined {
+  const lowerKeys = new Map(Object.keys(obj).map((k) => [k.toLowerCase(), k]));
+  for (const wrapperKey of WRAPPER_KEYS) {
+    const realKey = lowerKeys.get(wrapperKey);
+    if (realKey === undefined) continue;
+    const inner = obj[realKey];
+    if (Array.isArray(inner)) {
+      const pairs = extractPairsFromJsonValue(inner);
+      return pairs && pairs.length > 0 ? pairs : null;
+    }
+    // Wrapper key exists but isn't an array. The user clearly meant a
+    // wrapper shape and got it wrong; don't pretend the rest of the
+    // object is a flat term/value dictionary.
+    return null;
+  }
+  return undefined;
+}
+
 function extractPairsFromJsonValue(v: unknown): VocabPair[] | null {
   if (Array.isArray(v)) {
     const pairs: VocabPair[] = [];
@@ -391,6 +451,22 @@ function extractPairsFromJsonValue(v: unknown): VocabPair[] | null {
 
   if (typeof v === "object" && v !== null) {
     const obj = v as Record<string, unknown>;
+
+    // 1. Wrapper at the top level: { ..., cards: [...], ... }
+    const direct = extractFromWrapper(obj);
+    if (direct !== undefined) return direct;
+
+    // 2. One level of nesting: { deck: { cards: [...] }, ... }. Walks all
+    //    object-typed values once. Avoids unbounded recursion.
+    for (const val of Object.values(obj)) {
+      if (typeof val === "object" && val !== null && !Array.isArray(val)) {
+        const nested = extractFromWrapper(val as Record<string, unknown>);
+        if (nested !== undefined) return nested;
+      }
+    }
+
+    // 3. Flat dictionary: { "hola": "hello", ... }. Every value must be a
+    //    string. This is the legacy "JSON-as-dictionary" path.
     const pairs: VocabPair[] = [];
     for (const [k, val] of Object.entries(obj)) {
       if (typeof val !== "string") return null;
@@ -566,7 +642,24 @@ function tryCsvWithHeader(text: string): { pairs: VocabPair[] } | null {
 // `key = "value"` or `"key" = "value"` — skip comments (#) and section headers ([...]).
 const TOML_LINE_RE = /^(?:"([^"]+)"|([A-Za-z_][\w.-]*))\s*=\s*"([^"]*)"$/;
 
+// Section-header line: [name] or [[name]]. Used both to identify TOML-
+// looking input (commit-to-path) and to reject array-of-tables shapes
+// inside tryToml.
+const TOML_SECTION_RE = /^\s*\[\[?[A-Za-z_][\w.-]*\]?\]\s*$/m;
+const TOML_ARRAY_OF_TABLES_RE = /^\s*\[\[/m;
+
+function looksLikeToml(text: string): boolean {
+  return TOML_SECTION_RE.test(text);
+}
+
 function tryToml(text: string): { pairs: VocabPair[] } | null {
+  // Reject array-of-tables ([[name]]). Properly grouping the following
+  // key/value lines into pairs needs a real TOML grammar that we don't
+  // have. Returning null lets the commit-to-TOML rule surface this as
+  // "couldn't read this TOML" instead of producing flat-key garbage like
+  // {term: "term", definition: "hola"}.
+  if (TOML_ARRAY_OF_TABLES_RE.test(text)) return null;
+
   const lines = text
     .split("\n")
     .map((l) => l.trim())

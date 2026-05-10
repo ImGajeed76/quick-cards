@@ -16,19 +16,22 @@
     ArrowUpRight,
     Check,
     ChevronDown,
-    ChevronRight,
     Copy,
     Download,
     LoaderCircle,
+    Plus,
     Puzzle,
+    Trash2,
   } from "@lucide/svelte";
+  import { toast } from "svelte-sonner";
   import {
     today,
     getLocalTimeZone,
     type DateValue,
     type CalendarDate,
   } from "@internationalized/date";
-  import { decodePayload, encodePayload, type SharePayload } from "$lib/share";
+  import { decodePayload, decodeShareLink, encodeShareLink, type SharePayload } from "$lib/share";
+  import { generateSetId, looksLikeSetId, loadSet, saveSet } from "$lib/storage";
   import { track, bucketDays } from "$lib/analytics";
   import {
     TERM_SEP_PRESETS,
@@ -39,32 +42,30 @@
     toCsv,
     saveFile,
   } from "$lib/export/formatting";
-  import type { FlashcardSet } from "$lib/export/types";
+  import type { Flashcard, FlashcardSet } from "$lib/export/types";
+  import type { QuizletSetRef } from "$lib/parse";
   import { CWS_URL } from "$lib/site";
 
   // ────────── State ──────────
 
   type DownloadKind = "txt" | "csv" | "json" | "pdf-list" | "pdf-cards" | "anki";
 
-  const SHARE_URL_MAX = 8000;
-
-  // Separators persist across visits via localStorage (client-only with ssr=false).
+  // Separators persist across visits via localStorage.
   const savedTerm =
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:termSep") : null;
   const savedCard =
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:cardSep") : null;
-  // Same persistence for the Anki pacing toggle. When false, the apkg ships
-  // no FSRS preset and Anki uses the user's existing default scheduling.
   const savedAnkiPace =
     typeof localStorage !== "undefined" ? localStorage.getItem("quickcards:ankiPace") : null;
 
-  let payload = $state<SharePayload | null>(null);
-  // True when the page was opened via `?d=local` (sessionStorage handoff from
-  // the homepage). Local payloads aren't reachable by anyone but the current
-  // tab, so the "Share link" affordance is meaningless and gets hidden.
-  let isLocal = $state(false);
+  // The page renders one of three branches: a vocab currentSet (the export
+  // view), a Quizlet-link transient (the install-the-extension view), or
+  // a loading state. The vocab branch holds an actual FlashcardSet; the
+  // Quizlet branch holds the transient URL refs.
+  let currentSet = $state<FlashcardSet | null>(null);
+  let quizletRefs = $state<QuizletSetRef[] | null>(null);
+  let loading = $state(true);
   let copied = $state(false);
-  let previewOpen = $state(false);
   let busy = $state<DownloadKind | null>(null);
 
   const anyBusy = $derived(busy !== null);
@@ -100,59 +101,186 @@
     ankiSelected = todayDate.add({ days });
   }
 
-  // ────────── Load payload from URL ──────────
+  // ────────── Load on mount ──────────
+  //
+  // URL dispatch reads from the fragment (#) first so that share blobs
+  // never reach the server. The search-param branch (?) is kept for
+  // backwards compatibility with old links.
+  //
+  //   #s=<br/gzip-base64url>  – share link payload, decode, save under
+  //                             a fresh ID, rewrite to #d=<id>.
+  //   #d=<short ID>           – look up the set in IndexedDB.
+  //   ?s=…  /  ?d=…           – legacy. Same handling, then redirect to
+  //                             the fragment form.
 
-  onMount(() => {
-    const d = page.url.searchParams.get("d");
-    if (!d) {
-      goto(resolve("/"), { replaceState: true });
+  // Parse share params out of the fragment first, then fall back to the
+  // search string. We read window.location.hash directly because
+  // SvelteKit's page.url is constructed from the request URL, which by
+  // HTTP design never carries a fragment, so page.url.hash is empty on
+  // initial load. window.location is the only source of truth here.
+  function readSourceParams(): { s: string | null; d: string | null } {
+    const rawHash = typeof window !== "undefined" ? window.location.hash : "";
+    const hash = rawHash.startsWith("#") ? rawHash.slice(1) : rawHash;
+    if (hash) {
+      const params = new URLSearchParams(hash);
+      const s = params.get("s");
+      const d = params.get("d");
+      if (s || d) return { s, d };
+    }
+    return {
+      s: page.url.searchParams.get("s"),
+      d: page.url.searchParams.get("d"),
+    };
+  }
+
+  onMount(async () => {
+    const { s, d } = readSourceParams();
+
+    if (s) {
+      const decoded = await decodeShareLink(s);
+      if (!decoded) {
+        await goto(resolve("/"), { replaceState: true });
+        return;
+      }
+      await adoptPayload(decoded, { cleanUrl: true });
+      finishLoading();
       return;
     }
-    if (d === "local") {
-      isLocal = true;
-      const raw = sessionStorage.getItem("quickcards:payload");
-      if (!raw) {
-        goto(resolve("/"), { replaceState: true });
-        return;
+
+    if (d) {
+      if (looksLikeSetId(d)) {
+        const found = await loadSet(d);
+        if (found) {
+          currentSet = found;
+          // Migrate legacy ?d= URLs to the fragment form so the ID stops
+          // hitting the server on refresh.
+          if (page.url.searchParams.has("d")) {
+            history.replaceState(history.state, "", `${resolve("/process")}#d=${d}`);
+          }
+          finishLoading();
+          return;
+        }
+        // Fall through to legacy decode in case the user mashed an
+        // older long blob that happens to look like an ID. Highly
+        // unlikely but cheap to try.
       }
-      try {
-        payload = JSON.parse(raw) as SharePayload;
-      } catch {
-        goto(resolve("/"), { replaceState: true });
-      }
-    } else {
       const decoded = decodePayload(d);
-      if (!decoded) {
-        goto(resolve("/"), { replaceState: true });
+      if (decoded) {
+        await adoptPayload(decoded, { cleanUrl: true });
+        finishLoading();
         return;
       }
-      payload = decoded;
     }
 
-    // Warm the export chunks + sql.js WASM in the background so the first
-    // click doesn't pay for the initial download / wasm init.
-    if (payload?.kind === "vocab") {
-      const warm = () => {
-        void import("$lib/export/pdf-list");
-        void import("$lib/export/pdf-flashcards");
-        void import("$lib/export/anki");
-        void import("$lib/export/sql").then((m) => m.getSQL());
-      };
-      if (typeof requestIdleCallback === "function") {
-        requestIdleCallback(warm);
-      } else {
-        setTimeout(warm, 0);
-      }
-    }
+    await goto(resolve("/"), { replaceState: true });
   });
+
+  // Take a freshly-decoded payload and either persist it (vocab) or
+  // hold it transient (Quizlet refs). For vocab payloads we ALWAYS mint
+  // a new ID, even if the payload carries one. The sender's ID is
+  // meaningless to the receiver (it's a key into the sender's local
+  // IndexedDB) and reusing it would silently overwrite a set the
+  // receiver might already have under the same ID. Optionally rewrites
+  // the URL to the canonical fragment form (#d=<id>).
+  async function adoptPayload(payload: SharePayload, opts: { cleanUrl: boolean }): Promise<void> {
+    if (payload.kind === "vocab") {
+      const id = generateSetId();
+      const persisted: FlashcardSet = { ...payload.set, id };
+      await saveSet(persisted);
+      currentSet = persisted;
+      if (opts.cleanUrl) {
+        history.replaceState(history.state, "", `${resolve("/process")}#d=${id}`);
+      }
+    } else {
+      quizletRefs = payload.sets;
+    }
+  }
+
+  function finishLoading(): void {
+    loading = false;
+    if (currentSet) warmExports();
+  }
+
+  function warmExports(): void {
+    const warm = () => {
+      void import("$lib/export/pdf-list");
+      void import("$lib/export/pdf-flashcards");
+      void import("$lib/export/anki");
+      void import("$lib/export/sql").then((m) => m.getSQL());
+    };
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(warm);
+    } else {
+      setTimeout(warm, 0);
+    }
+  }
+
+  // ────────── Persist edits ──────────
+  //
+  // Edits flow into `currentSet` via two-way bindings; we debounce saves to
+  // IndexedDB so rapid typing doesn't spam writes. Definitive actions
+  // (delete card, add card) flush immediately.
+
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function persistDebounced(): void {
+    if (!currentSet) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    const snapshot = currentSet;
+    saveTimer = setTimeout(() => {
+      void saveSet(snapshot);
+      saveTimer = null;
+    }, 400);
+  }
+
+  async function persistNow(): Promise<void> {
+    if (!currentSet) return;
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    await saveSet(currentSet);
+  }
+
+  // ────────── Card editing ──────────
+
+  // Soft-delete with undo toast. The card is removed immediately and
+  // persisted, but the toast holds a reference to the removed row so the
+  // user can re-insert it at the original index. After the toast is
+  // dismissed the deletion is final (only the IndexedDB write remains).
+  function deleteCard(index: number): void {
+    if (!currentSet) return;
+    const [removed] = currentSet.cards.splice(index, 1);
+    if (!removed) return;
+    void persistNow();
+    const label = removed.term.trim() || removed.definition.trim() || `card ${index + 1}`;
+    toast("Card deleted", {
+      description: label.length > 60 ? `${label.slice(0, 60)}…` : label,
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (!currentSet) return;
+          const insertAt = Math.min(index, currentSet.cards.length);
+          currentSet.cards.splice(insertAt, 0, removed);
+          void persistNow();
+        },
+      },
+    });
+  }
+
+  function addCard(): void {
+    if (!currentSet) return;
+    currentSet.cards.push({ term: "", definition: "" } satisfies Flashcard);
+    void persistNow();
+  }
 
   // ────────── Vocab helpers ──────────
 
-  const set = $derived<FlashcardSet | null>(payload?.kind === "vocab" ? payload.set : null);
-  const cardCount = $derived(set?.cards.length ?? 0);
+  const cardCount = $derived(currentSet?.cards.length ?? 0);
 
   const recommendedPace = $derived.by(() => {
-    if (!set) return "";
+    if (!currentSet) return "";
     const perDay = Math.max(1, Math.ceil(cardCount / Math.max(1, ankiDays * 0.6)));
     return `Recommended pace: ~${perDay} card${perDay === 1 ? "" : "s"}/day`;
   });
@@ -160,8 +288,12 @@
   // ────────── Copy ──────────
 
   async function copyToClipboard() {
-    if (!set || copied || anyBusy) return;
-    const text = formatCards(set, resolveTermSep(termSepValue), resolveCardSep(cardSepValue));
+    if (!currentSet || copied || anyBusy) return;
+    const text = formatCards(
+      currentSet,
+      resolveTermSep(termSepValue),
+      resolveCardSep(cardSepValue),
+    );
     await navigator.clipboard.writeText(text);
     copied = true;
     setTimeout(() => (copied = false), 1500);
@@ -169,10 +301,10 @@
 
   // ────────── Downloads ──────────
 
-  const baseName = $derived(set?.title?.trim() || "flashcards");
+  const baseName = $derived(currentSet?.title?.trim() || "flashcards");
 
   async function runDownload(kind: DownloadKind, fn: () => Promise<"ok" | "cancelled">) {
-    if (anyBusy || !set) return;
+    if (anyBusy || !currentSet) return;
     busy = kind;
     try {
       const outcome = await fn();
@@ -189,7 +321,7 @@
       saveFile(
         () =>
           formatCards(
-            set as FlashcardSet,
+            currentSet as FlashcardSet,
             resolveTermSep(termSepValue),
             resolveCardSep(cardSepValue),
           ),
@@ -201,13 +333,13 @@
 
   function exportCsv() {
     runDownload("csv", () =>
-      saveFile(() => toCsv(set as FlashcardSet), `${baseName}.csv`, "text/csv"),
+      saveFile(() => toCsv(currentSet as FlashcardSet), `${baseName}.csv`, "text/csv"),
     );
   }
 
   function exportJson() {
     runDownload("json", () =>
-      saveFile(() => JSON.stringify(set, null, 2), `${baseName}.json`, "application/json"),
+      saveFile(() => JSON.stringify(currentSet, null, 2), `${baseName}.json`, "application/json"),
     );
   }
 
@@ -216,7 +348,7 @@
       saveFile(
         async () => {
           const { generateListPDF } = await import("$lib/export/pdf-list");
-          return generateListPDF(set as FlashcardSet).output("arraybuffer");
+          return generateListPDF(currentSet as FlashcardSet).output("arraybuffer");
         },
         `${baseName}-list.pdf`,
         "application/pdf",
@@ -229,7 +361,7 @@
       saveFile(
         async () => {
           const { generateFlashcardsPDF } = await import("$lib/export/pdf-flashcards");
-          return generateFlashcardsPDF(set as FlashcardSet).output("arraybuffer");
+          return generateFlashcardsPDF(currentSet as FlashcardSet).output("arraybuffer");
         },
         `${baseName}-cards.pdf`,
         "application/pdf",
@@ -238,7 +370,7 @@
   }
 
   function exportAnki() {
-    if (anyBusy || !set) return;
+    if (anyBusy || !currentSet) return;
     const withPreset = ankiPace;
     runDownload("anki", async () => {
       const outcome = await saveFile(
@@ -249,7 +381,7 @@
           ]);
           const SQL = await getSQL();
           return buildAnkiPackage({
-            set: set as FlashcardSet,
+            set: currentSet as FlashcardSet,
             days: ankiDays,
             SQL,
             withPreset,
@@ -266,43 +398,49 @@
     });
   }
 
-  // ────────── Share URL ──────────
+  // ────────── Share link ──────────
 
   let shareCopied = $state(false);
   let shareFailed = $state(false);
 
-  /** Computes the current `/process` URL. Name, description, cards are all in the
-   *  compressed `?d=` payload (no separate query params). */
-  function buildShareUrl(): { url: string; tooLong: boolean } {
-    if (!payload) return { url: "/process", tooLong: false };
-    const encoded = encodePayload(payload);
-    if (encoded.length > SHARE_URL_MAX) {
-      sessionStorage.setItem("quickcards:payload", JSON.stringify(payload));
-      return { url: "/process?d=local", tooLong: true };
-    }
-    return { url: `/process?d=${encoded}`, tooLong: false };
-  }
-
-  /** Sync the address bar with the current payload. No navigation. */
-  function syncUrl() {
-    if (!payload) return;
-    const { url } = buildShareUrl();
-    history.replaceState(history.state, "", url);
-  }
+  // Cap on share-link size. Past ~16 KB the link still loads in browsers
+  // but chat apps, email clients, and QR codes start mangling it. Above
+  // this we refuse to copy and steer the user to a file export, which
+  // works for sets of any size.
+  const SHARE_URL_MAX_BYTES = 16384;
 
   async function copyShareUrl() {
-    if (!payload) return;
-    const { url, tooLong } = buildShareUrl();
-    if (tooLong) {
+    if (!currentSet) return;
+    try {
+      await persistNow();
+      // Strip the local ID before encoding. It's a key into the sender's
+      // own IndexedDB and the receiver mints their own on decode.
+      const setForShare: FlashcardSet = { ...currentSet, id: "" };
+      const encoded = await encodeShareLink({ kind: "vocab", set: setForShare });
+
+      if (encoded.length > SHARE_URL_MAX_BYTES) {
+        track("Share link too big", { bytes: encoded.length });
+        toast("This set is too big for a share link", {
+          description: "Download it as JSON or CSV and share the file instead.",
+          duration: 8000,
+          action: {
+            label: "Download JSON",
+            onClick: () => exportJson(),
+          },
+        });
+        return;
+      }
+
+      const url = `${resolve("/process")}#s=${encoded}`;
+      await navigator.clipboard.writeText(`${window.location.origin}${url}`);
+      shareCopied = true;
+      track("Share link", { bytes: encoded.length });
+      setTimeout(() => (shareCopied = false), 1500);
+    } catch (err) {
+      console.error("[QuickCards] share link failed:", err);
       shareFailed = true;
       setTimeout(() => (shareFailed = false), 2200);
-      return;
     }
-    history.replaceState(history.state, "", url);
-    await navigator.clipboard.writeText(`${window.location.origin}${url}`);
-    shareCopied = true;
-    track("Share link");
-    setTimeout(() => (shareCopied = false), 1500);
   }
 </script>
 
@@ -311,13 +449,12 @@
   <meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
-{#if !payload}
-  <!-- Mount is pulling the payload; keep empty for the brief flash. -->
+{#if loading}
   <div class="flex min-h-screen items-center justify-center">
     <LoaderCircle class="text-muted-foreground size-6 animate-spin" />
   </div>
-{:else if payload.kind === "quizlet"}
-  <!-- ──────── Extension-required view ──────── -->
+{:else if quizletRefs}
+  <!-- ──────── Extension-required view (Quizlet links) ──────── -->
   <div class="mx-auto max-w-[640px] px-6 py-16 sm:py-20">
     <Button variant="ghost" size="sm" href="/" class="-ml-2.5">
       <ArrowLeft />
@@ -327,8 +464,8 @@
     <h1 class="mt-12 text-3xl font-semibold tracking-tight">Quizlet links need the extension</h1>
     <p class="text-muted-foreground mt-3 text-[15px] leading-7">
       We can't fetch Quizlet sets from the web directly. Cloudflare blocks cross-origin requests.
-      The extension runs inside your own browser session, so it works around this without any
-      workarounds of ours.
+      The extension runs inside your own browser session, so it works without any workarounds of
+      ours.
     </p>
 
     <div class="mt-8 flex flex-wrap gap-3">
@@ -344,10 +481,10 @@
 
     <div class="mt-16">
       <p class="text-muted-foreground text-sm">
-        {payload.sets.length === 1 ? "Set you pasted:" : `${payload.sets.length} sets you pasted:`}
+        {quizletRefs.length === 1 ? "Set you pasted:" : `${quizletRefs.length} sets you pasted:`}
       </p>
       <ul class="mt-3 space-y-2">
-        {#each payload.sets as ref (ref.id)}
+        {#each quizletRefs as ref (ref.id)}
           <li>
             <!-- eslint-disable svelte/no-navigation-without-resolve -- ref.url is an external Quizlet URL, not a route on our site -->
             <a
@@ -365,239 +502,287 @@
       </ul>
     </div>
   </div>
-{:else if payload.kind === "vocab" && set}
-  <!-- ──────── Export view ──────── -->
-  <div class="mx-auto max-w-[640px] px-6 py-12">
-    <div class="flex items-center justify-between">
-      <Button variant="ghost" size="sm" href="/" class="-ml-2.5">
+{:else if currentSet}
+  <!-- ──────── Editable vocab view ──────── -->
+  <div class="mx-auto max-w-6xl px-6 py-10">
+    <div class="flex items-center justify-between gap-3">
+      <Button variant="ghost" size="sm" href="/tool" class="-ml-2.5">
         <ArrowLeft />
         Back
       </Button>
-      {#if !isLocal}
-        <Button variant="ghost" size="sm" onclick={copyShareUrl}>
-          {#if shareCopied}
+      <Button variant="ghost" size="sm" onclick={copyShareUrl}>
+        {#if shareCopied}
+          <Check />
+          Link copied
+        {:else if shareFailed}
+          <Copy />
+          Couldn't copy
+        {:else}
+          <Copy />
+          Share link
+        {/if}
+      </Button>
+    </div>
+
+    <div class="mt-8 grid gap-10 lg:grid-cols-[1fr_320px] lg:gap-12">
+      <!-- Cards column (primary content) -->
+      <div class="min-w-0">
+        <div class="flex items-baseline justify-between gap-4">
+          <input
+            type="text"
+            bind:value={currentSet.title}
+            oninput={persistDebounced}
+            onblur={persistNow}
+            placeholder="Untitled set"
+            spellcheck="false"
+            aria-label="Set title"
+            class="placeholder:text-muted-foreground/40 min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight outline-none"
+          />
+          <span class="text-muted-foreground shrink-0 text-sm">
+            <span class="text-foreground font-semibold tabular-nums">{cardCount}</span>
+            {cardCount === 1 ? "card" : "cards"}
+          </span>
+        </div>
+
+        <textarea
+          bind:value={currentSet.description}
+          oninput={persistDebounced}
+          onblur={persistNow}
+          placeholder="Description (optional)"
+          spellcheck="false"
+          aria-label="Set description"
+          rows="1"
+          class="placeholder:text-muted-foreground/40 text-muted-foreground mt-2 field-sizing-content w-full resize-none bg-transparent text-sm leading-relaxed outline-none"
+        ></textarea>
+
+        <!-- Editable cards list. Each row has inline-editable term and
+             definition, plus a delete button that appears on hover. -->
+        <ul class="border-border divide-border/60 mt-6 divide-y rounded-lg border">
+          {#each currentSet.cards as card, i (i)}
+            <li
+              class="hover:bg-muted/30 group grid grid-cols-[2.25rem_1fr_1fr_2rem] gap-2 px-3 py-2 transition-colors"
+            >
+              <span
+                aria-hidden="true"
+                class="text-muted-foreground/60 self-center text-right font-mono text-xs tabular-nums"
+              >
+                {i + 1}
+              </span>
+              <input
+                type="text"
+                bind:value={card.term}
+                oninput={persistDebounced}
+                onblur={persistNow}
+                spellcheck="false"
+                placeholder="Term"
+                aria-label={`Term for card ${i + 1}`}
+                class="placeholder:text-muted-foreground/40 text-foreground focus:bg-background focus:ring-ring/50 min-w-0 truncate rounded-sm bg-transparent px-2 py-1 text-sm outline-none focus:ring-1"
+              />
+              <input
+                type="text"
+                bind:value={card.definition}
+                oninput={persistDebounced}
+                onblur={persistNow}
+                spellcheck="false"
+                placeholder="Definition"
+                aria-label={`Definition for card ${i + 1}`}
+                class="placeholder:text-muted-foreground/40 text-muted-foreground focus:bg-background focus:ring-ring/50 min-w-0 truncate rounded-sm bg-transparent px-2 py-1 text-sm outline-none focus:ring-1"
+              />
+              <button
+                type="button"
+                onclick={() => deleteCard(i)}
+                aria-label={`Delete card ${i + 1}`}
+                class="text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive focus-visible:ring-ring flex size-8 items-center justify-center self-center rounded opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <Trash2 class="size-3.5" />
+              </button>
+            </li>
+          {/each}
+        </ul>
+
+        <button
+          type="button"
+          onclick={addCard}
+          class="border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-sm transition-colors"
+        >
+          <Plus class="size-4" />
+          Add card
+        </button>
+      </div>
+
+      <!-- Export sidebar -->
+      <aside class="lg:sticky lg:top-6 lg:self-start">
+        <!-- Separators -->
+        <div class="space-y-3">
+          <div class="text-muted-foreground/70 font-mono text-[10px] tracking-wider uppercase">
+            Separators
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label class="text-muted-foreground text-xs" for="term-sep">Term-Def</Label>
+              <div class="relative">
+                <Input id="term-sep" bind:value={termSepValue} placeholder="e.g. |" class="pr-9" />
+                <Popover.Root>
+                  <Popover.Trigger
+                    class="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 inline-flex items-center px-2.5"
+                    aria-label="Term separator presets"
+                  >
+                    <ChevronDown class="size-4" />
+                  </Popover.Trigger>
+                  <Popover.Content align="end" class="w-48 p-1">
+                    {#each TERM_SEP_PRESETS as preset (preset)}
+                      <button
+                        type="button"
+                        onclick={() => (termSepValue = preset)}
+                        class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors"
+                      >
+                        <span>{preset}</span>
+                        {#if termSepValue === preset}
+                          <Check class="text-primary size-4" />
+                        {/if}
+                      </button>
+                    {/each}
+                  </Popover.Content>
+                </Popover.Root>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label class="text-muted-foreground text-xs" for="card-sep">Card</Label>
+              <div class="relative">
+                <Input id="card-sep" bind:value={cardSepValue} placeholder="e.g. --" class="pr-9" />
+                <Popover.Root>
+                  <Popover.Trigger
+                    class="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 inline-flex items-center px-2.5"
+                    aria-label="Card separator presets"
+                  >
+                    <ChevronDown class="size-4" />
+                  </Popover.Trigger>
+                  <Popover.Content align="end" class="w-48 p-1">
+                    {#each CARD_SEP_PRESETS as preset (preset)}
+                      <button
+                        type="button"
+                        onclick={() => (cardSepValue = preset)}
+                        class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors"
+                      >
+                        <span>{preset}</span>
+                        {#if cardSepValue === preset}
+                          <Check class="text-primary size-4" />
+                        {/if}
+                      </button>
+                    {/each}
+                  </Popover.Content>
+                </Popover.Root>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Button onclick={copyToClipboard} disabled={copied || anyBusy} class="mt-5 w-full">
+          {#if copied}
             <Check />
-            Link copied
-          {:else if shareFailed}
-            <Copy />
-            Too large to share
+            Copied
           {:else}
             <Copy />
-            Share link
+            Copy to clipboard
           {/if}
         </Button>
-      {/if}
-    </div>
 
-    <div class="mt-10 flex items-baseline justify-between gap-4">
-      <input
-        type="text"
-        bind:value={payload.set.title}
-        onblur={syncUrl}
-        placeholder="Untitled set"
-        spellcheck="false"
-        aria-label="Set title"
-        class="placeholder:text-muted-foreground/40 min-w-0 flex-1 bg-transparent text-3xl font-semibold tracking-tight outline-none"
-      />
-      <span class="text-muted-foreground shrink-0 text-sm">
-        <span class="text-foreground font-semibold tabular-nums">{cardCount}</span>
-        {cardCount === 1 ? "card" : "cards"}
-      </span>
-    </div>
-
-    <!-- Preview -->
-    <div class="mt-8">
-      <button
-        type="button"
-        onclick={() => (previewOpen = !previewOpen)}
-        class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-      >
-        <ChevronRight class="size-3.5 transition-transform {previewOpen ? 'rotate-90' : ''}" />
-        Preview
-      </button>
-      {#if previewOpen}
-        <div class="border-border mt-3 max-h-64 overflow-y-auto rounded-md border">
-          <table class="w-full text-sm">
-            <tbody>
-              {#each set.cards.slice(0, 20) as card, i (i)}
-                <tr class="border-border border-b last:border-0 {i % 2 === 1 ? 'bg-muted/30' : ''}">
-                  <td class="w-2/5 max-w-0 truncate px-3 py-1.5 font-medium">{card.term}</td>
-                  <td class="text-muted-foreground max-w-0 truncate px-3 py-1.5"
-                    >{card.definition}</td
-                  >
-                </tr>
-              {/each}
-              {#if set.cards.length > 20}
-                <tr>
-                  <td colspan="2" class="text-muted-foreground px-3 py-2 text-center text-xs">
-                    … and {set.cards.length - 20} more
-                  </td>
-                </tr>
-              {/if}
-            </tbody>
-          </table>
+        <div class="mt-7 flex items-center gap-3">
+          <Separator class="flex-1" />
+          <span class="text-muted-foreground text-xs">Download</span>
+          <Separator class="flex-1" />
         </div>
-      {/if}
-    </div>
 
-    <!-- Separators -->
-    <div class="mt-10 grid grid-cols-2 gap-4">
-      <div class="space-y-1.5">
-        <Label class="text-muted-foreground text-xs" for="term-sep">Term-Def separator</Label>
-        <div class="relative">
-          <Input id="term-sep" bind:value={termSepValue} placeholder="e.g. |" class="pr-9" />
-          <Popover.Root>
-            <Popover.Trigger
-              class="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 inline-flex items-center px-2.5"
-              aria-label="Term separator presets"
-            >
-              <ChevronDown class="size-4" />
-            </Popover.Trigger>
-            <Popover.Content align="end" class="w-48 p-1">
-              {#each TERM_SEP_PRESETS as preset (preset)}
-                <button
-                  type="button"
-                  onclick={() => (termSepValue = preset)}
-                  class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors"
-                >
-                  <span>{preset}</span>
-                  {#if termSepValue === preset}
-                    <Check class="text-primary size-4" />
-                  {/if}
-                </button>
-              {/each}
-            </Popover.Content>
-          </Popover.Root>
+        <div class="mt-4 space-y-2">
+          <Button
+            variant="outline"
+            onclick={exportTxt}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "txt"}
+              <LoaderCircle class="animate-spin" />
+              Preparing TXT…
+            {:else}
+              <Download />
+              TXT
+            {/if}
+          </Button>
+          <Button
+            variant="outline"
+            onclick={exportCsv}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "csv"}
+              <LoaderCircle class="animate-spin" />
+              Preparing CSV…
+            {:else}
+              <Download />
+              CSV
+            {/if}
+          </Button>
+          <Button
+            variant="outline"
+            onclick={exportJson}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "json"}
+              <LoaderCircle class="animate-spin" />
+              Preparing JSON…
+            {:else}
+              <Download />
+              JSON
+            {/if}
+          </Button>
+          <Button
+            variant="outline"
+            onclick={exportPdfList}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "pdf-list"}
+              <LoaderCircle class="animate-spin" />
+              Generating PDF…
+            {:else}
+              <Download />
+              PDF · Vocab list
+            {/if}
+          </Button>
+          <Button
+            variant="outline"
+            onclick={exportPdfFlashcards}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "pdf-cards"}
+              <LoaderCircle class="animate-spin" />
+              Generating PDF…
+            {:else}
+              <Download />
+              PDF · Flashcards
+            {/if}
+          </Button>
+          <Button
+            variant="outline"
+            onclick={() => (ankiOpen = true)}
+            disabled={anyBusy}
+            class="w-full justify-start"
+          >
+            {#if busy === "anki"}
+              <LoaderCircle class="animate-spin" />
+              Generating .apkg…
+            {:else}
+              <Download />
+              Anki · .apkg
+            {/if}
+          </Button>
         </div>
-      </div>
-
-      <div class="space-y-1.5">
-        <Label class="text-muted-foreground text-xs" for="card-sep">Card separator</Label>
-        <div class="relative">
-          <Input id="card-sep" bind:value={cardSepValue} placeholder="e.g. --" class="pr-9" />
-          <Popover.Root>
-            <Popover.Trigger
-              class="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 inline-flex items-center px-2.5"
-              aria-label="Card separator presets"
-            >
-              <ChevronDown class="size-4" />
-            </Popover.Trigger>
-            <Popover.Content align="end" class="w-48 p-1">
-              {#each CARD_SEP_PRESETS as preset (preset)}
-                <button
-                  type="button"
-                  onclick={() => (cardSepValue = preset)}
-                  class="hover:bg-accent hover:text-accent-foreground flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors"
-                >
-                  <span>{preset}</span>
-                  {#if cardSepValue === preset}
-                    <Check class="text-primary size-4" />
-                  {/if}
-                </button>
-              {/each}
-            </Popover.Content>
-          </Popover.Root>
-        </div>
-      </div>
+      </aside>
     </div>
 
-    <!-- Copy -->
-    <Button onclick={copyToClipboard} disabled={copied || anyBusy} class="mt-6 w-full">
-      {#if copied}
-        <Check />
-        Copied
-      {:else}
-        <Copy />
-        Copy to clipboard
-      {/if}
-    </Button>
-
-    <!-- Divider -->
-    <div class="mt-8 flex items-center gap-3">
-      <Separator class="flex-1" />
-      <span class="text-muted-foreground text-xs">Download as file</span>
-      <Separator class="flex-1" />
-    </div>
-
-    <!-- Downloads -->
-    <div class="mt-6 space-y-2">
-      <Button variant="outline" onclick={exportTxt} disabled={anyBusy} class="w-full justify-start">
-        {#if busy === "txt"}
-          <LoaderCircle class="animate-spin" />
-          Preparing TXT…
-        {:else}
-          <Download />
-          TXT
-        {/if}
-      </Button>
-      <Button variant="outline" onclick={exportCsv} disabled={anyBusy} class="w-full justify-start">
-        {#if busy === "csv"}
-          <LoaderCircle class="animate-spin" />
-          Preparing CSV…
-        {:else}
-          <Download />
-          CSV
-        {/if}
-      </Button>
-      <Button
-        variant="outline"
-        onclick={exportJson}
-        disabled={anyBusy}
-        class="w-full justify-start"
-      >
-        {#if busy === "json"}
-          <LoaderCircle class="animate-spin" />
-          Preparing JSON…
-        {:else}
-          <Download />
-          JSON
-        {/if}
-      </Button>
-      <Button
-        variant="outline"
-        onclick={exportPdfList}
-        disabled={anyBusy}
-        class="w-full justify-start"
-      >
-        {#if busy === "pdf-list"}
-          <LoaderCircle class="animate-spin" />
-          Generating PDF…
-        {:else}
-          <Download />
-          PDF · Vocab list
-        {/if}
-      </Button>
-      <Button
-        variant="outline"
-        onclick={exportPdfFlashcards}
-        disabled={anyBusy}
-        class="w-full justify-start"
-      >
-        {#if busy === "pdf-cards"}
-          <LoaderCircle class="animate-spin" />
-          Generating PDF…
-        {:else}
-          <Download />
-          PDF · Flashcards
-        {/if}
-      </Button>
-      <Button
-        variant="outline"
-        onclick={() => (ankiOpen = true)}
-        disabled={anyBusy}
-        class="w-full justify-start"
-      >
-        {#if busy === "anki"}
-          <LoaderCircle class="animate-spin" />
-          Generating .apkg…
-        {:else}
-          <Download />
-          Anki · .apkg
-        {/if}
-      </Button>
-    </div>
-
-    <!-- Anki Dialog -->
+    <!-- Anki dialog -->
     <Dialog.Root bind:open={ankiOpen}>
       <Dialog.Content class="sm:max-w-md">
         <Dialog.Header>
@@ -605,10 +790,6 @@
         </Dialog.Header>
 
         <div class="space-y-5">
-          <!-- Pace toggle, full card style. Off = ship the deck with no preset;
-               the user's existing Anki default scheduling takes over. On =
-               expand the day picker below and bundle a preset with deck options
-               adjusted for the deadline (anecdotal, useful under ~2 weeks). -->
           <button
             type="button"
             role="switch"
@@ -618,9 +799,9 @@
           >
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="text-foreground text-sm font-medium">Deadline mode (optional)</span>
-              <span class="text-muted-foreground text-xs"
-                >Adjusts deck options for tight timelines. Anecdotal, not science-backed.</span
-              >
+              <span class="text-muted-foreground text-xs">
+                Adjusts deck options for tight timelines. Anecdotal, not science-backed.
+              </span>
             </span>
             <span
               class="relative mt-0.5 inline-flex h-5 w-8 shrink-0 items-center rounded-full transition-colors duration-200"

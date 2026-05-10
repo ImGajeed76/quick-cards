@@ -21,7 +21,11 @@ export interface Flashcard {
 }
 
 export interface FlashcardSet {
+  /** Short URL-safe ID. Stable across saves; the address bar shows this. */
+  id: string;
   title: string;
   description: string;
   cards: Flashcard[];
+  /** Wall-clock millis the set was last persisted. Set by the storage layer. */
+  updatedAt?: number;
 }

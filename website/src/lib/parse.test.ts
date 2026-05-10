@@ -198,6 +198,131 @@ describe("JSON", () => {
     const r = parseInput("[not really json]");
     expect(r.kind).toBe("unknown");
   });
+
+  // Wrapper-object shapes.
+  //
+  //
+  // Real-world JSON inputs are usually objects with metadata + a cards
+  // array, not bare arrays. Covers our own export round-trip plus what AI
+  // models and other flashcard tools produce.
+
+  test("wrapper { title, description, cards: [...] } (our own export shape)", () => {
+    const input = JSON.stringify({
+      title: "Spanish basics",
+      description: "Merged from 2 sets",
+      cards: [
+        {
+          term: "hola",
+          definition: "hello",
+          termMedia: { tts: "https://example.com/tts1" },
+          definitionMedia: { tts: "https://example.com/tts2" },
+        },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+    expectVocab(parseInput(input), {
+      separator: "json",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("wrapper { flashcards: [...] }", () => {
+    const input = JSON.stringify({
+      flashcards: [
+        { front: "hola", back: "hello" },
+        { front: "gato", back: "cat" },
+      ],
+    });
+    expectVocab(parseInput(input), {
+      separator: "json",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("wrapper { notes: [{q, a}] }", () => {
+    const input = JSON.stringify({
+      notes: [
+        { q: "hola", a: "hello" },
+        { q: "gato", a: "cat" },
+      ],
+    });
+    expectVocab(parseInput(input), {
+      separator: "json",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("wrapper { terms: [...] }", () => {
+    const input = JSON.stringify({
+      terms: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+    expectVocab(parseInput(input), {
+      separator: "json",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  test("nested wrapper { deck: { cards: [...] } } (Anki-style)", () => {
+    const input = JSON.stringify({
+      deck: {
+        name: "Spanish",
+        cards: [
+          { term: "hola", definition: "hello" },
+          { term: "gato", definition: "cat" },
+        ],
+      },
+    });
+    expectVocab(parseInput(input), {
+      separator: "json",
+      pairs: [
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ],
+    });
+  });
+
+  // Architectural rule: JSON commits to its path.
+  //
+  //
+  // If the input parses as JSON, the parser must NOT fall through to the
+  // smart-delimiter / colon scanner. Otherwise valid JSON we can't recognize
+  // gets chopped by `:` and produces dozens of garbage "pairs". These tests
+  // pin that contract.
+
+  test("valid JSON we can't extract returns unknown, not colon-scanned", () => {
+    const input = JSON.stringify({ foo: 123, bar: [1, 2, 3] });
+    const r = parseInput(input);
+    expect(r.kind).toBe("unknown");
+  });
+
+  test("wrapper with empty cards array returns unknown", () => {
+    const input = JSON.stringify({ title: "Empty", cards: [] });
+    const r = parseInput(input);
+    expect(r.kind).toBe("unknown");
+  });
+
+  test("wrapper with non-array cards field doesn't crash", () => {
+    const input = JSON.stringify({ cards: "not an array" });
+    const r = parseInput(input);
+    // It IS valid JSON; commits to the JSON path; can't extract; returns
+    // unknown. Does NOT colon-scan.
+    expect(r.kind).toBe("unknown");
+  });
 });
 
 // --------------------------------------------------------------------------
@@ -305,6 +430,33 @@ describe("TOML", () => {
         { term: "por favor", definition: "please" },
       ],
     });
+  });
+
+  // Architectural rule: an input that's clearly TOML (has [[section]] or
+  // [section] markers) must not fall through to the colon scanner. Even
+  // if we can't extract pairs, we'd rather return unknown than chop the
+  // file by colons. Properly extracting [[cards]] array-of-tables is a
+  // separate task; this test pins the no-fallthrough contract.
+  test("array-of-tables shape doesn't get colon-scanned", () => {
+    const input = `[[cards]]
+term = "hola"
+definition = "hello"
+
+[[cards]]
+term = "gato"
+definition = "cat"`;
+    const r = parseInput(input);
+    // Must not return 4 garbage pairs ({term: "term", def: "hola"}, etc.)
+    // from the colon delim scan. Either we extract correctly, or we return
+    // unknown. Both are acceptable for now; the colon scan is not.
+    if (r.kind === "vocab") {
+      expect(r.pairs).toEqual([
+        { term: "hola", definition: "hello" },
+        { term: "gato", definition: "cat" },
+      ]);
+    } else {
+      expect(r.kind).toBe("unknown");
+    }
   });
 });
 

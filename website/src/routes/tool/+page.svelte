@@ -10,6 +10,7 @@
   import { ArrowRight, ChevronRight, Play } from "@lucide/svelte";
   import { parseInput } from "$lib/parse";
   import { encodePayload, type SharePayload } from "$lib/share";
+  import { generateSetId, saveSet } from "$lib/storage";
   import { SITE_NAME, SITE_URL, CWS_URL } from "$lib/site";
 
   const title = `${SITE_NAME} tool · Convert flashcard data to Anki, PDF, CSV, JSON`;
@@ -23,7 +24,6 @@
   // client-side when we can actually inspect the user's platform.
   let isMac = $state(false);
   const canContinue = $derived(value.trim().length > 0);
-  const SHARE_URL_MAX = 8000;
 
   onMount(() => {
     isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -88,31 +88,38 @@ Or click an example below.`;
     const result = parseInput(value);
     track("Continue", { kind: result.kind, source: "tool" });
 
-    let payload: SharePayload;
     if (result.kind === "vocab") {
-      payload = {
-        kind: "vocab",
-        set: { title: "", description: "", cards: result.pairs },
-      };
-    } else if (result.kind === "quizlet") {
-      payload = { kind: "quizlet", sets: result.sets };
-    } else if (result.kind === "unknown") {
-      error = result.reason;
-      return;
-    } else {
-      error = "Paste something first.";
+      // Vocab path: save the set to IndexedDB and navigate with the
+      // short ID in the URL fragment. The fragment never reaches Vercel,
+      // so the ID stays purely client-side.
+      const id = generateSetId();
+      await saveSet({
+        id,
+        title: "",
+        description: "",
+        cards: result.pairs,
+      });
+      // eslint-disable-next-line svelte/no-navigation-without-resolve
+      await goto(resolve("/process") + `#d=${id}`);
       return;
     }
 
-    const encoded = encodePayload(payload);
-    if (encoded.length > SHARE_URL_MAX) {
-      sessionStorage.setItem("quickcards:payload", JSON.stringify(payload));
+    if (result.kind === "quizlet") {
+      // Quizlet path: not persisted. Carry the URL refs in the fragment
+      // (lz-string blob) since /process handles them transiently.
+      const payload: SharePayload = { kind: "quizlet", sets: result.sets };
+      const encoded = encodePayload(payload);
       // eslint-disable-next-line svelte/no-navigation-without-resolve
-      await goto(resolve("/process") + "?d=local");
-    } else {
-      // eslint-disable-next-line svelte/no-navigation-without-resolve
-      await goto(resolve("/process") + `?d=${encoded}`);
+      await goto(resolve("/process") + `#d=${encoded}`);
+      return;
     }
+
+    if (result.kind === "unknown") {
+      error = result.reason;
+      return;
+    }
+
+    error = "Paste something first.";
   }
 
   const appJsonLd = {
@@ -289,7 +296,7 @@ Osmosis<span class="text-primary/70">,</span><span class="text-muted-foreground"
               data-gramm="false"
               data-gramm_editor="false"
               data-enable-grammarly="false"
-              class="min-h-[260px] resize-y rounded-none border-0 bg-transparent px-3 py-2 font-mono text-[13px] leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0"
+              class="field-sizing-fixed h-[320px] resize-none overflow-y-auto rounded-md border-0 bg-transparent px-3 py-2 font-mono text-[13px] leading-6 shadow-none focus-visible:border-0 focus-visible:ring-0"
             />
             <div class="flex items-center justify-between gap-2 px-1.5 pb-1.5">
               <span class="text-muted-foreground text-xs">

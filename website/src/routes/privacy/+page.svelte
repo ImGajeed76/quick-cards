@@ -9,7 +9,7 @@
   const title = `Privacy Policy | ${SITE_NAME}`;
   const description = `What data ${SITE_NAME} touches and what we do (and don't do) with it.`;
 
-  const LAST_UPDATED = "2026-05-03";
+  const LAST_UPDATED = "2026-05-10";
 
   // Verify these stay current. Knowt has moved its policy URL before.
   const QUIZLET_PRIVACY = "https://quizlet.com/privacy";
@@ -221,6 +221,23 @@
         <ArrowUpRight class="size-3.5" />
       </a>
       for what their CDN does at the network layer.
+    </p>
+
+    <h3 class="text-foreground mt-8 text-lg font-medium">Share links and saved sets</h3>
+    <p class="text-muted-foreground mt-2 text-[15px] leading-7">
+      Sets you create on the website are saved in your browser's IndexedDB and addressed by a short
+      ID in the URL fragment, like
+      <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
+        >/process#d=abc123</code
+      >. The Share button compresses the cards into the same fragment, like
+      <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
+        >/process#s=…</code
+      >. Anything after
+      <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]">#</code>
+      is, by browser design, never sent over the network. Vercel only sees the path,
+      <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
+        >/process</code
+      >, never the ID or the cards. Whoever opens the link decodes it locally.
     </p>
 
     <h2 class="mt-16 text-2xl font-semibold tracking-tight">Anonymous usage analytics</h2>

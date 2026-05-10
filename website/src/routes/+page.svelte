@@ -161,6 +161,7 @@
   // Preview content generation — reuses the same formatters that produce
   // real downloads on /process, so visitors see exactly what they'd get.
   const previewSet = $derived({
+    id: "preview",
     title: "Example set",
     description: "",
     cards: currentExample.pairs,
