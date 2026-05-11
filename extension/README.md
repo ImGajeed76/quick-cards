@@ -13,11 +13,14 @@ Copy to clipboard, download as PDF, Anki, TXT, CSV, or JSON, or import directly 
 ## Features
 
 - **No login required.** Fetches cards directly via Quizlet's web API, no account needed.
+- **Re-import dedup.** Anki notes use stable, set-derived GUIDs, so re-importing the same Quizlet set updates existing notes in place instead of creating duplicates.
+- **Local cache.** Sets and downloaded media are cached in IndexedDB (per-extension origin, 500 MB media cap). Re-exports skip the network for unchanged sets and audio.
 - **Merge sets.** Combine cards from multiple open Quizlet tabs into a single export, with automatic duplicate removal.
 - **Instant copy.** One click from the floating banner or popup.
 - **Export formats.** PDF vocab list, PDF printable flashcards, Anki `.apkg` (with images and audio bundled), TXT, CSV, JSON.
 - **Import to Knowt.** Create a new flashcard set on your Knowt account with one click. Reuses your existing Knowt session; no separate login, no API key.
-- **Anki export with media + optional pacing.** Cards land in two decks (flip + typing) on a media-aware notetype: images, user audio, and Quizlet TTS bundled into the `.apkg`. Optional toggle ships an FSRS preset tuned to your deadline; off uses Anki's default scheduling.
+- **Anki export with media + optional pacing.** Cards land in two decks (flip + typing) on a media-aware notetype: images, user audio, and Quizlet TTS bundled into the `.apkg`. Set-level language tagging is applied to every card, so non-Latin sets (Korean, Japanese, Chinese, etc.) get correct TTS and `lang` attributes. Optional toggle ships an FSRS preset tuned to your deadline; off uses Anki's default scheduling.
+- **Failed-media log.** If any media downloads fail during an Anki export, the popup surfaces the count and offers a one-click copy of the failed URLs (with timestamp, set title, and extension version) for diagnosis.
 - **Customizable separators.** Pick a preset or type your own for term-definition and card separators.
 - **Floating banner.** Auto-appears on Quizlet set pages with card count and quick copy.
 - **PDF vocab list.** Formatted table with title, numbering, and alternating row tints.
@@ -136,15 +139,17 @@ bun run test:pdf
 Pushing a version tag triggers a GitHub Actions workflow that builds the extension for Chrome and Firefox, zips both, and creates a GitHub Release with auto-generated notes (`quick-cards-chrome-vX.Y.Z.zip` and `quick-cards-firefox-vX.Y.Z.zip`).
 
 ```bash
-git tag v1.5.0
-git push origin v1.5.0
+git tag v1.7.0
+git push origin v1.7.0
 ```
 
 The manifest version is automatically patched to match the tag. Pre-release tags (e.g. `v2.0.0-beta.1`) are marked as pre-releases.
 
 ## How it works
 
-QuickCards fetches flashcard data directly from Quizlet's web API (`/webapi/3.4/studiable-item-documents`). No login or account required. It automatically paginates to retrieve all cards, even for large sets. If the API is unavailable, it falls back to scraping Quizlet's embedded `__NEXT_DATA__` JSON.
+QuickCards fetches flashcard data directly from Quizlet's web API. Each export hits two endpoints: `/webapi/3.4/sets/{id}` for set metadata (title, languages, thumbnail, `lastModified` watermark) and `/webapi/3.4/studiable-item-documents` for the cards (paginated). No login or account beyond your existing Quizlet session is required.
+
+Both responses are cached in IndexedDB on the extension origin (separate from Quizlet's own storage). Subsequent exports of the same set are served from cache when the `lastModified` watermark matches, so unchanged sets do not re-hit the network. Downloaded media (images, user audio, TTS) is cached by URL with a 500 MB LRU cap; URLs are content-addressed, so cached bytes can never be stale.
 
 **Import to Knowt** uses the same trick in reverse. When you click the button, the extension reads Knowt's Cognito ID token from the cookie already set on `knowt.com`, decodes your user ID from it, and calls Knowt's AppSync GraphQL endpoint, the same one Knowt's own web app uses. Two mutations: one creates the set shell with your title and description, the second fills in the cards (chunked in batches of 100). Nothing is stored; the token never leaves your browser.
 

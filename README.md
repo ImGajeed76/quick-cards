@@ -24,24 +24,26 @@ Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Not
 
 - **Paste anything.** Single or multiple Quizlet URLs, vocab lists with 15+ separator styles, JSON (common shapes: `{term,definition}`, `{front,back}`, tuples, flat key→value), JSON Lines, quoted CSV, TSV, Markdown tables, TOML.
 - **Six export formats.** PDF vocab list, printable PDF flashcards (2×4 grid, double-sided, syllable hyphenation), Anki `.apkg`, TXT, CSV, JSON.
+- **Re-import dedup** (extension). Anki notes use stable GUIDs, so re-exporting a Quizlet set updates existing notes in Anki instead of creating duplicates.
+- **Local cache** (extension). Sets and downloaded media are cached in IndexedDB; re-exports of unchanged sets skip the network entirely.
 - **Import to Knowt** (extension). One-click creates a new flashcard set on your existing Knowt account. Runs in your browser session; no separate login, no copy-paste.
-- **Anki with media.** Images, audio recordings, and Quizlet TTS get bundled into the .apkg so cards work offline. Optional FSRS preset paced to a deadline you pick, or use Anki's defaults.
+- **Anki with media.** Images, audio recordings, and Quizlet TTS get bundled into the .apkg so cards work offline. Non-Latin sets (Korean, Japanese, Chinese, etc.) get correct TTS and `lang` tagging. Optional FSRS preset paced to a deadline you pick, or use Anki's defaults.
 - **Merge multiple sets** (extension). Combine cards from all open Quizlet tabs, with duplicate-removal toggle.
-- **Shareable URLs** (web). The full card set is compressed into the URL; anyone with the link sees the same export.
+- **Shareable URLs** (web). The full card set is compressed into the URL fragment (never sent to a server); anyone with the link sees the same export.
 - **Client-side only.** No server, no account, no data leaves your browser.
 
 ## Screenshots
 
-| Popup | Export | Anki (paced) |
-|:-:|:-:|:-:|
+|                Popup                 |                  Export                   |             Anki (paced)              |
+| :----------------------------------: | :---------------------------------------: | :-----------------------------------: |
 | ![Popup main](assets/popup_main.png) | ![Export screen](assets/pupup_export.png) | ![Anki paced](assets/anki_screen.png) |
 
-| Anki (no preset) | PDF vocab list | PDF flashcards |
-|:-:|:-:|:-:|
+|                 Anki (no preset)                  |          PDF vocab list          |           PDF flashcards           |
+| :-----------------------------------------------: | :------------------------------: | :--------------------------------: |
 | ![Anki no preset](assets/anki_screen_no_pace.png) | ![PDF list](assets/pdf_list.png) | ![PDF cards](assets/pdf_cards.png) |
 
-| Merge sets | Knowt import (form) | Knowt import (importing) |
-|:-:|:-:|:-:|
+|                Merge sets                |               Knowt import (form)               |               Knowt import (importing)                |
+| :--------------------------------------: | :---------------------------------------------: | :---------------------------------------------------: |
 | ![Merge screen](assets/merge_screen.png) | ![Knowt form](assets/knowt_import_settings.png) | ![Knowt importing](assets/knowt_importing_screen.png) |
 
 ## Repository layout
@@ -84,7 +86,7 @@ bun test           # parser unit tests (73)
 **Extension.** Push a version tag, GitHub Actions builds and zips, publishes a GitHub Release with auto-generated notes. The release ZIP is then uploaded to the Chrome Web Store dashboard.
 
 ```bash
-git tag v1.5.0 && git push origin v1.5.0
+git tag v1.7.0 && git push origin v1.7.0
 ```
 
 **Web.** `main` auto-deploys to Vercel (static build, pure client-side, no runtime server).
