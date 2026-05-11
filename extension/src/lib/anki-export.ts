@@ -126,9 +126,16 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
   const totalCards = set.cards.length;
 
   // 1. Map every flashcard onto the 12-field shape, recording every distinct
-  //    media URL into the index along the way.
+  //    media URL into the index along the way. Also keep the per-card
+  //    Quizlet ID alongside so we can build deterministic note GUIDs (so
+  //    re-importing the same set updates existing notes in place instead of
+  //    creating duplicates).
   const media = new MediaIndex();
-  const noteFields = set.cards.map((c) => flashcardToFields(c, media));
+  const langs = { wordLang: set.wordLang, defLang: set.defLang };
+  const notes = set.cards.map((c) => ({
+    fields: flashcardToFields(c, media, langs),
+    quizletId: c.quizletId,
+  }));
 
   // 2. Download all referenced media in parallel. No-op when the index is
   //    empty (e.g. plain text-only flashcards).
@@ -179,10 +186,26 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
   });
 
   // 6. Add notes. Same field values to both decks; the differing notetype
-  //    decides which templates render.
-  for (const fields of noteFields) {
-    flipDeck.addNote(new Note({ model: flipModel, fields }));
-    typingDeck.addNote(new Note({ model: typingModel, fields }));
+  //    decides which templates render. Quizlet's per-card ID seeds a stable
+  //    GUID per notetype (`qc-f-<id>` for flip, `qc-t-<id>` for typing) so
+  //    re-importing the same set updates existing notes in place. Cards
+  //    without a Quizlet ID (e.g. website-paste flows) fall through to
+  //    ankipack's auto-generated random GUID.
+  for (const { fields, quizletId } of notes) {
+    flipDeck.addNote(
+      new Note({
+        model: flipModel,
+        fields,
+        guid: quizletId ? `qc-f-${quizletId}` : undefined,
+      }),
+    );
+    typingDeck.addNote(
+      new Note({
+        model: typingModel,
+        fields,
+        guid: quizletId ? `qc-t-${quizletId}` : undefined,
+      }),
+    );
   }
 
   // 7. Pack and bundle.

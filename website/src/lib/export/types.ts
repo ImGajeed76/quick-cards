@@ -28,4 +28,8 @@ export interface FlashcardSet {
   cards: Flashcard[];
   /** Wall-clock millis the set was last persisted. Set by the storage layer. */
   updatedAt?: number;
+  /** Term-side language (ISO short code), authoritative over per-media language. */
+  wordLang?: string;
+  /** Definition-side language. */
+  defLang?: string;
 }

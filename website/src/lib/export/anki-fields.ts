@@ -49,11 +49,26 @@ export class MediaIndex {
   }
 }
 
+export interface SetLangs {
+  /** Authoritative term-side language (set.wordLang). Falls back to media.languageCode. */
+  wordLang?: string;
+  /** Authoritative definition-side language (set.defLang). */
+  defLang?: string;
+}
+
 /**
  * Map a Flashcard onto the 12-field array QuickCards v1 expects. Every Note
  * passes through here so the field layout stays in lock-step with FIELD_NAMES.
+ *
+ * Per-media `languageCode` is unreliable on some Quizlet sets (every side
+ * tagged "en" even when the text is non-Latin). When the caller supplies
+ * set-level wordLang/defLang, prefer those over the per-media value.
  */
-export function flashcardToFields(card: Flashcard, media: MediaIndex): string[] {
+export function flashcardToFields(
+  card: Flashcard,
+  media: MediaIndex,
+  langs: SetLangs = {},
+): string[] {
   const t = card.termMedia ?? {};
   const d = card.definitionMedia ?? {};
   return [
@@ -62,11 +77,11 @@ export function flashcardToFields(card: Flashcard, media: MediaIndex): string[] 
     /*  2 TermImage       */ formatImage(t.image, media),
     /*  3 TermAudio       */ formatSound(t.audio, media),
     /*  4 TermTTS         */ formatSound(t.tts, media),
-    /*  5 TermLang        */ t.language ?? "",
+    /*  5 TermLang        */ langs.wordLang ?? t.language ?? "",
     /*  6 DefinitionImage */ formatImage(d.image, media),
     /*  7 DefinitionAudio */ formatSound(d.audio, media),
     /*  8 DefinitionTTS   */ formatSound(d.tts, media),
-    /*  9 DefinitionLang  */ d.language ?? "",
+    /*  9 DefinitionLang  */ langs.defLang ?? d.language ?? "",
     /* 10 AddReverse      */ "1",
     /* 11 QuizletId       */ card.quizletId ?? "",
   ];

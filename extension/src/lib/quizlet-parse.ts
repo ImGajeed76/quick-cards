@@ -32,6 +32,8 @@ interface ApiCardSide {
 }
 
 export interface StudiableItem {
+  /** Quizlet's stable per-card ID. Numeric in the JSON, kept as a string for safety. */
+  id?: number | string;
   cardSides?: ApiCardSide[];
 }
 
@@ -81,6 +83,7 @@ export function extractCardFromItem(item: StudiableItem): Flashcard | null {
   };
   if (hasMedia(front.media)) card.termMedia = front.media;
   if (hasMedia(back.media)) card.definitionMedia = back.media;
+  if (item.id !== undefined && item.id !== null) card.quizletId = String(item.id);
 
   if (!card.term && !card.definition && !card.termMedia && !card.definitionMedia) {
     return null;
