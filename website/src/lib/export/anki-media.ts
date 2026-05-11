@@ -21,22 +21,28 @@ export interface DownloadProgress {
  * Concurrency is intentionally modest. Quizlet's CDNs are fast enough that 6
  * parallel fetches saturate the link without tripping rate-limit heuristics.
  */
+export interface DownloadResult {
+  files: Map<string, Uint8Array>;
+  /** URLs that failed to download. Empty when everything succeeded. */
+  failedUrls: string[];
+}
+
 export async function downloadMedia(
   entries: MediaEntry[],
   onProgress?: (progress: DownloadProgress) => void,
   concurrency = 6,
-): Promise<Map<string, Uint8Array>> {
-  const out = new Map<string, Uint8Array>();
+): Promise<DownloadResult> {
+  const files = new Map<string, Uint8Array>();
+  const failedUrls: string[] = [];
   const total = entries.length;
 
   if (total === 0) {
     onProgress?.({ phase: "download", done: 0, total: 0, failed: 0 });
-    return out;
+    return { files, failedUrls };
   }
 
   let cursor = 0;
   let done = 0;
-  let failed = 0;
 
   onProgress?.({ phase: "download", done: 0, total, failed: 0 });
 
@@ -46,17 +52,25 @@ export async function downloadMedia(
       if (!entry) continue;
       const bytes = await fetchOne(entry.url);
       if (bytes) {
-        out.set(entry.filename, bytes);
+        files.set(entry.filename, bytes);
       } else {
-        failed++;
+        failedUrls.push(entry.url);
       }
       done++;
-      onProgress?.({ phase: "download", done, total, failed });
+      onProgress?.({ phase: "download", done, total, failed: failedUrls.length });
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, total) }, worker));
-  return out;
+
+  if (failedUrls.length > 0) {
+    console.warn(
+      `[QuickCards] ${failedUrls.length} media file(s) failed to download:\n` +
+        failedUrls.join("\n"),
+    );
+  }
+
+  return { files, failedUrls };
 }
 
 async function fetchOne(url: string): Promise<Uint8Array | null> {

@@ -648,6 +648,66 @@
       </div>
     </div>
 
+    <!-- ========== ANKI — POST-EXPORT WITH FAILED MEDIA ========== -->
+    <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
+      Anki Export — After Failed Media
+    </p>
+    <div class="popup-frame">
+      <div class="bg-card text-card-foreground space-y-4 p-4" x-data="{ failed: 3 }">
+        <!-- Back + card count -->
+        <div class="flex items-center justify-between">
+          <button
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            <i data-lucide="arrow-left" class="h-4 w-4" aria-hidden="true"></i>
+            Back
+          </button>
+          <span class="text-muted-foreground text-sm"
+            ><strong class="text-foreground font-semibold tabular-nums">42</strong> cards</span
+          >
+        </div>
+
+        <!-- Pace toggle row (carried over from normal state for visual continuity) -->
+        <label class="flex cursor-pointer items-center justify-between gap-3">
+          <span class="text-muted-foreground text-xs">Pace deck (creates FSRS preset)</span>
+          <div class="bg-primary relative inline-flex h-4 w-7 shrink-0 items-center rounded-full">
+            <span
+              class="inline-block h-3 w-3 translate-x-3.5 rounded-full bg-white shadow-sm"
+            ></span>
+          </div>
+        </label>
+
+        <!-- Failed-media replacement button. Replaces the Download CTA in
+             the same slot so the popup's height stays locked. Default
+             state: subtle red wash + alert icon + status text on the left,
+             action hint on the right. Copied state mirrors the existing
+             Copy button (bg-primary/20 text-primary), and drops the icon
+             since the success text alone carries the meaning. -->
+        <button
+          x-data="{ copied: false }"
+          @click="if(!copied) { copied = true; setTimeout(() => copied = false, 1500) }"
+          class="ring-offset-background focus-visible:ring-ring inline-flex h-9 w-full items-center justify-center rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          :class="copied ? 'bg-primary/20 text-primary border-transparent' : 'bg-destructive/5 hover:bg-destructive/10 border-destructive/20'"
+          :disabled="copied"
+        >
+          <span x-show="!copied" class="flex w-full items-center justify-between gap-2">
+            <span class="flex items-center gap-2">
+              <i
+                data-lucide="circle-alert"
+                class="text-destructive h-4 w-4 shrink-0"
+                aria-hidden="true"
+              ></i>
+              <span class="text-foreground">
+                <span class="tabular-nums" x-text="failed"></span> media failed
+              </span>
+            </span>
+            <span class="text-muted-foreground text-xs">Copy log</span>
+          </span>
+          <span x-show="copied">Log copied</span>
+        </button>
+      </div>
+    </div>
+
     <!-- ========== KNOWT — FORM ========== -->
     <p class="text-muted-foreground mt-12 mb-6 text-center text-xs tracking-wide uppercase">
       Knowt Import — Form

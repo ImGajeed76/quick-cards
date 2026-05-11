@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.action === "generateAnki") {
     handleAnkiGeneration(message.set, message.days, message.withPreset !== false)
-      .then(() => sendResponse({ ok: true }))
+      .then(({ failedUrls }) => sendResponse({ ok: true, failedUrls }))
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
@@ -112,9 +112,9 @@ async function handleAnkiGeneration(
   set: FlashcardSet,
   days: number,
   withPreset: boolean,
-): Promise<void> {
+): Promise<{ failedUrls: string[] }> {
   const SQL = await getSQL();
-  const bytes = await buildAnkiPackage({
+  const { bytes, failedUrls } = await buildAnkiPackage({
     set,
     days,
     SQL,
@@ -130,6 +130,7 @@ async function handleAnkiGeneration(
   const title = set.title || "flashcards";
   const blob = new Blob([new Uint8Array(bytes)], { type: "application/octet-stream" });
   await downloadBlob(blob, `${title}.apkg`);
+  return { failedUrls };
 }
 
 // ── Helpers ─────────────────────────────────────────────

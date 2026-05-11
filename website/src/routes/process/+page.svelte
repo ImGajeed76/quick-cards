@@ -373,6 +373,7 @@
     if (anyBusy || !currentSet) return;
     const withPreset = ankiPace;
     runDownload("anki", async () => {
+      let failedUrls: string[] = [];
       const outcome = await saveFile(
         async () => {
           const [{ buildAnkiPackage }, { getSQL }] = await Promise.all([
@@ -380,12 +381,14 @@
             import("$lib/export/sql"),
           ]);
           const SQL = await getSQL();
-          return buildAnkiPackage({
+          const result = await buildAnkiPackage({
             set: currentSet as FlashcardSet,
             days: ankiDays,
             SQL,
             withPreset,
           });
+          failedUrls = result.failedUrls;
+          return result.bytes;
         },
         `${baseName}.apkg`,
         "application/octet-stream",
@@ -393,6 +396,34 @@
       if (outcome === "ok") {
         ankiOpen = false;
         if (withPreset) track("Anki days", { range: bucketDays(ankiDays) });
+        // Anki tolerates missing media references; the .apkg still works, just
+        // without the failed audio/images. Tell the user and offer the URL
+        // list so they can diagnose if they care.
+        if (failedUrls.length > 0) {
+          const count = failedUrls.length;
+          const setTitle = currentSet?.title ?? "Untitled set";
+          // Same header shape as the extension popup so a log pasted into a
+          // bug report carries enough context on its own.
+          const log = [
+            "QuickCards failed media log",
+            `Generated: ${new Date().toISOString()}`,
+            `Set: ${JSON.stringify(setTitle)}`,
+            `Source: website`,
+            `Failed: ${count} URL${count === 1 ? "" : "s"}`,
+            "",
+            ...failedUrls,
+          ].join("\n");
+          toast(`${count} media ${count === 1 ? "file" : "files"} failed to download`, {
+            description: "Anki deck saved without them. Copy the URL list for diagnosis.",
+            duration: 8000,
+            action: {
+              label: "Copy log",
+              onClick: () => {
+                navigator.clipboard.writeText(log).catch(() => {});
+              },
+            },
+          });
+        }
       }
       return outcome;
     });

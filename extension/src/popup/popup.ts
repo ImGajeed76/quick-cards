@@ -135,6 +135,12 @@ Alpine.data("popup", () => ({
   ankiProgressDone: 0,
   ankiProgressTotal: 0,
 
+  // Post-export "N media failed" state. Cleared at the start of each new
+  // export. When > 0, the popup replaces the Download button with a
+  // "<n> media failed / Copy log" control instead of going back to idle.
+  ankiFailedUrls: [] as string[],
+  ankiFailedCopied: false,
+
   // Knowt import state
   knowtStep: "form" as "form" | "needsAuth" | "importing" | "success" | "error",
   knowtTitle: "",
@@ -469,6 +475,17 @@ Alpine.data("popup", () => ({
     this.screen = this.exportSource === "merge" ? "merge" : "main";
   },
 
+  /**
+   * Back from the Anki screen returns to the export picker. Also clears any
+   * lingering failure state so a follow-up visit to the Anki screen starts
+   * fresh and the Download button is available for retry.
+   */
+  goBackFromAnki() {
+    this.screen = "export";
+    this.ankiFailedUrls = [];
+    this.ankiFailedCopied = false;
+  },
+
   renderPreview() {
     if (!originalSet) return;
 
@@ -674,6 +691,10 @@ Alpine.data("popup", () => ({
     this.ankiProgressPhase = "";
     this.ankiProgressDone = 0;
     this.ankiProgressTotal = 0;
+    // Clear any post-export failure state from a previous run so the UI
+    // returns to the plain Download button while this one is in flight.
+    this.ankiFailedUrls = [];
+    this.ankiFailedCopied = false;
     try {
       const res = await chrome.runtime.sendMessage({
         action: "generateAnki",
@@ -684,6 +705,8 @@ Alpine.data("popup", () => ({
       if (res?.ok) {
         track("Export", { format: withPreset ? "anki" : "anki-no-preset" });
         if (withPreset) track("Anki days", { range: bucketDays(this.ankiDays) });
+        const failed: string[] = Array.isArray(res.failedUrls) ? res.failedUrls : [];
+        this.ankiFailedUrls = failed;
       } else {
         console.error("[QuickCards] Anki generation failed:", res?.error);
       }
@@ -694,6 +717,42 @@ Alpine.data("popup", () => ({
       this.ankiProgressPhase = "";
       this.ankiProgressDone = 0;
       this.ankiProgressTotal = 0;
+    }
+  },
+
+  /**
+   * Copy the failed-media URLs with a context header (timestamp, set title,
+   * extension version, count) to the clipboard. The header makes the log
+   * self-contained: someone receiving it in a bug report does not need to
+   * ask follow-ups. Shows a 1.5s "Log copied" confirmation.
+   */
+  async copyFailedLog() {
+    if (this.ankiFailedCopied || this.ankiFailedUrls.length === 0) return;
+    const setTitle = exportSet?.title || originalSet?.title || "Untitled set";
+    let version = "unknown";
+    try {
+      version = chrome.runtime.getManifest().version;
+    } catch {
+      // not in extension context (e.g. dev preview)
+    }
+    const count = this.ankiFailedUrls.length;
+    const log = [
+      "QuickCards failed media log",
+      `Generated: ${new Date().toISOString()}`,
+      `Set: ${JSON.stringify(setTitle)}`,
+      `Source: extension v${version}`,
+      `Failed: ${count} URL${count === 1 ? "" : "s"}`,
+      "",
+      ...this.ankiFailedUrls,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(log);
+      this.ankiFailedCopied = true;
+      setTimeout(() => {
+        this.ankiFailedCopied = false;
+      }, 1500);
+    } catch (err) {
+      console.error("[QuickCards] copyFailedLog failed:", err);
     }
   },
 

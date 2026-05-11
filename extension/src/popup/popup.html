@@ -531,7 +531,7 @@
       <!-- Back + card count -->
       <div class="flex items-center justify-between">
         <button
-          x-on:click="screen = 'export'"
+          x-on:click="goBackFromAnki"
           class="text-muted-foreground hover:text-foreground focus-visible:ring-ring -ml-1 inline-flex items-center gap-1.5 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           <svg
@@ -661,8 +661,11 @@
         </div>
       </div>
 
-      <!-- Download button (always visible; preset is implied by the toggle) -->
+      <!-- Download button. Shown whenever there is no post-export failure
+           message active. While generating, swaps the icon for a spinner
+           and shows the progress label. -->
       <button
+        x-show="ankiFailedUrls.length === 0"
         x-on:click="downloadAnki"
         x-bind:disabled="ankiGenerating"
         class="ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-80"
@@ -699,6 +702,44 @@
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
         <span x-text="ankiGenerating ? ankiProgressLabel : 'Download'"></span>
+      </button>
+
+      <!-- Failed-media replacement button. Takes the Download slot once
+           generation finishes with at least one media download failure. The
+           .apkg already downloaded (Anki tolerates missing media); clicking
+           here copies the URL list to clipboard for diagnosis. -->
+      <button
+        x-show="ankiFailedUrls.length > 0"
+        x-cloak
+        x-on:click="copyFailedLog"
+        x-bind:disabled="ankiFailedCopied"
+        x-bind:class="ankiFailedCopied ? 'bg-primary/20 text-primary border-transparent' : 'bg-destructive/5 hover:bg-destructive/10 border-destructive/20'"
+        class="ring-offset-background focus-visible:ring-ring inline-flex h-9 w-full items-center justify-center rounded-md border px-3 text-sm font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      >
+        <span x-show="!ankiFailedCopied" class="flex w-full items-center justify-between gap-2">
+          <span class="flex items-center gap-2">
+            <svg
+              class="text-destructive h-4 w-4 shrink-0"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span class="text-foreground">
+              <span class="tabular-nums" x-text="ankiFailedUrls.length"></span> media failed
+            </span>
+          </span>
+          <span class="text-muted-foreground text-xs">Copy log</span>
+        </span>
+        <span x-show="ankiFailedCopied" x-cloak>Log copied</span>
       </button>
     </div>
 

@@ -110,17 +110,23 @@ export interface AnkiExportOptions {
   onProgress?: (progress: DownloadProgress) => void;
 }
 
+export interface AnkiBuildResult {
+  bytes: Uint8Array;
+  /** URLs whose download failed and were skipped. Empty on full success. */
+  failedUrls: string[];
+}
+
 /**
  * Build an .apkg with two decks rooted on the QuickCards v1 notetype family:
- *   - `<title>` — flip cards (Term ↔ Definition), 2 cards per note
- *   - `<title> (Typing)` — typing variants, up to 2 cards per note (skipped
+ *   - `<title>` flip cards (Term to Definition), 2 cards per note
+ *   - `<title> (Typing)` typing variants, up to 2 cards per note (skipped
  *     when the typed-side text is empty, e.g. image-only Quizlet cards)
  *
- * Media (images, user audio, Quizlet TTS) is downloaded in parallel from the
- * extension's background context, which carries the user's Quizlet cookies
- * so authenticated TTS URLs resolve. Failed downloads are skipped silently.
+ * Media (images, user audio, Quizlet TTS) is downloaded in parallel. Failed
+ * downloads are reported on the result so the calling page can surface a
+ * "N media failed" hint.
  */
-export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Array> {
+export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<AnkiBuildResult> {
   const { set, days, SQL, withPreset = true, onProgress } = opts;
   const title = set.title || "QuickCards";
   const totalCards = set.cards.length;
@@ -138,7 +144,7 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
 
   // 2. Download all referenced media in parallel. No-op when the index is
   //    empty (e.g. plain text-only flashcards).
-  const fileMap = await downloadMedia(media.entries(), onProgress);
+  const { files: fileMap, failedUrls } = await downloadMedia(media.entries(), onProgress);
 
   // 3. Signal the start of the (synchronous) packaging phase.
   onProgress?.({ phase: "build", done: 0, total: 0, failed: 0 });
@@ -216,5 +222,6 @@ export async function buildAnkiPackage(opts: AnkiExportOptions): Promise<Uint8Ar
     pkg.addMedia(filename, bytes);
   }
 
-  return pkg.toUint8Array(SQL);
+  const bytes = await pkg.toUint8Array(SQL);
+  return { bytes, failedUrls };
 }
