@@ -1,13 +1,4 @@
-import type { Flashcard } from "../lib/types";
-import { extractCardFromItem, type StudiableItem } from "../lib/quizlet-parse";
-
-// ── Types ───────────────────────────────────────────────
-
-interface ScrapedData {
-  title: string;
-  description: string;
-  cards: Flashcard[];
-}
+import type { Flashcard, FlashcardSet } from "../lib/types";
 
 // ── Quizlet page detection ──────────────────────────────
 
@@ -32,157 +23,29 @@ function getSetIdFromUrl(): string | null {
   return match?.[1] ?? null;
 }
 
-// ── API fetcher ─────────────────────────────────────────
+// ── Data loading ────────────────────────────────────────
 
-const API_BASE = "https://quizlet.com/webapi/3.4";
-const PER_PAGE = 200; // server max is 500, 200 is a safe default
-
-/** Fetch all flashcards for a set via Quizlet's API, handling pagination. */
-async function fetchCardsFromApi(setId: string): Promise<Flashcard[]> {
-  const allCards: Flashcard[] = [];
-  let page = 1;
-  let pagingToken: string | undefined;
-
-  while (true) {
-    const params = new URLSearchParams({
-      "filters[studiableContainerId]": setId,
-      "filters[studiableContainerType]": "1",
-      perPage: String(PER_PAGE),
-      page: String(page),
-    });
-    if (pagingToken) params.set("pagingToken", pagingToken);
-
-    const res = await fetch(`${API_BASE}/studiable-item-documents?${params}`);
-    if (!res.ok) throw new Error(`API returned ${res.status}`);
-
-    const data = await res.json();
-    const resp = data?.responses?.[0];
-    const items: StudiableItem[] = resp?.models?.studiableItem ?? [];
-
-    for (const item of items) {
-      const card = extractCardFromItem(item);
-      if (card) allCards.push(card);
-    }
-
-    const paging = resp?.paging;
-    const total: number = paging?.total ?? 0;
-
-    // No more pages if we've collected everything or this page was short
-    if (allCards.length >= total || items.length < PER_PAGE) break;
-
-    pagingToken = paging?.token;
-    page++;
-  }
-
-  return allCards;
-}
-
-/** Fetch set metadata (title, description) via Quizlet's API. */
-async function fetchSetMetadata(setId: string): Promise<{ title: string; description: string }> {
-  const res = await fetch(`${API_BASE}/sets/${setId}`);
-  if (!res.ok) throw new Error(`Sets API returned ${res.status}`);
-
-  const data = await res.json();
-  const set = data?.responses?.[0]?.models?.set?.[0];
-  return {
-    title: set?.title ?? "Quizlet Set",
-    description: set?.description ?? "",
-  };
-}
-
-/** Primary method: fetch cards + metadata via Quizlet's web API. */
-async function fetchViaApi(setId: string): Promise<ScrapedData | null> {
-  try {
-    const [cards, meta] = await Promise.all([fetchCardsFromApi(setId), fetchSetMetadata(setId)]);
-    if (cards.length === 0) return null;
-    return { ...meta, cards };
-  } catch (err) {
-    console.warn("[QuickCards] API fetch failed, falling back to scraper:", err);
-    return null;
-  }
-}
-
-// ── Fallback: __NEXT_DATA__ scraper ─────────────────────
+let dataPromise: Promise<FlashcardSet | null> | null = null;
 
 /**
- * Scrape flashcard data from Quizlet's embedded __NEXT_DATA__ JSON.
- * Used as a fallback when the API is unreachable (e.g. rate-limited).
- *
- * Structure:
- *   <script id="__NEXT_DATA__"> -> JSON.parse ->
- *     props.pageProps.dehydratedReduxStateKey -> JSON.parse (double-encoded) ->
- *       studyModesCommon.studiableData.studiableItems[] ->
- *         cardSides[0].media[0].plainText = term
- *         cardSides[1].media[0].plainText = definition
- *
- *   Title:       ...setPage.set.title
- *   Description: ...setPage.set.description
+ * Ask the background worker to load the set (cache check + API fetch).
+ * Routed through the background so IndexedDB lives on the extension origin
+ * rather than quizlet.com.
  */
-function scrapeQuizletData(): ScrapedData | null {
+async function loadSetViaBackground(setId: string): Promise<FlashcardSet | null> {
   try {
-    const scriptEl = document.getElementById("__NEXT_DATA__");
-    if (!scriptEl?.textContent) return null;
-
-    const nextData = JSON.parse(scriptEl.textContent);
-    const reduxKey = nextData?.props?.pageProps?.dehydratedReduxStateKey;
-    if (!reduxKey) return null;
-
-    // dehydratedReduxStateKey is a JSON string within JSON — double-parse
-    const reduxState = typeof reduxKey === "string" ? JSON.parse(reduxKey) : reduxKey;
-
-    // Extract cards
-    const items: StudiableItem[] | undefined =
-      reduxState?.studyModesCommon?.studiableData?.studiableItems;
-
-    if (!items || items.length === 0) return null;
-
-    const cards: Flashcard[] = [];
-    for (const item of items) {
-      const card = extractCardFromItem(item);
-      if (card) cards.push(card);
-    }
-
-    if (cards.length === 0) return null;
-
-    const setInfo = reduxState?.setPage?.set;
-    const title: string = setInfo?.title ?? "Quizlet Set";
-    const description: string = setInfo?.description ?? "";
-
-    return { title, description, cards };
-  } catch (err) {
-    console.error("[QuickCards] Failed to scrape Quizlet data:", err);
+    const res = await chrome.runtime.sendMessage({ action: "fetchSet", setId });
+    if (res?.ok && res.set?.cards?.length > 0) return res.set as FlashcardSet;
+    return null;
+  } catch {
     return null;
   }
 }
 
-// ── Data loading (API first, scraper fallback) ──────────
-
-let cachedData: ScrapedData | null = null;
-let dataPromise: Promise<ScrapedData | null> | null = null;
-
-/** Load data: try API first, fall back to __NEXT_DATA__ scraping. */
-async function loadData(): Promise<ScrapedData | null> {
-  if (cachedData) return cachedData;
-
-  const setId = getSetIdFromUrl();
-  if (!setId) return null;
-
-  // Try API first
-  const apiData = await fetchViaApi(setId);
-  if (apiData) {
-    cachedData = apiData;
-    return cachedData;
-  }
-
-  // Fallback: scrape __NEXT_DATA__
-  cachedData = scrapeQuizletData();
-  return cachedData;
-}
-
-/** Get data, starting the fetch if not already in progress. */
-function getData(): Promise<ScrapedData | null> {
+function getData(): Promise<FlashcardSet | null> {
   if (!dataPromise) {
-    dataPromise = loadData();
+    const setId = getSetIdFromUrl();
+    dataPromise = setId ? loadSetViaBackground(setId) : Promise.resolve(null);
   }
   return dataPromise;
 }
@@ -193,11 +56,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === "getCards") {
     getData().then((data) => {
       if (data) {
-        sendResponse({
-          title: data.title,
-          description: data.description,
-          cards: data.cards,
-        });
+        sendResponse(data);
       } else {
         sendResponse({ cards: [] });
       }

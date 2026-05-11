@@ -1,4 +1,5 @@
 import type { MediaEntry } from "./anki-fields";
+import { enforceMediaCap, getCachedMedia, putCachedMedia } from "./cache";
 
 export interface DownloadProgress {
   /** Phase: "download" while pulling media, "build" while sql.js is packing the .apkg. */
@@ -56,14 +57,27 @@ export async function downloadMedia(
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, total) }, worker));
+
+  // Evict oldest cached media until under cap. One sweep per export, not per
+  // file, to keep this off the parallel download path.
+  await enforceMediaCap();
+
   return out;
 }
 
 async function fetchOne(url: string): Promise<Uint8Array | null> {
+  const cached = await getCachedMedia(url);
+  if (cached) return cached;
+
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return new Uint8Array(await res.arrayBuffer());
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    // Cache write happens off the response path; we hand the bytes back
+    // immediately. The await keeps the call within the export's progress
+    // arithmetic but the write is cheap.
+    await putCachedMedia(url, bytes);
+    return bytes;
   } catch {
     // Network errors, CORS rejections, aborted requests — all treated as
     // skip. We never retry: a re-export will pick up the same URLs again.

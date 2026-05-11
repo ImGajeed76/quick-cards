@@ -24,4 +24,10 @@ export interface FlashcardSet {
   title: string;
   description: string;
   cards: Flashcard[];
+  /** Quizlet's word-side language (ISO short code, lowercased). May be missing on legacy sets. */
+  wordLang?: string;
+  /** Quizlet's definition-side language. */
+  defLang?: string;
+  /** Set thumbnail (used for diagram sets). */
+  thumbnailUrl?: string;
 }
