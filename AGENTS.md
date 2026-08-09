@@ -1,77 +1,34 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file is auto-loaded context for Claude. Follow these guidelines when writing frontend code, reviewing UI, or making design decisions.
+This file is the canonical project guidance for this repo, shared across every AI coding agent (Claude Code, Codex, and others). It is auto-loaded context and applies to the whole repository.
+
+Section 0 covers the project, how we work, and the two surfaces' stacks. Sections 1 to 14 are design and code guidance and apply to **both** the website and the extension, except for the handful of rules marked **website-only** inline.
 
 ---
 
 ## 0. Project
 
-QuickCards is a Chrome extension (in `extension/`) with a companion SvelteKit website (in `website/`). This CLAUDE.md applies to the **website** subproject only. The extension has its own Chrome-extension conventions and does not follow these rules.
+QuickCards is two surfaces sharing one brand:
 
-- **Package manager:** Always use `bun` (not npm, pnpm, or yarn)
-- **Framework:** SvelteKit with Svelte 5 (runes mode: `$state`, `$derived`, `$props`)
-- **Styling:** Tailwind CSS 4
-- **Components:** shadcn-svelte (under `src/lib/components/ui/`)
-- **Icons:** Lucide (`@lucide/svelte`)
-- **i18n:** Not used. English only.
-- **Dark mode:** Always-on dark theme. `<html class="dark">` is hardcoded in `src/app.html`.
-- **Deployment:** Vercel. Fully prerendered via `@sveltejs/adapter-static`.
-- **Analytics:** Self-hosted Plausible. Use `track(event, props)` from `$lib/analytics`. Event names are Title Case with lowercase continuation (`Share link`, `Knowt import result`, `Install CTA`).
-- **Site tokens:** `src/lib/site.ts` exports `SITE_NAME`, `SITE_URL`, `SITE_TAGLINE`, etc. Use these. Never hardcode the site name or URL.
-- **Punctuation:** Never use em dashes (—) or double hyphens (--). Use commas, periods, or restructure the sentence instead. **Pre-commit check (mandatory):** before every commit, run `git diff --cached | grep -nP "—|--"` (or scan the changed files directly) and confirm no em dashes slipped into prose, comments, test names, or any other added content. Functional uses inside regex literals or test fixtures that exercise em-dash parsing are allowed; everything else must go.
-- **Linting:** Never trust inline IDE diagnostics/squiggles. Always verify by running `bun run check`, which runs Prettier, ESLint, and svelte-check.
-- **Formatting:** Run `bun run format` to auto-format all files before committing.
-- **Commits:** Always use [Conventional Commits](https://www.conventionalcommits.org/). Scope website changes as `feat(web): ...`, `fix(web): ...`, `chore(web): ...`, matching the existing git history.
+- `extension/`: browser extension (Chrome live, Firefox port in progress). Runs on quizlet.com, exports the open set (or merge of multiple open tabs) to Anki .apkg, PDF (vocab list, printable 2x4 cards), CSV, JSON, TXT, clipboard. Also one-click import to Knowt using the user's existing session.
+- `website/`: SvelteKit web tool (`adapter-static`, deployed to Vercel). User pastes data (vocab lists, JSON, CSV, TSV, Markdown tables, TOML); same export targets as the extension except Knowt. State encoded into the URL via lz-string.
+- `assets/`: shared screenshots used by READMEs.
 
----
+Both surfaces are 100% client-side. No account, no server, no upload.
 
-## 0.1 How we work on this project
+The extension and the website target overlapping but distinct audiences. The extension is for users *on Quizlet*; the website is for users *with flashcard data from anywhere* (CSV, ChatGPT output, Google Sheets, etc.). Both are part of the same product, and a design decision on one should be checked against the other.
 
-The user's bar is "done right, not sprinted." Take time. Reason. Do not take shortcuts. The points below are non-negotiable for any non-trivial work on this codebase.
+### Shared conventions
 
-### Think out loud, always
+- **Package manager.** `bun` everywhere. Never npm or pnpm or yarn.
+- **Vocabulary.** See 0.1. The terms are load-bearing and the full list lives there; do not restate it here, so there is only one copy to keep current.
+- **Commits.** Conventional Commits. Scopes used in this repo: `feat(extension)`, `feat(web)`, `fix(extension)`, `fix(web)`, `chore(extension)`, `chore(web)`, `docs`, `docs(store)`, `ci`. Match the existing style in `git log`.
+- **Branching.** Feature branches off `main`, named `feat/<topic>` or `fix/<topic>`. Fast-forward back into `main` when the work is logically self-contained.
+- **Linting.** Never trust inline IDE diagnostics or squiggles. Each surface has a `bun run check`; that is the gate, not the editor.
 
-Never use hidden thinking / extended-thinking blocks for reasoning. Write all reasoning directly into the chat as visible prose. The user wants to see how conclusions are reached, not just the conclusion. It is fine, even encouraged, to correct yourself or change direction mid-thought. Live reasoning beats polished post-thought conclusions.
+### Honest framing for the deadline feature
 
-This applies to every verb that implies thinking: "reason", "weigh", "analyze", "brainstorm", "explore", "consider", "design", "decide", "roleplay", "list possibilities". All of those are prose, not hidden blocks.
-
-### Brainstorm 5 options before committing to a page or surface
-
-Before writing any non-trivial page, route, layout, or significant component, **think through at least 5 different ways** to do it (or each major section of it) and weigh them. Show the alternatives in chat so the user can redirect before code is written. Do not commit to "the first thing that came to mind."
-
-For each option weigh the tradeoffs, then pick deliberately. Generic, forgettable layouts come from skipping this step.
-
-### Design checklist for every page
-
-Before designing or coding a page, walk through:
-
-- **Content framing.** What does this page say. What is the one thing the user walks away with. Which audience is this. What search intent brought them here.
-- **Reading order and eye flow.** What does the user see first, second, third. Where does the eye land. Does the page pull them down or dead-end. Are sections in the order a reader would actually want, or in the order they were easy to write.
-- **Spacing and rhythm.** Internal vs external spacing per the spacing system below. White space as a feature.
-- **Colors and primary palette.** The primary brand color is sparing on purpose. Where does it draw the eye. Where do we deliberately stay quiet.
-- **Shapes and visual elements.** Cards, dividers, asymmetric layouts, image framings. Anything that breaks block-of-text monotony.
-- **Graphics, screenshots, mockups.** What goes where. Is this proof or filler. Is it captioned, aligned, doing real work.
-- **Repetition test.** Does the page feel repetitive when scanned. Sections that all look the same need visual variety.
-- **Element necessity.** Every element earns its place. If removing it does not hurt, remove it.
-- **SEO for this page.** Target query cluster, exact phrasing in H1, semantic HTML for hierarchy, JSON-LD where it helps (FAQPage, HowTo, SoftwareApplication), internal links to related content pages.
-
-### Inspiration
-
-`~/Coding/pdfy` has well-considered layouts. When stuck, look there. Some sections can be lifted as patterns directly. This is not a license to clone visually, only to reuse layout ideas.
-
-### Vocabulary discipline
-
-User research established the words our audience actually uses. Match them in copy, do not impose your own:
-
-- **"Quizlet set"** (never "Quizlet deck"). **"Anki deck"** (never "Anki set").
-- Primary verb is **"convert"** (not "migrate" or "transfer"). Secondary: "export", "import".
-- Always say **".apkg"** with a parenthetical first usage: "Anki deck file (.apkg)".
-- The phrase **"free, no account, in your browser, open source"** belongs above the fold on every landing page. Every word of it is what users have been searching for.
-- H1s are literal: "Convert Quizlet to Anki", not "Bring your flashcards to life."
-
-### Honest framing for the deadline-mode feature
-
-The deadline picker preconfigures DeckConfig values (`desiredRetention`, `learnSteps`, `maximumReviewInterval`) based on the user's exam date. It does NOT modify FSRS parameters/weights. It is most useful for tight deadlines (under ~14 days). Past 14 days the values land at Anki defaults anyway.
+The deadline picker preconfigures DeckConfig values (`desiredRetention`, `learnSteps`, `maximumReviewInterval`) based on the user's exam date. It does NOT modify FSRS parameters or weights. It is most useful for tight deadlines (under ~14 days). Past 14 days the values land at Anki defaults anyway.
 
 The feature CAN and SHOULD be promoted. We just cannot overclaim what it does. The owner researched it, used it personally, and has anecdotal evidence it helps in cram-style situations. There is no research paper. The honest version is: "we noticed it helps, your mileage may vary."
 
@@ -99,6 +56,53 @@ Do not lead with the deadline feature as a homepage hero. It belongs as an optio
 
 Past Anki community pushback (Discord, late Apr / early May 2026) was specifically about the OVERCLAIM, not the feature existing. Honest hedged promotion is the lane.
 
+---
+
+## 0.1 How we work on this project
+
+The user's bar is "done right, not sprinted." Take time. Reason. Do not take shortcuts. The points below are non-negotiable for any non-trivial work anywhere in this repository, extension included.
+
+### Think out loud, always
+
+Never use hidden thinking / extended-thinking blocks for reasoning. Write all reasoning directly into the chat as visible prose. The user wants to see how conclusions are reached, not just the conclusion. It is fine, even encouraged, to correct yourself or change direction mid-thought. Live reasoning beats polished post-thought conclusions.
+
+This applies to every verb that implies thinking: "reason", "weigh", "analyze", "brainstorm", "explore", "consider", "design", "decide", "roleplay", "list possibilities". All of those are prose, not hidden blocks.
+
+### Brainstorm 5 options before committing to a page or surface
+
+Before writing any non-trivial page, route, layout, or significant component, **think through at least 5 different ways** to do it (or each major section of it) and weigh them. Show the alternatives in chat so the user can redirect before code is written. Do not commit to "the first thing that came to mind."
+
+For each option weigh the tradeoffs, then pick deliberately. Generic, forgettable layouts come from skipping this step.
+
+### Design checklist for every page
+
+Before designing or coding a page, walk through:
+
+- **Content framing.** What does this page say. What is the one thing the user walks away with. Which audience is this. What search intent brought them here.
+- **Reading order and eye flow.** What does the user see first, second, third. Where does the eye land. Does the page pull them down or dead-end. Are sections in the order a reader would actually want, or in the order they were easy to write.
+- **Spacing and rhythm.** Internal vs external spacing per the spacing system below. White space as a feature.
+- **Colors and primary palette.** The primary brand color is sparing on purpose. Where does it draw the eye. Where do we deliberately stay quiet.
+- **Shapes and visual elements.** Cards, dividers, asymmetric layouts, image framings. Anything that breaks block-of-text monotony.
+- **Graphics, screenshots, mockups.** What goes where. Is this proof or filler. Is it captioned, aligned, doing real work.
+- **Repetition test.** Does the page feel repetitive when scanned. Sections that all look the same need visual variety.
+- **Element necessity.** Every element earns its place. If removing it does not hurt, remove it.
+- **Degenerate data.** Render the design mentally against 0 cards, 1 card, a 400-character definition, a set with no title, term equal to definition. Plural bugs and duplication live there. "1 cards" is the exact failure.
+- **SEO for this page** (website). Target query cluster, exact phrasing in H1, semantic HTML for hierarchy, JSON-LD where it helps (FAQPage, HowTo, SoftwareApplication), internal links to related content pages.
+
+### Inspiration
+
+`~/Coding/pdfy` has well-considered layouts. When stuck, look there. Some sections can be lifted as patterns directly. This is not a license to clone visually, only to reuse layout ideas.
+
+### Vocabulary discipline
+
+User research established the words our audience actually uses. Match them in copy, do not impose your own:
+
+- **"Quizlet set"** (never "Quizlet deck"). **"Anki deck"** (never "Anki set").
+- Primary verb is **"convert"** (not "migrate" or "transfer"). Secondary: "export", "import".
+- Always say **".apkg"** with a parenthetical first usage: "Anki deck file (.apkg)".
+- The phrase **"free, no account, in your browser, open source"** belongs above the fold on every landing page. Every word of it is what users have been searching for.
+- H1s are literal: "Convert Quizlet to Anki", not "Bring your flashcards to life."
+
 ### Anti-patterns on every landing page
 
 - No signup wall before the user sees output.
@@ -107,6 +111,47 @@ Past Anki community pushback (Discord, late Apr / early May 2026) was specifical
 - No exit-intent popups, no "wait don't leave" popups.
 - No comparison tables that make the competitor look unfair. Show real strengths of the competitor too.
 - Open-source link visible on every page.
+
+---
+
+## 0.2 Website (`website/`)
+
+- **Framework:** SvelteKit with Svelte 5 (runes mode: `$state`, `$derived`, `$props`)
+- **Styling:** Tailwind CSS 4
+- **Components:** shadcn-svelte (under `src/lib/components/ui/`)
+- **Icons:** Lucide (`@lucide/svelte`)
+- **i18n:** Not used. English only.
+- **Dark mode:** Always-on dark theme. `<html class="dark">` is hardcoded in `src/app.html`.
+- **Deployment:** Vercel. Fully prerendered via `@sveltejs/adapter-static`.
+- **Analytics:** Self-hosted Plausible. Use `track(event, props)` from `$lib/analytics`. Event names are Title Case with lowercase continuation (`Share link`, `Knowt import result`, `Install CTA`).
+- **Site tokens:** `src/lib/site.ts` exports `SITE_NAME`, `SITE_URL`, `SITE_TAGLINE`, etc. Use these. Never hardcode the site name or URL.
+- **State:** encoded into the URL with lz-string, which means a populated view is reproducible from a URL alone.
+- **Gate:** `bun run check` (Prettier check, ESLint, `svelte-kit sync`, svelte-check). `bun run format` to auto-format.
+- **Tests:** `bun test`. Note this is **not** part of `bun run check`, so run it separately whenever parsing or export logic changed. See 2.7.
+
+## 0.3 Extension (`extension/`)
+
+- **Platform:** Chrome extension, Manifest V3. Firefox port in progress; `build.ts` writes a per-target manifest from `public/manifest.json`.
+- **Build:** Bun (`bun run build`, `bun run watch`). No framework bundler beyond Vite for dev.
+- **Interactivity:** Alpine.js, **CSP build** (`@alpinejs/csp`). The manifest pins `script-src 'self' 'wasm-unsafe-eval'`, so no inline expressions and no `eval`. Alpine components must be registered, not written as inline strings.
+- **Styling:** Tailwind CSS 4 via `src/styles/tailwind.css`. It defines the same shadcn token names as the website (`--color-background`, `--color-card`, `--color-primary`, `--color-ring`, `--radius`) with dark values, so sections 4 through 14 apply here unchanged.
+- **Key dependencies:** `ankipack` and `sql.js` (.apkg generation), `jspdf` (PDF), `idb` (IndexedDB cache for sets and media), `hyphen`.
+- **Permissions:** every entry in `permissions` and `host_permissions` is a thing we must justify in `store/permission-justifications.md`. Adding one is a product decision, not an implementation detail. See 1.7.
+- **Store assets:** `store/` holds the Chrome Web Store listing, permission justifications, privacy disclosures, and screenshots. Copy there follows the same vocabulary and honest-framing rules as everything else.
+- **Gate:** `bun run check` (Prettier check, ESLint, `tsc --noEmit`). `bun run format` to auto-format. `bun run test:pdf` exercises the PDF path.
+
+## 0.4 Where to find what
+
+| Topic                                                | File                    |
+| ---------------------------------------------------- | ----------------------- |
+| Project, work-style, design and code rules (this file) | `AGENTS.md`             |
+| Repo overview, screenshots                           | `README.md` (root)      |
+| Website readme                                       | `website/README.md`     |
+| Extension overview, install, dev                     | `extension/README.md`   |
+| Chrome Web Store submission assets                   | `extension/store/`      |
+| Shared screenshots used by the READMEs               | `assets/`               |
+
+`CLAUDE.md` at the repo root is a shim that imports this file. Edit `AGENTS.md`, not the shim.
 
 ---
 
@@ -213,17 +258,46 @@ Internal consistency is more important than novelty. The same action should look
 - Icon usage and sizing
 - Color usage for same semantic meaning
 
+Consistency here spans both surfaces. The same export step should not be worded one way in the popup and another way on the site.
+
 ### 1.5 Less Is More [4/5]
 
 Once a feature is released, it never goes away. Avoid adding features that don't offer high user value for the cost in maintenance, complexity, and payload size. When in doubt, leave it out.
 
 This applies especially to providing two different APIs or patterns to accomplish the same thing. Prefer sticking to a single approach.
 
+Note the distinction from a shortcut: this rule is about doing *less*, not about doing a kept feature the cheap way.
+
 ### 1.6 Prefer Small, Focused Modules [4/5]
 
 Keeping modules to a single responsibility makes the code easier to test, consume, and maintain. Ideally, individual files are 200-300 lines of code.
 
 As a rule of thumb, once a file draws near 400 lines (barring long constants or comments), start considering how to refactor into smaller pieces.
+
+### 1.7 Privacy and Security by Default [5/5]
+
+Treat every decision as if a privacy-conscious user is reading the code. This is not a general aspiration here, it is the product claim: "free, no account, in your browser, open source" and "100% client-side, no server, no upload" appear in the READMEs, the store listing, and above the fold on every landing page. The code has to keep making that true.
+
+- **The user's card data never leaves the device.** Parsing, conversion, and file generation are local. There is no analytics event, error report, or debug log that carries card content, set titles, or pasted text.
+- **Every network call needs a stated reason.** The legitimate ones are narrow: fetching media the user's own set references, and the Knowt import that uses the user's existing session. A new `fetch` outside that set is a product decision, not an implementation detail. Name it in the commit message and check it against the privacy copy.
+- **Every new permission or host match is the same kind of decision.** Manifest V3 `permissions` and `host_permissions` are user-visible at install and must be justified in `store/permission-justifications.md`. Do not add one to make an implementation easier.
+- **Collect the minimum.** Plausible is self-hosted and event-level. Events record that something happened, never what was converted. No fingerprinting, no third-party trackers, no surprise telemetry.
+- **Never log secrets or session material.** Cookies and session tokens used for the Knowt path do not go into logs, error messages, or state that outlives the request.
+- **Treat scraped page content as untrusted input.** Quizlet content is arbitrary user-authored HTML from a third party. It gets escaped, never injected raw.
+
+When privacy and another goal conflict, document the tradeoff in a comment or the commit message, and default toward more private.
+
+### 1.8 Stay Client-Side and Lean [4/5]
+
+The whole product is a static site and a browser extension. That constraint is a feature, and it decides architecture questions before they get interesting.
+
+- **No server, no database, no account.** If a feature seems to need persistence beyond `localStorage`, the URL, or IndexedDB, that is a design smell to raise, not a backend to add.
+- **No build-time or runtime service dependency.** The website is fully prerendered; the extension ships everything it needs. Nothing is fetched from us at startup.
+- **Payload size is a real budget**, especially in the extension, where `sql.js` and `jspdf` are already heavy. A new dependency is something every user downloads.
+- **Dependencies earn their place.** Prefer the platform. See 2.1 and 3.9.
+- **Do not hammer third parties.** Media fetches for a set are batched and bounded, and a failure is surfaced to the user (the failed-media count) rather than retried into the ground.
+
+Compromises here follow the same rule as in 1.7: flag the tradeoff in the commit message or a comment.
 
 ---
 
@@ -238,92 +312,77 @@ For every tool or library category, follow this decision flow:
 3. **If no**, recommend a specific default (listed below) and ask before adding it
 4. **Never** reinvent what already exists in the project's dependencies
 
-### 2.2 Component Library (default: shadcn/ui) [5/5]
+This is cross-surface. Before adding a parser, formatter, or export helper to one surface, check whether the other already has one. A second CSV splitter is the exact failure this rule exists to prevent.
 
-Before building ANY custom component, always check if the project's component library already provides it. Only build custom if it genuinely doesn't exist.
+### 2.2 Component Library [5/5], website-only
 
-**If no component library exists:** Recommend shadcn/ui. It provides unstyled, composable primitives that you own and can customize.
+Before building ANY custom component on the website, check whether shadcn-svelte already provides it. Only build custom if it genuinely doesn't exist.
 
 **Flow:**
 
-1. Need a dialog? Check shadcn/ui (or whatever library the project uses) first.
+1. Need a dialog? Check shadcn-svelte first.
 2. It exists? Use it. Follow its patterns. Don't wrap it unnecessarily.
 3. It doesn't exist? Build a reusable component following the same patterns the library uses.
 
-### 2.3 Styling (default: Tailwind CSS) [4/5]
+The extension has no component library installed. Build its UI from the shared Tailwind tokens and keep the metrics in sections 4 through 7; do not pull shadcn-svelte into an Alpine surface.
 
-If the project uses Tailwind, follow its conventions. If using something else (CSS modules, styled-components, etc.), follow that system's patterns.
+### 2.3 Styling (Tailwind CSS) [4/5]
 
-**If no styling system exists:** Recommend Tailwind CSS. Use theme tokens, not raw color values.
-
-**Tailwind-specific conventions (when applicable):**
+Both surfaces use Tailwind 4. Follow its conventions:
 
 - Use the spacing scale (multiples of the base unit), don't use arbitrary values like `m-[17px]`
 - Use theme tokens (`bg-primary`, `text-muted-foreground`) instead of raw colors (`bg-blue-500`)
 - Specify transition properties (`transition-colors`) instead of `transition-all`
 
-### 2.4 Icons (default: Lucide) [4/5]
+### 2.4 Icons (Lucide) [4/5]
 
-If the project has an icon library, use it. Never write SVG markup directly; always use icon components.
+The website uses `@lucide/svelte`. Never write SVG markup directly there; always use icon components. In the extension, where there is no icon component layer, keep icons in one place and reuse them rather than pasting SVG at each call site. If an icon doesn't exist in Lucide, create a reusable component rather than inlining it repeatedly.
 
-**If no icon library exists:** Recommend Lucide. If an icon doesn't exist in the library, create a reusable component rather than inlining SVG.
+### 2.5 Internationalization [4/5]
 
-### 2.5 Internationalization (default: ParaglideJS) [4/5]
+Neither surface uses i18n. English only. Do not add an i18n system without asking.
 
-If an i18n system already exists, use it the way it already gets used. Never hardcode user-facing strings if i18n is set up.
-
-**If no i18n system exists:** Recommend ParaglideJS and use these conventions:
-
-**Key Naming Convention:**
-
-Structure: `{scope}_{feature}_{element}_{modifier}`
-
-| Part         | Description              | Examples                                                                        |
-| ------------ | ------------------------ | ------------------------------------------------------------------------------- |
-| **scope**    | Top-level section        | `auth`, `editor`, `settings`, `dashboard`, `common`                             |
-| **feature**  | Specific feature/page    | `unlock`, `signin`, `profile`, `document`, `sidebar`                            |
-| **element**  | UI element type          | `button`, `input`, `label`, `title`, `description`, `error`, `success`, `toast` |
-| **modifier** | Variant/state (optional) | `primary`, `secondary`, `loading`, `empty`, `incorrect`, `placeholder`          |
-
-**Examples:**
-
-```
-auth_unlock_title                    - "Welcome back"
-auth_unlock_button_primary           - "Unlock"
-auth_unlock_error_incorrect          - "Incorrect password"
-common_button_save                   - "Save"
-common_button_cancel                 - "Cancel"
-common_error_network                 - "Network error. Please try again."
-editor_document_title_placeholder    - "Untitled"
-```
-
-**Rules:**
-
-- For reusable text (Save, Cancel, Delete), use `common_*` prefix
-- Keys are deterministic: following the pattern, you know exactly what the key should be
-- Related keys group alphabetically for easy scanning
+If one is ever added, no user-facing string may be hardcoded from that point on, and keys follow `{scope}_{feature}_{element}_{modifier}` (e.g. `export_anki_button_primary`, `common_button_cancel`), with `common_*` for reusable text.
 
 ### 2.6 Framework-Specific Conventions [3/5]
 
-Use the frontend framework's standard practices. Some specifics:
-
-**SvelteKit:**
+**SvelteKit (website-only):**
 
 - Use `$lib` for imports from the lib directory
 - Use Svelte transitions (`slide`, `fade`) for enter/exit animations
-- Prefer reactive declarations (`$:` / `$derived`) over manual watchers
+- Prefer runes (`$derived`) over manual watchers
 - Use SvelteKit's form actions for form handling when appropriate
 
-**React:**
+**Alpine.js, CSP build (extension-only):**
 
-- Prefer functional components with hooks
-- Use the framework's state management patterns (useState, useReducer, context)
-- Avoid prop drilling; use composition or context
+- Components are registered with `Alpine.data(...)`, never written as inline expression strings. The manifest's CSP forbids the latter and it will fail silently in ways that look like a logic bug.
+- `x-cloak` is already handled in `tailwind.css`; use it rather than inventing a flash-prevention scheme.
 
 **General:**
 
 - Follow whatever patterns are already established in the codebase
 - Don't introduce a new pattern when an equivalent one already exists
+
+### 2.7 Testing [3/5]
+
+The test runners are `bun test` in `website/` and `bun run test:pdf` in `extension/`. Follow the conventions already in `website/src/lib/parse.test.ts` for location, naming, and assertion style. Don't introduce a different testing framework as a side effect of writing one test.
+
+**What to test:**
+
+- The parsers and export converters. This is the core risk surface of the whole product: vocab lists, CSV, TSV, Markdown tables, TOML, JSON going in, and .apkg / PDF / CSV / JSON / TXT going out.
+- Non-obvious edge cases: consecutive delimiters, empty fields, trailing newlines, a quoted delimiter, single-column input, a term equal to its definition, and off-by-ones.
+- Contracts consumers rely on: the .apkg note GUID derivation, the URL state encoding, anything whose output lands in a user's real deck.
+
+**What NOT to test:**
+
+- Trivial getters and pass-through wrappers.
+- Library code. Don't test that `jspdf` works.
+- Implementation details that would change with a normal refactor.
+- The same thing in five places.
+
+**When a bug gets through that a test should have caught, write the failing test first, then fix it.** Reproduce as red, then fix to green, and keep the test. A test that has never failed is not yet evidence.
+
+Each test exists for a specific reason. Quality over quantity: a few sharp tests beat a hundred shallow ones. Coverage is not the goal; confidence in the parts that need it is.
 
 ---
 
@@ -353,6 +412,8 @@ if (!this.getAttribute("tabindex")) {
 }
 ```
 
+**Keep them short.** Two lines is the budget for a why, written once on the thing that owns it, never restated at call sites or copied into tests. A why that needs more than two lines means the code is wrong, not the comment. Never write a comment that only defends a choice made wrong the first time; the right version needs no defense.
+
 ### 3.2 Naming [4/5]
 
 - Prefer full words over abbreviations
@@ -368,6 +429,7 @@ if (!this.getAttribute("tabindex")) {
 - Use JsDoc-style comments for descriptions on classes, members, etc.
 - Use `//` comments for explanations and background info.
 - Boolean properties: use "Whether..." phrasing in docs (`/** Whether the button is disabled. */`)
+- **A cast is a compiler blindfold.** Treat every `as unknown as T` as an unverified claim about runtime shape, and check it against a real working call site.
 
 ### 3.4 Boolean Arguments [3/5]
 
@@ -395,6 +457,35 @@ Avoid `try-catch` blocks. Prefer preventing errors from being thrown in the firs
 ### 3.7 Event Naming [3/5]
 
 Use `before` prefix for events that fire before an action (e.g. `beforeopen` and `open`).
+
+### 3.8 Don't Reach for Regex [4/5]
+
+Regex is hard to read, hard to maintain, almost always subtly wrong, and brittle in ways that bite months later. This repo parses text for a living, so the rule needs to be precise rather than absolute.
+
+**Never use regex for:**
+
+- Validating input (emails, URLs, language codes, numbers)
+- Replacing tokens or building strings
+- Splitting user-pasted text on a guessed delimiter
+- Extracting structure out of scraped HTML
+
+**Prefer instead:**
+
+- String operations: `startsWith`, `endsWith`, `includes`, `split`, indexed scanning, character-by-character iteration
+- Proper parsers: the `URL` constructor, `Date.parse`, `DOMParser` for markup, dedicated libraries for locales and time zones
+- Explicit state machines for the format parsers, which is what a CSV or Markdown-table reader actually is
+
+**Where it is legitimate:** narrow character classification inside a tokenizer, the "is this a quote, a digit, a line boundary" question. That is the rare case the rule carves out. When you use one there, comment it in one line and pin the exact inputs and expected outputs in a test. A regex without a test that would fail if it broke is not finished.
+
+**The delimiter bullet above bans the guessing, not the tokenizer.** The scan that decides which delimiter a pasted block uses stays explicit code, read character by character, because its failure mode is silent and lands in someone's deck. See the `smart delimiter scan` cases in `website/src/lib/parse.test.ts` for the shape that has to keep working.
+
+Default position: there is a simpler tool, and for a parser the simpler tool is usually an explicit scan.
+
+### 3.9 Don't Hand-Roll What the Platform Provides [4/5]
+
+Before writing a validator, parser, or text transform by hand, check what the platform already does correctly: `Intl`, `URL`, `Date`, `TextDecoder`, `Intl.Segmenter`, `DOMParser`. The hand-rolled version is subtly wrong in ways that surface much later, and it usually ships with a comment asking a human to keep two things in sync, which is the tell. If a comment says "must stay in step with X", that is duplication to remove, not a note to write.
+
+Verify the platform tool actually fits before adopting it. The more standard-looking option is not automatically the correct one.
 
 ---
 
@@ -441,6 +532,8 @@ All spacing uses multiples of a base unit (8px recommended). This creates visual
 - 20px - Form field groups (DEFAULT for forms)
 - 24px - Card sections
 - 32px - Major page sections (DEFAULT for sections)
+
+The extension popup is a dense surface, so it sits at the tighter end of these defaults. It still uses the same scale; it does not get arbitrary values.
 
 ### 4.3 Internal <= External Rule [4/5]
 
@@ -516,6 +609,8 @@ Caption/metadata:  text-xs, muted color
 
 ## 6. Colors & Theme
 
+Both surfaces are dark-only and share the same token names. The website hardcodes `<html class="dark">`; the extension's `tailwind.css` defines the dark values directly in `@theme`. There is no light mode to support, and adding one is a product decision, not a styling detail.
+
 ### 6.1 Never Hardcode Colors [5/5]
 
 Always use theme tokens. Never use color utilities or hex values directly.
@@ -523,8 +618,6 @@ Always use theme tokens. Never use color utilities or hex values directly.
 **Correct:** `bg-card`, `text-foreground`, `border-destructive`
 
 **Incorrect:** `bg-gray-100`, `text-gray-700`, `bg-[#f5f5f5]`
-
-Theme tokens automatically adapt to light/dark mode.
 
 ### 6.2 Semantic Color Usage [5/5]
 
@@ -560,12 +653,14 @@ destructive      - Error states
 
 ### 6.3 Status Colors [4/5]
 
-For status indicators, always provide both light and dark mode variants:
+For status indicators:
 
 - **Success**: Green tones
 - **Warning**: Yellow/amber tones
 - **Error**: Use the destructive token
 - **Info**: Use the primary token
+
+If a status color is needed in more than one place, define it as a token rather than repeating a literal.
 
 ### 6.4 No Gradients [4/5]
 
@@ -589,7 +684,7 @@ Use shadows sparingly and only for elevation hierarchy:
 
 Before creating any component:
 
-1. Check if the project's component library (e.g. shadcn/ui) already provides it
+1. Check if the surface's component library already provides it (shadcn-svelte on the website)
 2. If yes, use it. Follow its patterns.
 3. If no, build a reusable component following the same patterns the library uses
 
@@ -696,6 +791,8 @@ The overshoot (1.56 exceeds 1.0) makes the element go slightly past its target a
 - Error states (should appear instantly)
 - Critical information
 
+The extension popup opens and closes constantly, so it is the surface where a 300ms entrance becomes a 300ms tax. Keep its motion at the short end.
+
 ### 8.4 Subtle Delight [3/5]
 
 Playful design works when it enhances without distracting. Delight is the icing on the cake, it comes after functional, reliable, and usable.
@@ -729,6 +826,8 @@ Primary target is desktop. Mobile should work but is lower priority unless speci
 1536px (2xl) - Large screens
 ```
 
+The extension popup has a fixed narrow viewport rather than breakpoints. It still respects touch targets and the spacing scale.
+
 ### 9.2 Touch Targets [4/5]
 
 Interactive elements must be at least 44x44px on touch devices.
@@ -747,11 +846,11 @@ Interactive elements must be at least 44x44px on touch devices.
 
 Every action must have immediate, visible feedback.
 
-**Loading:** Disable the trigger, show a spinner or loading text, indicate progress.
+**Loading:** Disable the trigger, show a spinner or loading text, indicate progress. Conversion and export are the slow paths here and both need real progress, not a frozen button.
 
 **Success:** Brief, non-blocking confirmation (toast or inline message).
 
-**Error:** Appear instantly (no animation delay), specific and actionable message, placed near the source.
+**Error:** Appear instantly (no animation delay), specific and actionable message, placed near the source. A partial failure is not a success: surface the failed-media count rather than hiding it.
 
 ### 10.2 Empty States [4/5]
 
@@ -805,13 +904,15 @@ Show only what's needed. Hide complexity until the user asks for it.
 
 ### 10.6 Micro-copy [4/5]
 
-**Button labels:** Use verbs. Be specific when context is unclear ("Save Document" not just "Save"). Match the severity ("Delete" for destructive, "Remove" for reversible).
+**Button labels:** Use verbs. Be specific when context is unclear ("Save Document" not just "Save"). Match the severity ("Delete" for destructive, "Remove" for reversible). Follow the vocabulary rules in 0.1: the verb is "convert".
 
 **Error messages:** Explain what happened and how to fix it. Don't blame the user.
 
 **Placeholder text:** Show format examples ("name@example.com"). Don't repeat the label. Don't use as the only label.
 
 **Confirmation dialogs:** Title states what will happen. Description states consequences. Actions use clear verb labels.
+
+**Counts:** always handle singular and plural. "1 cards" is a bug.
 
 ### 10.7 Reduce Cognitive Load [3/5]
 
@@ -866,6 +967,8 @@ Visually and textually indicate the error state. Use the destructive color token
 
 Icon-only buttons must have labels (`aria-label`). Provide context for screen readers on any element where the visual meaning isn't conveyed through text.
 
+When hand-rolled markup is replaced with a library primitive, sweep the leftover `role` / `aria-expanded` / `aria-haspopup` / `aria-controls` attributes. The primitive supplies its own, and the ones left behind now lie.
+
 ### 12.2 Form Labels [4/5]
 
 All inputs must have associated labels. Use `aria-describedby` for supplementary help text.
@@ -911,7 +1014,7 @@ Define component-level CSS variables in the component's root, and change them vi
 
 ### 13.2 Use Existing Design Tokens [4/5]
 
-If the project provides global design tokens or CSS variables, use them. Don't define new variables for things that already exist. If a token is missing, flag it.
+Both surfaces define the same token set. Use them. Don't define new variables for things that already exist. If a token is missing on one surface but present on the other, add it with the same name and value rather than inventing a parallel one.
 
 ### 13.3 Lowest Specificity Possible [4/5]
 
@@ -943,17 +1046,7 @@ To avoid unwanted style overrides from outside, encapsulate styles on inner elem
 
 ### 13.6 Avoid SCSS & Concatenation [3/5]
 
-Don't use `&` rule concatenation in SCSS. It hurts readability and makes selectors harder to search for.
-
-```scss
-// Avoid
-.divider {
-  &--negative { ... }
-}
-
-// Prefer
-.divider--negative { ... }
-```
+Neither surface uses SCSS and neither should start. If it ever appears, don't use `&` rule concatenation: it hurts readability and makes selectors harder to search for.
 
 ### 13.7 Be Cautious With display: flex on Outermost Elements [3/5]
 
@@ -974,20 +1067,23 @@ Never silently swallow errors. Always provide a catch path and display errors to
 **[5/5] Hardcoded colors:**
 Never use raw color values. Always use theme tokens.
 
-**[5/5] Hardcoded user-facing strings (when i18n exists):**
-If the project has an i18n system, every user-facing string must go through it.
+**[5/5] Shipping card data off the device:**
+No network call, log, or analytics event carries card content, set titles, or pasted text. See 1.7.
+
+**[5/5] Silent truncation:**
+Never drop cards, fields, or media without telling the user. Show counts before and after.
 
 **[4/5] Removed focus outlines:**
 Never remove focus outlines. This breaks keyboard accessibility.
 
-**[4/5] Inline SVG instead of icon components:**
-Never write SVG markup directly. Use the project's icon library.
+**[4/5] Inline SVG scattered across call sites:**
+Use the icon component (website) or a single shared source (extension).
 
 **[4/5] Gradients:**
 No gradients. Flat, solid colors only.
 
 **[4/5] Layout shift on state change:**
-Error messages and dynamic content appearing should not push other content around. Use transitions or reserve space.
+Error messages and dynamic content appearing should not push other content around. Use transitions or reserve space. This bites on parse-on-paste, media thumbnails, export progress, and IndexedDB cache reads.
 
 **[4/5] Inconsistent spacing:**
 Don't mix spacing systems. Stick to the base grid. No arbitrary pixel values.
@@ -1002,20 +1098,24 @@ Specify which properties animate. `transition-all` has performance cost and caus
 
 ## Review Checklist
 
-Before considering frontend work complete:
+Before considering work complete:
 
 - [ ] Every element serves a purpose (no decorative extras)
-- [ ] Checked component library before building custom
+- [ ] Checked the component library, and the other surface, before building custom
 - [ ] Spacing follows the base grid
 - [ ] No hardcoded colors (theme tokens only)
 - [ ] No gradients (flat colors only)
-- [ ] User-facing strings use i18n (if set up)
-- [ ] Icons use the project's icon library (no inline SVG)
+- [ ] Icons come from the shared source (no scattered inline SVG)
 - [ ] Correct component sizes (standard button/input heights)
 - [ ] Loading state implemented for async actions
-- [ ] Error state implemented and visible
+- [ ] Error state implemented and visible, including partial failures
+- [ ] Counts handle singular and plural
+- [ ] No layout shift when async content lands
 - [ ] Hover states on interactive elements
 - [ ] Focus states visible (no outline removal)
 - [ ] Keyboard accessible
-- [ ] ARIA labels on icon-only buttons
+- [ ] ARIA labels on icon-only buttons, and no stale ones left behind
+- [ ] No new network call, permission, or host match without a stated reason
+- [ ] Tests cover the parser or converter edge case that prompted the change
+- [ ] `bun run check` clean on the surface(s) touched, plus `bun test` if parsing or export changed
 - [ ] Matches existing patterns in the codebase
