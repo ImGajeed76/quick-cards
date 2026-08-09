@@ -236,7 +236,7 @@
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <link rel="preconnect" href="https://api.github.com" crossorigin="anonymous" />
-  <link rel="dns-prefetch" href="https://plausible.axonotes.ch" />
+  <link rel="dns-prefetch" href="https://analytics.oseifert.ch" />
   <!-- eslint-disable svelte/no-at-html-tags — content is our own JSON.stringify output, no user input -->
   {@html appJsonLdHtml}
   {@html orgJsonLdHtml}

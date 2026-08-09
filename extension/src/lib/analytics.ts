@@ -6,7 +6,7 @@
 
 const DOMAIN = "quickcards.oseifert.ch";
 const URL = "https://quickcards.oseifert.ch/extension/popup";
-const ENDPOINT = "https://plausible.axonotes.ch/api/event";
+const ENDPOINT = "https://analytics.oseifert.ch/api/event";
 
 type Props = Record<string, string | number | boolean>;
 

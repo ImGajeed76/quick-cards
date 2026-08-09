@@ -14,17 +14,17 @@ Export flashcard sets from Quizlet to common file formats (PDF, Anki .apkg, TXT,
 
 ## Data usage: what does the extension collect?
 
-| Category                            | Tick? | Notes                                                                                                           |
-| ----------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------- |
-| Personally identifiable information | No    | No name, email, phone, address, ID. Nothing.                                                                    |
-| Health information                  | No    |                                                                                                                 |
-| Financial and payment information   | No    |                                                                                                                 |
-| Authentication information          | No    | We read Knowt's own session cookie to call Knowt's API on the user's behalf. The token never leaves to us.      |
-| Personal communications             | No    |                                                                                                                 |
-| Location                            | No    |                                                                                                                 |
-| Web history                         | No    |                                                                                                                 |
-| User activity                       | Yes   | Anonymous Plausible events: which export format, did Knowt import succeed, Anki deadline bucket. No PII.        |
-| Website content                     | Yes   | Quizlet set title, description, and flashcard contents. Stays local unless the user explicitly exports/imports. |
+| Category                            | Tick? | Notes                                                                                                                                                   |
+| ----------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Personally identifiable information | No    | No name, email, phone, address, ID. Nothing.                                                                                                            |
+| Health information                  | No    |                                                                                                                                                         |
+| Financial and payment information   | No    |                                                                                                                                                         |
+| Authentication information          | No    | We read Knowt's own session cookie to call Knowt's API on the user's behalf. The token never leaves to us.                                              |
+| Personal communications             | No    |                                                                                                                                                         |
+| Location                            | No    |                                                                                                                                                         |
+| Web history                         | No    |                                                                                                                                                         |
+| User activity                       | Yes   | Anonymous Plausible events: which export format, whether sets were merged and roughly how many, did Knowt import succeed, Anki deadline bucket. No PII. |
+| Website content                     | Yes   | Quizlet set title, description, and flashcard contents. Stays local unless the user explicitly exports/imports.                                         |
 
 **Why "Authentication information" is No, even though we touch a token:**
 Chrome's policy defines collection as transmitting data off the user's device.

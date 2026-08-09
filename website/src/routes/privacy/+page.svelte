@@ -276,6 +276,9 @@
           >anki</code
         >,
         <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
+          >anki-no-preset</code
+        >,
+        <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
           >copy</code
         >,
         <code class="bg-muted text-foreground rounded px-1.5 py-0.5 font-mono text-[0.85em]"
@@ -291,12 +294,22 @@
       </li>
       <li>The outcome of a Knowt import (success, sign-in needed, or error).</li>
       <li>Page views and install-CTA clicks on the website.</li>
+      <li>
+        Which built-in example was loaded on the paste page, and what format your pasted data was
+        detected as when you continue.
+      </li>
+      <li>
+        That a share link was created, and the size in bytes of the encoded link. Never what it
+        encodes.
+      </li>
+      <li>Clicks on links leaving the site, and file downloads. Both record the link target.</li>
     </ul>
     <p class="text-muted-foreground mt-4 text-[15px] leading-7">
-      That is the full list. We do not log card contents, set IDs, URLs you visit, search terms, or
-      anything that identifies you. The data is used to decide which features are worth keeping. We
-      don't sell it, share it, or use it for ads. Any standard ad blocker that recognises Plausible
-      will silently drop the requests; the extension and website work normally either way.
+      That is the full list. We do not log card contents, set IDs, your browsing history away from
+      this site, search terms, or anything that identifies you. The data is used to decide which
+      features are worth keeping. We don't sell it, share it, or use it for ads. Any standard ad
+      blocker that recognises Plausible will silently drop the requests; the extension and website
+      work normally either way.
     </p>
 
     <h2 class="mt-16 text-2xl font-semibold tracking-tight">GitHub</h2>
