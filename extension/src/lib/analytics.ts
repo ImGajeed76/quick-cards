@@ -4,8 +4,8 @@
 // `keepalive: true` lets the request finish even if the popup closes the moment
 // after the user clicks an export.
 
-const DOMAIN = "quickcards.oseifert.ch";
-const URL = "https://quickcards.oseifert.ch/extension/popup";
+const DOMAIN = "quickcards.org";
+const URL = "https://quickcards.org/extension/popup";
 const ENDPOINT = "https://analytics.oseifert.ch/api/event";
 
 type Props = Record<string, string | number | boolean>;

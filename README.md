@@ -6,7 +6,7 @@ Export Quizlet flashcards and vocab lists to PDF, Anki, TXT, CSV, JSON, or impor
 [![Chrome Web Store users](https://img.shields.io/chrome-web-store/users/kjbjdolelcchfcmainniifnpkgikjfkc)](https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc)
 [![Chrome Web Store rating](https://img.shields.io/chrome-web-store/rating/kjbjdolelcchfcmainniifnpkgikjfkc)](https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Web app](https://img.shields.io/badge/web-quickcards.oseifert.ch-7B4DE4)](https://quickcards.oseifert.ch)
+[![Web app](https://img.shields.io/badge/web-quickcards.org-7B4DE4)](https://quickcards.org)
 
 ![QuickCards popup](assets/popup_main.png)
 
@@ -17,7 +17,7 @@ Works directly on Quizlet set pages: floating banner, one-click copy, merge mult
 
 > Also works in Firefox (sideload from the [release ZIP](https://github.com/ImGajeed76/quick-cards/releases) for now). A Firefox Add-ons listing is planned for the next major release.
 
-**Web** ([quickcards.oseifert.ch](https://quickcards.oseifert.ch))
+**Web** ([quickcards.org](https://quickcards.org))
 Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Nothing to install. Share the URL and the export reproduces on the other side.
 
 ## Features
@@ -50,7 +50,7 @@ Paste a vocab list, JSON, CSV, TSV, Markdown table, or TOML and get exports. Not
 
 ```
 ├── extension/       Chrome extension, source, build, manifest
-├── website/         SvelteKit web app, hosted at quickcards.oseifert.ch
+├── website/         SvelteKit web app, hosted at quickcards.org
 ├── assets/          Shared screenshots
 └── LICENSE          MIT
 ```
@@ -78,12 +78,12 @@ cd website
 bun install
 bun run dev        # localhost:5173
 bun run build      # → website/build/ (static)
-bun test           # parser unit tests (73)
+bun test           # parser unit tests
 ```
 
 ## Release
 
-**Extension.** Push a version tag, GitHub Actions builds and zips, publishes a GitHub Release with auto-generated notes. The release ZIP is then uploaded to the Chrome Web Store dashboard.
+**Extension.** Push a version tag, GitHub Actions builds and zips, publishes a GitHub Release with auto-generated notes.
 
 ```bash
 git tag v1.7.0 && git push origin v1.7.0

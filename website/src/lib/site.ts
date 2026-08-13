@@ -1,4 +1,4 @@
-export const SITE_URL = "https://quickcards.oseifert.ch";
+export const SITE_URL = "https://quickcards.org";
 export const SITE_NAME = "QuickCards";
 export const SITE_TAGLINE = "Export Quizlet & vocab lists, quick.";
 export const SITE_DESCRIPTION =

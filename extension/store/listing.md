@@ -45,13 +45,13 @@ PRIVACY
 
 • No accounts. No tracking cookies. No card content sent anywhere we control.
 • Optional anonymous usage counts (which export format was used, did the import succeed) via a self-hosted Plausible instance with no PII, no IPs, no cookies.
-• Full privacy policy: https://quickcards.oseifert.ch/privacy
+• Full privacy policy: https://quickcards.org/privacy
 
 OPEN SOURCE
 
 MIT licensed. Source on GitHub: https://github.com/ImGajeed76/quick-cards
 
-Also available as a web app: paste vocab lists, JSON, CSV, or TSV at https://quickcards.oseifert.ch and get the same exports without installing anything.
+Also available as a web app: paste vocab lists, JSON, CSV, or TSV at https://quickcards.org and get the same exports without installing anything.
 ```
 
 ---

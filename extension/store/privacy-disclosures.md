@@ -62,7 +62,7 @@ All three must be ticked:
 ## Privacy policy URL
 
 ```
-https://quickcards.oseifert.ch/privacy
+https://quickcards.org/privacy
 ```
 
 ---
@@ -71,7 +71,7 @@ https://quickcards.oseifert.ch/privacy
 
 - **Developer name (publicly visible):** Oliver Seifert
 - **Public contact email:** quickcards@alias.oseifert.ch
-- **Support / homepage URL:** https://quickcards.oseifert.ch
+- **Support / homepage URL:** https://quickcards.org
 - **Issue tracker (linked in detailed description):** https://github.com/ImGajeed76/quick-cards/issues
 
 ---

@@ -6,7 +6,7 @@ Copy to clipboard, download as PDF, Anki, TXT, CSV, or JSON, or import directly 
 
 [<img src="store/cws-badge.png" alt="Available in the Chrome Web Store" height="58">](https://chromewebstore.google.com/detail/quickcards/kjbjdolelcchfcmainniifnpkgikjfkc)
 
-> Also available as a web app at **[quickcards.oseifert.ch](https://quickcards.oseifert.ch)**. Paste vocab lists, JSON, or CSV and get the same exports, no install.
+> Also available as a web app at **[quickcards.org](https://quickcards.org)**. Paste vocab lists, JSON, or CSV and get the same exports, no install.
 
 ![Popup main screen](../assets/popup_main.png)
 

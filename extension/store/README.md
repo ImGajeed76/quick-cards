@@ -13,7 +13,7 @@ Dashboard.
 
 ## Live URLs the listing depends on
 
-- Privacy policy: <https://quickcards.oseifert.ch/privacy>
-- Homepage: <https://quickcards.oseifert.ch>
+- Privacy policy: <https://quickcards.org/privacy>
+- Homepage: <https://quickcards.org>
 - Source: <https://github.com/ImGajeed76/quick-cards>
 - Issues: <https://github.com/ImGajeed76/quick-cards/issues>
